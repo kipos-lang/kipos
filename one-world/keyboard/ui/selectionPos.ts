@@ -1,6 +1,6 @@
 import { TestState } from '../test-utils';
 
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { getSpan, lastChild, NodeSelection, Path, pathWithChildren, selStart, Top } from '../utils';
 import { getCurrent } from '../selections';
 import { goLeft, goRight, handleNav, isTag, selectEnd, selectStart } from '../handleNav';
@@ -197,8 +197,8 @@ export const posInList = (path: Path, pos: { x: number; y: number }, refs: Recor
             pos.y >= candidate.top && pos.y <= candidate.top + candidate.height
                 ? 0
                 : pos.y < candidate.top
-                ? pos.y - candidate.top
-                : pos.y - (candidate.top + candidate.height);
+                  ? pos.y - candidate.top
+                  : pos.y - (candidate.top + candidate.height);
         // const d = dx * dx + dy * dy;
         return { dx, dy };
     };
@@ -218,8 +218,8 @@ export const posInList = (path: Path, pos: { x: number; y: number }, refs: Recor
             pos.y >= candidate.top && pos.y <= candidate.top + candidate.height
                 ? 0
                 : pos.y < candidate.top
-                ? pos.y - candidate.top
-                : pos.y - (candidate.top + candidate.height);
+                  ? pos.y - candidate.top
+                  : pos.y - (candidate.top + candidate.height);
         const d = dx * dx + dy * dy;
         return d;
     };

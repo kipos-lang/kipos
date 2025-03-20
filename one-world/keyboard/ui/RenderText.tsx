@@ -1,5 +1,5 @@
 import React from 'react';
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { NodeID, Text } from '../../shared/cnodes';
 import { asStyle } from '../../shared/shape';
 import { spanEnd, spanStart } from '../handleNav';

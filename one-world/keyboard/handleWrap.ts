@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { List, ListKind, Node, NodeID, Nodes } from '../shared/cnodes';
 import { findParent } from './flatenate';
 import { selectStart } from './handleNav';

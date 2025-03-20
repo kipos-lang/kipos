@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { TextSpan, RecNodeT, Nodes, fromRec, Style, isRich, NodeID } from '../../shared/cnodes';
 import { spanLength } from '../handleDelete';
 import { spanStart, spanEnd } from '../handleNav';
@@ -84,8 +84,8 @@ export const removeSpan = (top: Top, path: Path, index: number) => {
         spans.length === 0
             ? selStart(path, { type: 'list', where: 'inside' })
             : index === 0
-            ? spanStart(spans[0], 0, path, top, false)
-            : spanEnd(spans[index - 1], path, index - 1, top, false);
+              ? spanStart(spans[0], 0, path, top, false)
+              : spanEnd(spans[index - 1], path, index - 1, top, false);
     return start ? { nodes: { [pnode.loc]: { ...pnode, spans } }, selection: { start } } : undefined;
 };
 
@@ -219,13 +219,13 @@ export const handleTextFormat = (
                       start: selStart(path, { type: 'text', end: res.start }),
                   }
                 : select === 'before'
-                ? {
-                      start: selStart(path, { type: 'text', end: res.end }),
-                  }
-                : {
-                      end: selStart(path, { type: 'text', end: res.start }),
-                      start: selStart(path, { type: 'text', end: res.end }),
-                  },
+                  ? {
+                        start: selStart(path, { type: 'text', end: res.end }),
+                    }
+                  : {
+                        end: selStart(path, { type: 'text', end: res.start }),
+                        start: selStart(path, { type: 'text', end: res.end }),
+                    },
     };
 };
 

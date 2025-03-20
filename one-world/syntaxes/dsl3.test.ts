@@ -1,6 +1,6 @@
 // test stuff
 
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { applyUpdate } from '../keyboard/applyUpdate';
 import { root } from '../keyboard/root';
 import { init, js } from '../keyboard/test-utils';
@@ -294,10 +294,10 @@ test('stmt', () => {
 type DeepPartial<Thing> = Thing extends Function
     ? Thing
     : Thing extends Array<infer InferredArrayMember>
-    ? DeepPartialArray<InferredArrayMember>
-    : Thing extends object
-    ? DeepPartialObject<Thing>
-    : Thing | undefined;
+      ? DeepPartialArray<InferredArrayMember>
+      : Thing extends object
+        ? DeepPartialObject<Thing>
+        : Thing | undefined;
 
 interface DeepPartialArray<Thing> extends Array<DeepPartial<Thing>> {}
 

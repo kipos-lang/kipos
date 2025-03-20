@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react';
-import { useLatest } from '../../../web/custom/useLatest';
+import { useLatest } from '../../useLatest';
 import { Config, TestParser, TestState } from '../test-utils';
 
 import { Loc, NodeID, RecNodeT, RichKind, Style } from '../../shared/cnodes';

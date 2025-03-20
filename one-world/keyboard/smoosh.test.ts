@@ -1,6 +1,6 @@
 // let's test some operations
 
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { fromMap, RecNodeT } from '../shared/cnodes';
 import { cread } from '../shared/creader';
 import { shape } from '../shared/shape';

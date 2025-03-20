@@ -4,7 +4,7 @@ import React from 'react';
 import { DisplayConfig, RenderNode } from './RenderNode';
 import { _applyUpdate, applyNormalUpdate, applyUpdate } from '../applyUpdate';
 import { keyUpdate } from './keyUpdate';
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { ShowXML } from './XML';
 import { nodeToXML } from '../../syntaxes/xml';
 import { root } from '../root';

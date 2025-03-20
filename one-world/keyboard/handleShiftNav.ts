@@ -1,5 +1,5 @@
 import equal from 'fast-deep-equal';
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { childLocs, Loc, Node, NodeID, Style, Text } from '../shared/cnodes';
 import { idText } from './cursorSplit';
 import { goLateral, handleNav, selectEnd, selectStart } from './handleNav';
@@ -232,7 +232,7 @@ const wordNext = (
         }
     }
 
-    let text = span.type === 'text' ? grems ?? splitGraphemes(span.text) : ['_'];
+    let text = span.type === 'text' ? (grems ?? splitGraphemes(span.text)) : ['_'];
     if (cursor >= text.length) {
         if (index >= node.spans.length - 1) return null;
         const next = node.spans[index + 1];

@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { Collection, Id, Node, NodeID } from '../shared/cnodes';
 import { cursorSides } from './cursorSides';
 import { cursorSplit, idText } from './cursorSplit';
@@ -174,8 +174,8 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
                 typeof kind === 'number'
                     ? { type: 'text', ccls: kind, grem }
                     : kind === 'sep'
-                    ? { type: 'sep', newLine: grem === '\n' }
-                    : { type: kind },
+                      ? { type: 'sep', newLine: grem === '\n' }
+                      : { type: kind },
         },
     ];
 };
@@ -184,10 +184,10 @@ export const whatNeighbor = (what: KeyWhat): Flat => {
     return what.type === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: what.newLine }
         : what.type === 'space'
-        ? { type: 'space', loc: '-1' }
-        : what.type === 'string'
-        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-        : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
+          ? { type: 'space', loc: '-1' }
+          : what.type === 'string'
+            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+            : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
 };
 
 export const getSplit = (top: Top, path: Path, at: number | 'before' | 'after') => {
@@ -331,8 +331,8 @@ export function flatNeighbor(kind: Kind, grem: string): Flat {
     return kind === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: grem === '\n' }
         : kind === 'space'
-        ? { type: 'space', loc: '-1' }
-        : kind === 'string'
-        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-        : { type: 'id', text: grem, loc: '-1', ccls: kind };
+          ? { type: 'space', loc: '-1' }
+          : kind === 'string'
+            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+            : { type: 'id', text: grem, loc: '-1', ccls: kind };
 }

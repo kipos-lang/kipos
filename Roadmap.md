@@ -6,11 +6,24 @@
   - [x] the reader/lexer
   - [x] the parser-dsl
   - the algw maybeeeeeeeee
+- [ ] directoyr cleanup
+  - [ ] move stuff from web/ and src/ into better places
 - [ ] make a web UI dealio
 - [ ] make a file-based mode ... for good testing and such
 
 ...
 
+
+# Question: do I want ... do mess with multiple package publishing stuff?
+
+... I do, at some point, want to be able to publish a cli tool on npm
+... and probably the web tool as well, on npm
+... but these are end-user packages, and can just be bundled to a single js file.
+
+Do I want to mess with shipping smaller packages? I certainly don't think so.
+not at the moment.
+
+BUT at present, the toplevel directory is pretty messy.
 
 
 # Here's the basic idea of what I want to build

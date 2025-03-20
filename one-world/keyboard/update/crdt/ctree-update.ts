@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../../splitGraphemes';
 import { fromRec, Id, ListKind, Node, NodeID, Nodes, RecNodeT, TextSpan } from '../../../shared/cnodes';
 import { isTag, selectEnd, selectStart } from '../../handleNav';
 import { SelStart } from '../../handleShiftNav';

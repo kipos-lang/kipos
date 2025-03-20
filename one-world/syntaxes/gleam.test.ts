@@ -7,7 +7,7 @@ import * as g from './gleam2';
 import * as d from './dsl';
 import { Matcher, MatchError } from './dsl';
 import { cread } from '../shared/creader';
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { root } from '../keyboard/root';
 import { shape } from '../shared/shape';
 import { showXML } from './xml';

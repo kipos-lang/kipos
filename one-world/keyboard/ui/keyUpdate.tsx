@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { handleDelete } from '../handleDelete';
 import { handleKey } from '../handleKey';
 import { handleNav } from '../handleNav';

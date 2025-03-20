@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { linksEqual, NodeID, Style, stylesEqual, Text, TextSpan } from '../shared/cnodes';
 import { Mods } from './handleShiftNav';
 import { KeyAction } from './keyActionToUpdate';

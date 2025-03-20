@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { hasControls, isRich, ListKind, Node, NodeID, Nodes, TableKind, Text, TextSpan } from '../shared/cnodes';
 import { cursorSides } from './cursorSides';
 // import { textCursorSides, textCursorSides2 } from './insertId';

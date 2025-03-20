@@ -26,7 +26,7 @@ Game plan:
 
  */
 
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { Collection, Id, List, Node, NodeID } from '../shared/cnodes';
 import { Kind } from './insertId';
 import { Cursor, Path, Top, lastChild, parentPath } from './utils';
@@ -100,8 +100,8 @@ export function addNeighborAfter(
             blank.type === 'id'
                 ? { type: 'id', end: 0 }
                 : blank.type === 'text'
-                ? { type: 'text', end: { cursor: 0, index: 0 } }
-                : { type: 'list', where: 'inside' };
+                  ? { type: 'text', end: { cursor: 0, index: 0 } }
+                  : { type: 'list', where: 'inside' };
     }
     return { sel, ncursor };
 }

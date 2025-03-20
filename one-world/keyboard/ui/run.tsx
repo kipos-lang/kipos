@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 
 import { App } from './App';
-import { useHash } from '../../../web/ide/ground-up/useHash';
+import { useHash } from '../../useHash';
 import { Examples } from './Examples';
 
 declare global {

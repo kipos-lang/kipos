@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { Nodes } from '../../shared/cnodes';
 import { richNode } from '../handleNav';
 import { Spat } from '../handleSpecialText';

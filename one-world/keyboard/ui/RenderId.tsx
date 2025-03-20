@@ -1,5 +1,5 @@
 import React from 'react';
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { Id, NodeID } from '../../shared/cnodes';
 import { IdCursor, Path, SelectionStatuses, selStart, TmpText } from '../utils';
 import { TextWithCursor, Zwd } from './cursor';

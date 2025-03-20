@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { RecNodeT, Nodes, fromRec, NodeID } from '../../shared/cnodes';
 import { addUpdate } from '../handleDelete';
 import { isTag } from '../handleNav';

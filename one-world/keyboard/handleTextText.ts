@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { ListKind, NodeID, Text, TextSpan, childLocs, stylesEqual } from '../shared/cnodes';
 import { spanText } from './cursorSplit';
 import { handleListKey } from './handleListKey';

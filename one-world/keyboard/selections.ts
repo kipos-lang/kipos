@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { List, Node, NodeID, childLocs } from '../shared/cnodes';
 import { isTag, selectEnd, selectStart } from './handleNav';
 import { SelStart } from './handleShiftNav';
@@ -190,17 +190,17 @@ export const ltCursor = (one: Cursor, two: Cursor) => {
             return two.type === 'list'
                 ? two.where === 'after'
                 : two.type === 'text'
-                ? two.end.index === one.end.index
-                    ? one.end.cursor < two.end.cursor
-                    : one.end.index < two.end.index
-                : false;
+                  ? two.end.index === one.end.index
+                      ? one.end.cursor < two.end.cursor
+                      : one.end.index < two.end.index
+                  : false;
         case 'list':
             return two.type === 'list'
                 ? two.where === 'before'
                     ? false
                     : one.where === 'after'
-                    ? false
-                    : one.where === 'before' || one.where === 'start' || two.where === 'end' || two.where === 'after'
+                      ? false
+                      : one.where === 'before' || one.where === 'start' || two.where === 'end' || two.where === 'after'
                 : one.where === 'before' || one.where === 'start';
         case 'control':
             throw new Error('not handling right nowwww');
@@ -215,8 +215,8 @@ const innerSide = (outer: SelStart, inner: SelStart, getNode: (id: string) => No
             node.type === 'list' && !isTag(node.kind)
                 ? node.children.indexOf(child)
                 : node.type === 'text'
-                ? node.spans.findIndex((s) => s.type === 'embed' && s.item === child)
-                : childLocs(node).indexOf(child);
+                  ? node.spans.findIndex((s) => s.type === 'embed' && s.item === child)
+                  : childLocs(node).indexOf(child);
         // TODO table plesssss
         if (at === -1) {
             throw new Error(`cant find location of child for inner side`);

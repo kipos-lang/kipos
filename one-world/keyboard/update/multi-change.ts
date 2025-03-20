@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../../splitGraphemes';
 import { childLocs, fromRec, Node, NodeID, Nodes, RecNodeT } from '../../shared/cnodes';
 import { applySelUp } from '../applyUpdate';
 import { selectEnd, selectStart } from '../handleNav';

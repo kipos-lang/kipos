@@ -9,7 +9,7 @@ sel-expand, move
 id-wrap
 */
 
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { fromRec, ListKind, Node, NodeID, Nodes, RecNodeT, TextSpan } from '../shared/cnodes';
 import { isTag } from './handleNav';
 import { SelStart } from './handleShiftNav';

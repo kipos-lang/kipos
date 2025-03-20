@@ -1,4 +1,4 @@
-import { splitGraphemes } from '../../src/parse/splitGraphemes';
+import { splitGraphemes } from '../splitGraphemes';
 import { root } from '../keyboard/root';
 import { js } from '../keyboard/test-utils';
 import { cread } from '../shared/creader';
