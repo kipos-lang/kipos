@@ -1,30 +1,29 @@
-const basedir = "/Users/jared/clone/exploration/j3/one-world/keyboard/ui";
-import { dirname, join } from "path";
-import data from "./tocopy.json";
+const basedir = '/Users/jared/clone/exploration/j3/one-world/keyboard/ui';
+import { dirname, join } from 'path';
+import data from './tocopy.json';
 
-import fs, { existsSync } from "fs";
-import { execSync } from "child_process";
+import fs, { existsSync } from 'fs';
+import { execSync } from 'child_process';
 // fs.mkdirSync("one-world/keyboard/ui", { recursive: true });
 const tests = {};
 
 const findDeps = (file: string) => {
     console.log(`finding deps for ${file}`);
-    const full = JSON.parse(execSync(`npx madge ${file} --json`, { encoding: "utf8" }));
+    const full = JSON.parse(execSync(`npx madge ${file} --json`, { encoding: 'utf8' }));
     console.log(`Found ${Object.keys(full).length} deps`);
     return Object.keys(full);
 };
 
-const seen = {};
+const seen: Record<string, true> = {};
 Object.keys(data).forEach((name) => {
     const parent = dirname(name);
     if (seen[parent]) return;
-    if (parent.startsWith("../../../")) return; // outside of one-world
+    if (parent.startsWith('../../../')) return; // outside of one-world
     seen[parent] = true;
-    const tests = fs.readdirSync(`${basedir}/${parent}`).filter((n) => n.endsWith(".test.ts"));
+    const tests = fs.readdirSync(`${basedir}/${parent}`).filter((n) => n.endsWith('.test.ts'));
     tests.forEach((name) => {
-        console.log("dest", name);
+        console.log('dest', name);
         const dest = `one-world/keyboard/ui/${parent}/${name}`;
-        // if (existsSync(dest)) return;
         const deps = findDeps(`${basedir}/${parent}/${name}`);
         deps.forEach((dep) => {
             const orig = `${basedir}/${parent}/${dep}`;

@@ -55,7 +55,7 @@ export const TextWithCursor = ({
     onMouseDown: React.ComponentProps<'span'>['onMouseDown'];
     onMouseMove: React.ComponentProps<'span'>['onMouseMove'];
 }) => {
-    const ref = useRef<HTMLSpanElement>();
+    const ref = useRef<HTMLSpanElement>(null);
     type Rect = {
         width: number;
         height: number;

@@ -128,7 +128,7 @@ export const RenderNode = ({
     }
 };
 
-export const Section = ({ contents }: { contents: JSX.Element[] }) => {
+export const Section = ({ contents }: { contents: React.ReactNode[] }) => {
     const [open, setOpen] = useState(true);
 
     const head = (
