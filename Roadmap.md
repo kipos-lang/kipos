@@ -6,10 +6,15 @@
   - [x] the reader/lexer
   - [x] the parser-dsl
   - the algw maybeeeeeeeee
-- [ ] directoyr cleanup
-  - [ ] move stuff from web/ and src/ into better places
+- [x] directoyr cleanup
+  - [x] move stuff from web/ and src/ into better places
 - [ ] make a web UI dealio
+  - gonna have to handle multiple toplevels, my lads.
+    - that'll take a bit of doing, to be sure.
+      - hopefully just to the first level of things that produce KeyActions
 - [ ] make a file-based mode ... for good testing and such
+
+oh nooooes, zed doesn't support coverage reporting.
 
 ...
 
