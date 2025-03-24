@@ -1,4 +1,60 @@
 
+## Basic multi-top setup
+
+- I can require you to click a toplevel to get selection there
+- and require you to click a button to make a new toplevel
+- not the nicest, but usable.
+
+
+##
+
+- [x] define types
+- [x] figure out storage and retrieval.
+  - localstorage?
+  - localforage?
+  - some leveldb abomination?
+  - honestly probably localstorage until it doesnt work anymore
+    and then localforage...
+  - alTHOUGH, I could also say its serverside ...
+    yeah ok once localStorage doesn't cut it, we implement
+    serverside goodness.
+
+The Big Dealio
+
+What's the data?
+- a module, is a list of ... toplevels? ok yeah we'll not deal with nesting toplevels at the moment?
+  or maybe we can, might as well make it possible.
+- So a module has, like a name or something. and a parent. and an ID obvs.
+
+Tables:
+module
+- id
+- name
+- parent (might be `root`) // wait do we do ordering? hm. no just alphabetical.
+- languageConfiguration
+- toplevels
+- roots[]
+
+toplevel
+- id
+- children
+- root
+- nodes
+(maybe plugin stuff)
+
+languageConfiguration
+- id
+- parser
+- type-inference?
+- compiler?
+  - includes some indication of compilation target (js, wasm, glsl, etc.)
+- interpreter?
+
+Q: what if type inference was expected to produce everything needed for compilation,
+including, if necessary, the original parse tree?
+
+##
+
 - [x] Bring over ... cst editing stuff?
 - [x] Bring over test files... and things they depend on.
 - [x] yasss so good. all tests passing.

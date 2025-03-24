@@ -24,7 +24,7 @@ import { idText, spanText } from './cursorSplit';
 
 export const isTag = <T>(kind: ListKind<T> | TableKind) => typeof kind !== 'string' && kind.type === 'tag';
 
-export const selectStart = (path: Path, top: Top, plus1 = false, tab = false): NodeSelection['start'] | void => {
+export const selectStart = (path: Path, top: Top, plus1 = false, tab = false): SelStart | void => {
     const loc = lastChild(path);
     const node = top.nodes[loc];
     if (node.type === 'id') {
@@ -78,7 +78,7 @@ export const selectStart = (path: Path, top: Top, plus1 = false, tab = false): N
     return selStart(path, { type: 'list', where: 'before' });
 };
 
-export const selectEnd = (path: Path, top: { nodes: Nodes }, plus1: boolean = false): NodeSelection['start'] | void => {
+export const selectEnd = (path: Path, top: { nodes: Nodes }, plus1: boolean = false): SelStart | void => {
     const loc = lastChild(path);
     const node = top.nodes[loc];
     if (!node) throw new Error(`no node ${loc} : ${JSON.stringify(path)}`);
@@ -129,11 +129,11 @@ export const richNode = (node: Node | undefined) => {
     return (node?.type === 'list' || node?.type === 'table') && isRich(node.kind);
 };
 
-export const goLateral = (path: Path, top: Top, left: boolean, tab = false): NodeSelection['start'] | void => {
+export const goLateral = (path: Path, top: Top, left: boolean, tab = false): SelStart | void => {
     return left ? goLeft(path, top, tab) : goRight(path, top, tab);
 };
 
-export const goLeft = (path: Path, top: { nodes: Nodes }, tab = false): NodeSelection['start'] | void => {
+export const goLeft = (path: Path, top: { nodes: Nodes }, tab = false): SelStart | void => {
     const loc = lastChild(path);
     const ploc = parentLoc(path);
     const pnode = top.nodes[ploc];
@@ -184,7 +184,7 @@ export const goLeft = (path: Path, top: { nodes: Nodes }, tab = false): NodeSele
     }
 };
 
-export const goRight = (path: Path, top: Top, tab = false): NodeSelection['start'] | void => {
+export const goRight = (path: Path, top: Top, tab = false): SelStart | void => {
     const loc = lastChild(path);
     const ploc = parentLoc(path);
     const pnode = top.nodes[ploc];
