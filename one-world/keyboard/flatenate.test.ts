@@ -53,7 +53,7 @@ const check = (node: RecNodeT<boolean>, exp: RecNodeT<boolean>) => {
     const r = rough(fl, top, top.nodes[lastChild(sel.start.path)], top.root);
 
     const two = asTop(exp, idc(0));
-    expect(shape(root({ top: { ...top, nodes: updateNodes(top.nodes, r.nodes), root: r.root, nextLoc: r.nextLoc }, sel }))).toEqual(shape(root(two)));
+    expect(shape(root({ top: { ...top, nodes: updateNodes(top.nodes, r.nodes), root: r.root }, sel }))).toEqual(shape(root(two)));
     expect(r.selPath).toEqual(atPath(r.root, { ...top, nodes: updateNodes(top.nodes, r.nodes) }, selPath(exp)));
 };
 

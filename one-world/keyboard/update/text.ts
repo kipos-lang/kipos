@@ -124,14 +124,12 @@ export const addSpan = (
 
     let sel: SelStart;
 
-    let nextLoc = undefined as undefined | number;
     let span: TextSpan<NodeID>;
 
     if (recSpan.type === 'embed') {
-        nextLoc = top.nextLoc;
         let selPath: NodeID[] = [];
         const root = fromRec(recSpan.item, nodes, (loc, __, path) => {
-            const nl = nextLoc!++ + '';
+            const nl = top.nextLoc();
             if (loc === true) {
                 selPath = path.concat([nl]);
             }
@@ -192,7 +190,6 @@ export const addSpan = (
     return {
         nodes,
         selection: { start: sel },
-        nextLoc,
     };
 };
 
@@ -211,7 +208,6 @@ export const handleTextFormat = (
     if (!res) return;
     // console.log('mod', res, left, right);
     return {
-        nextLoc: res.nextLoc,
         nodes: { [node.loc]: res.node },
         selection:
             select === 'after'

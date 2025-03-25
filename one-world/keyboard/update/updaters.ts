@@ -26,12 +26,11 @@ import {
 export { selUpdate };
 
 export const replaceSelf = (top: Top, path: Path, node: RecNodeT<boolean>, cursor: Cursor) => {
-    let nextLoc = top.nextLoc;
     const nodes: Nodes = {};
     let selPath: NodeID[] = [];
 
     const root = fromRec(node, nodes, (loc, __, path) => {
-        const nl = nextLoc!++ + '';
+        const nl = top.nextLoc();
         if (loc === true) {
             selPath = path.concat([nl]);
         }
@@ -41,7 +40,6 @@ export const replaceSelf = (top: Top, path: Path, node: RecNodeT<boolean>, curso
     if (!selPath.length) return;
 
     const up = replaceAt(parentPath(path).children, top, lastChild(path), root);
-    up.nextLoc = nextLoc;
     Object.assign(up.nodes, nodes);
     up.selection = { start: selStart(pathWithChildren(parentPath(path), ...selPath), cursor) };
     return up;
@@ -113,10 +111,8 @@ export const removeSelf = (top: Top, current: { path: Path; node: Node }): Updat
 
     const inRich = pnode?.type === 'list' && isRich(pnode.kind);
 
-    let nextLoc = top.nextLoc;
-    const loc = nextLoc++ + '';
+    const loc = top.nextLoc();
     const up = replaceAt(parentPath(current.path).children, top, current.node.loc, loc);
-    up.nextLoc = nextLoc;
     up.nodes[loc] = inRich ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc } : { type: 'id', loc, text: '' };
     up.selection = {
         start: selStart(
@@ -161,8 +157,6 @@ export const controlToggle = (top: Top, path: Path, index: TextIndex): void | Up
 };
 
 export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], cursor: Cursor): void | Update => {
-    let nextLoc = top.nextLoc;
-
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'list' && node.type !== 'table') return;
 
@@ -170,7 +164,7 @@ export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], c
     let selPath: NodeID[] = [];
     const roots = children.map((child) =>
         fromRec(child, nodes, (loc, __, path) => {
-            const nl = nextLoc!++ + '';
+            const nl = top.nextLoc();
             if (loc === true) {
                 selPath = path.concat([nl]);
             }
@@ -188,7 +182,6 @@ export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], c
 
     return {
         nodes,
-        nextLoc,
         selection: { start: selStart(pathWithChildren(path, ...selPath), cursor) },
     };
 };

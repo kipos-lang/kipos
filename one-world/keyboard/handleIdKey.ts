@@ -254,7 +254,7 @@ export const handleTableSplit = (grem: string, config: Config, path: Path, top: 
 };
 
 export type SplitRes = {
-    result: { sloc: NodeID | null; other: NodeID[]; nodes: UNodes; forceMultiline: boolean | undefined; nextLoc: number };
+    result: { sloc: NodeID | null; other: NodeID[]; nodes: UNodes; forceMultiline: boolean | undefined };
     two: { items: Flat[]; selection: { node: Node; cursor: Cursor } };
 };
 

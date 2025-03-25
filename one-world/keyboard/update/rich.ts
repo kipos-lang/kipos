@@ -21,8 +21,7 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
     const after = current.spans.slice(lat);
     after[0] = { ...span, text: text.slice(at.cursor).join('') };
 
-    let nextLoc = top.nextLoc;
-    const loc = nextLoc++ + '';
+    const loc = top.nextLoc();
 
     const nodes: Nodes = {};
 
@@ -40,8 +39,8 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
         rows.splice(row + 1, 0, [loc, ...right]);
         if (!right.length) {
             for (let i = 1; i < rows[row].length; i++) {
-                const cloc = nextLoc++ + '';
-                nodes[cloc] = { type: 'text', spans: [{ type: 'text', text: '', loc: nextLoc++ + '' }], loc: cloc };
+                const cloc = top.nextLoc();
+                nodes[cloc] = { type: 'text', spans: [{ type: 'text', text: '', loc: top.nextLoc() }], loc: cloc };
                 rows[row + 1].push(cloc);
             }
         }
@@ -56,7 +55,6 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
             [parent.loc]: parent,
         },
         selection: { start: selStart(pathWithChildren(parentPath(path), loc), { type: 'text', end: { index: 0, cursor: 0 } }) },
-        nextLoc,
     };
 };
 
@@ -78,7 +76,7 @@ export const dedentOutOfRich = (top: Top, path: Path): void | Update => {
     let nextLoc = top.nextLoc;
     const nodes: Nodes = {};
     if (after.length) {
-        const loc = nextLoc++ + '';
+        const loc = top.nextLoc();
         gchildren.splice(gat + 2, 0, loc);
         nodes[loc] = { ...parent, children: after, loc };
     }
@@ -92,6 +90,5 @@ export const dedentOutOfRich = (top: Top, path: Path): void | Update => {
                 end: { index: 0, cursor: 0 },
             }),
         },
-        nextLoc,
     };
 };

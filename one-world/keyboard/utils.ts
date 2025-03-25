@@ -110,7 +110,7 @@ export type TmpText = undefined | never; // Record<string, string[]>;
 export type Top = {
     nodes: Nodes;
     root: NodeID;
-    nextLoc: number;
+    nextLoc(): string;
     tmpText?: TmpText;
 };
 
@@ -242,9 +242,7 @@ export type UNodes = Record<NodeID, Node | null>;
 export type Update = {
     nodes: UNodes;
     root?: NodeID;
-    nextLoc?: number;
     selection?: NodeSelection | SelUpdate[];
-    // tmpText?: Record<string, string[] | undefined>;
 };
 
 export const withPartial = (path: Path, sel?: PartialSel) =>

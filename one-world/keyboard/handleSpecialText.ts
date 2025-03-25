@@ -74,7 +74,7 @@ export const keyMod = (key: string, mods: Mods): void | ((style: Style) => void)
 
 export type Spat = { cursor: number; index: TextIndex };
 
-export const specialTextMod = (node: Text<NodeID>, left: Spat, right: Spat, mod: (style: Style) => void, nextLoc: number) => {
+export const specialTextMod = (node: Text<NodeID>, left: Spat, right: Spat, mod: (style: Style) => void, nextLoc: () => string) => {
     let off = 0;
     let scur: number | null = null;
     let ecur: { cursor: number; index: string } | null = null;
@@ -101,7 +101,7 @@ export const specialTextMod = (node: Text<NodeID>, left: Spat, right: Spat, mod:
         }
 
         if (start > 0) {
-            spans.splice(i + off, 0, { ...span, text: grems.slice(0, start).join(''), loc: nextLoc++ + '' });
+            spans.splice(i + off, 0, { ...span, text: grems.slice(0, start).join(''), loc: nextLoc() });
             off++;
         }
         if (start < grems.length || (i === righti && start === end)) {
@@ -113,7 +113,7 @@ export const specialTextMod = (node: Text<NodeID>, left: Spat, right: Spat, mod:
             off--;
         }
         if (end < grems.length) {
-            spans.splice(i + off + 1, 0, { ...span, text: grems.slice(end).join(''), loc: nextLoc++ + '' });
+            spans.splice(i + off + 1, 0, { ...span, text: grems.slice(end).join(''), loc: nextLoc() });
             off++;
         }
     }
@@ -122,7 +122,7 @@ export const specialTextMod = (node: Text<NodeID>, left: Spat, right: Spat, mod:
     const start: Spat = { index: spans[scur].loc, cursor: 0 };
     const end = ecur;
 
-    return { nextLoc, node: { ...node, spans: mergeAdjacentSpans(spans, { start, end }) }, start, end };
+    return { node: { ...node, spans: mergeAdjacentSpans(spans, { start, end }) }, start, end };
 };
 
 export const handleSpecialText = (

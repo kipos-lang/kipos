@@ -19,8 +19,9 @@ const asTop = (ctop: CTop) => {
     const roots = ctop.tree.children('root', 'root');
     if (roots.length > 1) throw new Error('multiple roots');
     if (!roots.length) throw new Error(`no root!!`);
+    let id = 0;
     const top: Top = {
-        nextLoc: 0,
+        nextLoc: () => id++ + '',
         nodes: ctop.tree.asNodes(),
         root: roots[0],
     };

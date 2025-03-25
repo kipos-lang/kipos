@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Action } from './state';
+import { Action, AppState } from './state';
 import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
@@ -133,7 +133,13 @@ export const useStore = (): Store => {
                     useTop(top: string) {
                         useTick(`top:${top}`);
                         return {
-                            update(action: Action) {},
+                            update(action: Action) {
+                                // const state: AppState = {
+                                //     top: modules[selected].toplevels[top],
+                                //     history: modules[selected].history,
+                                //     selections: modules[selected].selections,
+                                // };
+                            },
                             useNode(id: string) {
                                 useTick(`node:${id}`);
                                 return modules[selected].toplevels[top].nodes[id];

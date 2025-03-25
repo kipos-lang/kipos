@@ -12,12 +12,11 @@ export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, 
     if (tag.type !== 'list' || !isTag(tag.kind)) {
         return;
     }
-    let nextLoc = top.nextLoc;
     const nodes: Nodes = {};
     let selPath: NodeID[] = [];
 
     const root = fromRec(node, nodes, (loc, __, path) => {
-        const nl = nextLoc!++ + '';
+        const nl = top.nextLoc();
         if (loc === true) {
             selPath = path.concat([nl]);
         }
@@ -28,7 +27,6 @@ export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, 
 
     return {
         nodes,
-        nextLoc: top.nextLoc + 1,
         selection: { start: selStart(pathWithChildren(path, ...selPath), cursor) },
     };
 };

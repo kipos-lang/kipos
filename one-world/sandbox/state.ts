@@ -40,7 +40,7 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
         nodes: {},
     };
     let only = [] as false | number[];
-    let changed = next.nextLoc !== prev.nextLoc || next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
+    let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
     Object.entries(next.nodes).forEach(([key, value]) => {
         if (prev.nodes[+key] !== value) {
             if (only) {
