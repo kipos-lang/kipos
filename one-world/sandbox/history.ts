@@ -1,10 +1,9 @@
 import { genId } from '../keyboard/ui/genId';
-import { NodeSelection, Top } from '../keyboard/utils';
 import { Node, Nodes } from '../shared/cnodes';
 
-type Delta<T> = { next: T; prev: T };
-export type HistoryItem =
-    | HistoryChange
+export type Delta<T> = { next: T; prev: T };
+export type HistoryItem<T extends HistoryChange> =
+    | T
     | {
           type: 'revert';
           id: string;
@@ -13,41 +12,42 @@ export type HistoryItem =
           reverts: string;
       };
 
-export type HistoryChange = {
+export interface HistoryChange {
     type: 'change';
     ts: number;
     id: string;
     onlyy?: SimpleChangeIds; // the id or text:index that is the "only" thing that was modified
     // session: string;
-    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<number, Node | null> }>;
-    selections: Delta<NodeSelection[]>;
-};
-
-const revDelta = <T>(d: Delta<T>): Delta<T> => ({ next: d.prev, prev: d.next });
-
-const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), top: revDelta(change.top) });
-
-interface State<Action = any> {
-    history: HistoryItem[];
-    applyHistoryChange(change: HistoryChange): this;
-    applyAction(action: Action): this;
-    calculateHistoryItem(next: this): HistoryChange | void;
+    // top: Delta<Omit<Top, 'nodes'> & { nodes: Record<number, Node | null> }>;
+    // selections: Delta<NodeSelection[]>;
 }
 
-const revert = <T extends State>(state: T, item: HistoryItem, undo: boolean): T => {
+export interface State<Change extends HistoryChange = any> {
+    get history(): HistoryItem<Change>[];
+    withHistory(items: HistoryItem<Change>[]): this;
+    applyHistoryChange(change: Change): this;
+    joinHistory(prev: Change, next: Change): Change;
+    // applyAction(action: Action): this;
+    calculateHistoryItem(next: this): Change | void;
+    invertChange(change: Change): Change;
+}
+
+export const revDelta = <T>(d: Delta<T>): Delta<T> => ({ next: d.prev, prev: d.next });
+
+// const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), top: revDelta(change.top) });
+
+const revert = <T extends State<Change>, Change extends HistoryChange>(state: T, item: HistoryItem<Change>, undo: boolean): T => {
     if (item.type === 'change') {
-        state = state.applyHistoryChange(invertChange(item));
-        const next: HistoryItem = { type: 'revert', reverts: item.id, id: genId(), ts: Date.now(), undo: undo };
-        state.history = state.history.concat([next]);
-        return state;
+        state = state.applyHistoryChange(state.invertChange(item));
+        const next: HistoryItem<Change> = { type: 'revert', reverts: item.id, id: genId(), ts: Date.now(), undo: undo };
+        return state.withHistory(state.history.concat([next]));
     }
     const found = state.history.find((h) => h.id === item.reverts);
     if (!found) return state;
     if (found.type === 'change') {
         state = state.applyHistoryChange(found);
-        const next: HistoryItem = { type: 'revert', reverts: item.id, id: genId(), ts: Date.now(), undo: undo };
-        state.history = state.history.concat([next]);
-        return state;
+        const next: HistoryItem<Change> = { type: 'revert', reverts: item.id, id: genId(), ts: Date.now(), undo: undo };
+        return state.withHistory(state.history.concat([next]));
     }
     const back = state.history.find((h) => h.id === found.reverts);
     if (!back) return state;
@@ -71,7 +71,7 @@ take the top item
 if it is a normal change, revert it!
 if it is an undo of a normal change, jump to the corresponding thing, and go back one more.
 */
-export const findUndo = (history: HistoryItem[]): HistoryItem | void => {
+export const findUndo = <T extends HistoryChange>(history: HistoryItem<T>[]): HistoryItem<T> | void => {
     if (!history.length) return;
     let at = history.length - 1;
     while (at >= 0) {
@@ -89,7 +89,7 @@ if it is a normal change, bail
 if it is an 'undo' revert, you're good
 if it is a 'redo' revert, back up to it's corresponding undo - 1
 */
-export const findRedo = (history: HistoryItem[]): HistoryItem | void => {
+export const findRedo = <T extends HistoryChange>(history: HistoryItem<T>[]): HistoryItem<T> | void => {
     if (!history.length) return;
     let at = history.length - 1;
     while (at >= 0) {
@@ -116,26 +116,18 @@ export const undo = <T extends State>(state: T): T => {
 
 type SimpleChangeIds = string;
 
-const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryChange => {
-    return {
-        ...prev,
-        selections: { prev: prev.selections.prev, next: next.selections.next },
-        top: { prev: prev.top.prev, next: next.top.next },
-    };
-};
-
-const canJoinItems = (prev: HistoryItem | null, item: HistoryItem): prev is HistoryChange => {
+export const canJoinItems = <T extends HistoryChange>(prev: HistoryItem<T> | null, item: HistoryItem<T>): prev is T => {
     return prev?.type === 'change' && item.type === 'change' && prev.onlyy != null && prev.onlyy === item.onlyy && item.ts - prev.ts < 10000;
 };
 
-export const recordHistory = <T extends State>(prev: T, next: T, noJoin = false): T => {
+export const recordHistory = <T extends State<Change>, Change extends HistoryChange>(prev: T, next: T, noJoin = false): T => {
     if (prev === next) return next;
     const item = prev.calculateHistoryItem(next);
     if (!item) return next;
     const history = next.history.slice();
     const pitem = next.history[next.history.length - 1];
     if (!noJoin && canJoinItems(pitem, item)) {
-        history[history.length - 1] = joinHistory(pitem, item);
+        history[history.length - 1] = prev.joinHistory(pitem, item);
         return { ...next, history };
     }
     history.push(item);
