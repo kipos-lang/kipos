@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Action } from '../keyboard/ui/App';
+import { Action } from './state';
 import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';

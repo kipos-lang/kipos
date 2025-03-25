@@ -3,6 +3,11 @@
 
 I have an editor. like. right?
 
+- [x] longish refactoring of the history stuff to make it easier to think about
+
+hrmmmmsymhrms. do I just junk the nextLoc stuff?
+like ultimately I need to.
+
 ## Basic multi-top setup
 
 - I can require you to click a toplevel to get selection there

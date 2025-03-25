@@ -1,15 +1,14 @@
 import { genId } from '../keyboard/ui/genId';
 import { Node, Nodes } from '../shared/cnodes';
 
-import { applyUpdate, applySelUp, applyNormalUpdate, _applyUpdate } from '../keyboard/applyUpdate';
-import { NodeSelection, Top } from '../keyboard/utils';
-import { canJoinItems, Delta, HistoryItem, redo, revDelta, State, undo } from './history';
-import { KeyAction, keyActionToUpdate } from '../keyboard/keyActionToUpdate';
+import { _applyUpdate, applyNormalUpdate, applySelUp } from '../keyboard/applyUpdate';
 import { Mods } from '../keyboard/handleShiftNav';
-import { keyUpdate, Visual } from '../keyboard/ui/keyUpdate';
+import { KeyAction, keyActionToUpdate } from '../keyboard/keyActionToUpdate';
 import { Config } from '../keyboard/test-utils';
+import { keyUpdate, Visual } from '../keyboard/ui/keyUpdate';
 import { CopiedValues } from '../keyboard/update/multi-change';
-import { Module, Toplevel } from './types';
+import { NodeSelection, Top } from '../keyboard/utils';
+import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
 
 export type AppState = {
     top: Top;
