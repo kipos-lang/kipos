@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Action, AppState } from './state';
+import { Action, AppState, reduce } from './state';
 import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
 import { genId } from '../keyboard/ui/genId';
-import { selStart } from '../keyboard/utils';
+import { NodeSelection, selStart } from '../keyboard/utils';
 import { loadLanguageConfigs, loadModules } from './storage';
 
 type ModuleTree = {
@@ -74,6 +74,8 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
+type Evt = 'selected' | `top:${string}` | `node:${string}`;
+
 export const useStore = (): Store => {
     return useMemo((): Store => {
         const modules = loadModules();
@@ -93,17 +95,19 @@ export const useStore = (): Store => {
             treeCache.children.push({ node: module, children: [] });
         }
 
-        const listeners: Record<string, (() => void)[]> = {};
-        const listen = (evt: string, fn: () => void) => {
+        const listeners: Partial<Record<Evt, (() => void)[]>> = {};
+        const listen = (evt: Evt, fn: () => void) => {
             if (!listeners[evt]) listeners[evt] = [fn];
             else listeners[evt].push(fn);
             return () => {
+                if (!listeners[evt]) return;
                 const at = listeners[evt].indexOf(fn);
                 if (at !== -1) listeners[evt].splice(at, 1);
             };
         };
+        const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
 
-        const useTick = (evt: string) => {
+        const useTick = (evt: Evt) => {
             const [_, setTick] = useState(0);
             useEffect(() => {
                 return listen(evt, () => setTick((t) => t + 1));
@@ -134,11 +138,33 @@ export const useStore = (): Store => {
                         useTick(`top:${top}`);
                         return {
                             update(action: Action) {
-                                // const state: AppState = {
-                                //     top: modules[selected].toplevels[top],
-                                //     history: modules[selected].history,
-                                //     selections: modules[selected].selections,
-                                // };
+                                const mod = modules[selected];
+                                const state: AppState = {
+                                    top: {
+                                        ...mod.toplevels[top],
+                                        nextLoc: genId,
+                                    },
+                                    history: mod.history,
+                                    selections: mod.selections,
+                                };
+                                const result = reduce(state, action, false);
+                                mod.history = result.history;
+                                const changed = diffIds(allIds(mod.selections), allIds(result.selections));
+                                mod.selections = result.selections;
+                                Object.keys(result.top.nodes).forEach((k) => {
+                                    if (mod.toplevels[top].nodes[k] !== result.top.nodes[k]) {
+                                        changed[k] = true;
+                                    }
+                                });
+                                mod.toplevels[top].nodes = result.top.nodes;
+                                if (mod.toplevels[top].root !== mod.toplevels[top].root) {
+                                    mod.toplevels[top].root = mod.toplevels[top].root;
+                                    shout(`top:${top}:root`);
+                                }
+                                // const evts: Evt[] = [];
+                                Object.keys(changed).forEach((k) => {
+                                    shout(`node:${k}`);
+                                });
                             },
                             useNode(id: string) {
                                 useTick(`node:${id}`);
@@ -153,4 +179,20 @@ export const useStore = (): Store => {
             },
         };
     }, []);
+};
+
+const allIds = (sels: NodeSelection[]) => {
+    const ids: Record<string, true> = {};
+    sels.forEach((sel) => {
+        sel.start.path.children.forEach((id) => (ids[id] = true));
+        sel.end?.path.children.forEach((id) => (ids[id] = true));
+    });
+    return ids;
+};
+const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
+    const res: Record<string, true> = {};
+    Object.keys(two).forEach((k) => {
+        if (!one[k]) res[k] = true;
+    });
+    return res;
 };

@@ -4,6 +4,8 @@
 I have an editor. like. right?
 
 - [x] longish refactoring of the history stuff to make it easier to think about
+- [x] tmpText is gone
+- [x] nextLoc is a function now
 
 hrmmmmsymhrms. do I just junk the nextLoc stuff?
 like ultimately I need to.
