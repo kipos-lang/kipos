@@ -32,20 +32,22 @@ export type TestParser<T> = {
     spans(ast: any): Src[];
 };
 
-let lid = 1;
-export const initTop: Top = {
-    nextLoc: () => lid++ + '',
-    nodes: { [0]: { type: 'id', text: '', loc: '0' } },
-    root: '0',
-    // tmpText: {},
+export const initTop = (): Top => {
+    let lid = 1;
+    return {
+        nextLoc: () => lid++ + '',
+        nodes: { [0]: { type: 'id', text: '', loc: '0' } },
+        root: '0',
+        // tmpText: {},
+    };
 };
 
-export const init: TestState = {
-    top: initTop,
+export const init = (): TestState => ({
+    top: initTop(),
     sel: {
         start: selStart({ root: { ids: [], top: '' }, children: ['0'] }, { type: 'id', end: 0 }),
     },
-};
+});
 
 export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel: NodeID[]; sels: Record<number, NodeID[]> } => {
     const nodes: Nodes = {};

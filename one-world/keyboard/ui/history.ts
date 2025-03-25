@@ -284,4 +284,5 @@ export const reducer = (state: AppState, action: Action) => {
     return result;
 };
 
-export const initialAppState: AppState = { top: init.top, selections: [init.sel], history: [] };
+const is = init();
+export const initialAppState: AppState = { top: is.top, selections: [is.sel], history: [] };

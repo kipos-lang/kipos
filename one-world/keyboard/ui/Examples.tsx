@@ -32,7 +32,7 @@ const examples = [
 type State = { state: TestState; running: boolean; at: number };
 
 const precompute = (text: string[], config: Config) => {
-    let state = init;
+    let state = init();
     text.forEach((grem) => {
         if (grem === '\r') {
             const path = state.sel.start.path;
@@ -82,7 +82,7 @@ const Example = ({ text }: { text: string[] }) => {
             <span>{text.join('')}</span>
             <button
                 onClick={() =>
-                    setState((s) => ({ ...s, running: true, state: s.at === text.length ? init : s.state, at: s.at === text.length ? 0 : s.at }))
+                    setState((s) => ({ ...s, running: true, state: s.at === text.length ? init() : s.state, at: s.at === text.length ? 0 : s.at }))
                 }
                 style={{ marginLeft: 8 }}
             >

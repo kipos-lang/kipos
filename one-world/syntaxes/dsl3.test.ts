@@ -74,7 +74,6 @@ test.skip('meta from one path doesnt pollute another', () => {
 test('extra unparsed', () => {
     const mctx: Ctx = { ...ctx, meta: {} };
     run('hello folks', 'stmt', mctx)?.value;
-    expect(mctx.meta).toEqual('lol');
     expect(mctx.meta[1]).toMatchObject({ kind: 'unparsed' });
 });
 
