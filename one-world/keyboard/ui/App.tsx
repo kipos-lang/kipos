@@ -1,27 +1,25 @@
-import React, { useEffect, useLayoutEffect, useMemo, useReducer, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { useLatest } from '../../useLatest';
-import { Config, TestParser, TestState } from '../test-utils';
+import { Config, TestParser } from '../test-utils';
 
-import { Loc, NodeID, RecNodeT, RichKind, Style } from '../../shared/cnodes';
-import { ParseResult, show } from '../../syntaxes/dsl';
-import * as dsl3 from '../../syntaxes/dsl3';
+import { NodeID, Style } from '../../shared/cnodes';
+import { show } from '../../syntaxes/dsl';
+import { parser as jsMinusParser } from '../../syntaxes/js--';
 import { nodeToXML, toXML, XML } from '../../syntaxes/xml';
-import { idText, spanText } from '../cursorSplit';
 import { selectStart } from '../handleNav';
 import { allPaths, Mods, SelStart, Src } from '../handleShiftNav';
+import { KeyAction, moveA } from '../keyActionToUpdate';
 import { root } from '../root';
-import { argify, atomify, getCurrent, getSelectionStatuses } from '../selections';
-import { getSpan, lastChild, mergeHighlights, NodeSelection, pathWithChildren, SelectionStatuses, selStart, Top, Update } from '../utils';
+import { argify, atomify, getSelectionStatuses } from '../selections';
+import { CopiedValues } from '../update/multi-change';
+import { lastChild, mergeHighlights, NodeSelection, SelectionStatuses, selStart, Top } from '../utils';
+import { HiddenInput } from './HiddenInput';
 import { HistoryItem, initialAppState, reducer } from './history';
 import { Visual } from './keyUpdate';
 import { RenderNode } from './RenderNode';
-import { posDown, posUp, selectionPos } from './selectionPos';
 import { ShowXML } from './XML';
-import { parser as jsMinusParser } from '../../syntaxes/js--';
-import { HiddenInput } from './HiddenInput';
-import { CopiedValues, handleCopyMulti } from '../update/multi-change';
-import { shape } from '../../shared/shape';
-import { KeyAction, moveA } from '../keyActionToUpdate';
+import { useKeyFns } from './useKeyFns';
+import { useBackslashMenu } from './useBackslashMenu';
 
 const styleKinds: Record<string, Style> = {
     comment: { color: { r: 200, g: 200, b: 200 } },
@@ -33,7 +31,7 @@ const styleKinds: Record<string, Style> = {
     unparsed: { color: { r: 255, g: 100, b: 100 }, textDecoration: 'underline' },
 };
 
-const showKey = (evt: React.KeyboardEvent) => {
+export const showKey = (evt: React.KeyboardEvent) => {
     let key = evt.key;
     if (key === ' ') key = 'Space';
     if (evt.metaKey) key = 'Meta ' + key;
@@ -92,14 +90,13 @@ const putOnWindow = (obj: any) => {
     Object.assign(window, obj);
 };
 
-export type AppState = {
+export interface AppState {
     top: Top;
     selections: NodeSelection[];
     parser?: TestParser<any>;
     history: HistoryItem[];
-};
+}
 
-// 'nuniiverse'
 export const App = ({ id }: { id: string }) => {
     const [state, dispatch] = useAppState(id);
 
@@ -107,27 +104,8 @@ export const App = ({ id }: { id: string }) => {
 
     const [hover, setHover] = useState(null as null | NodeSelection);
 
-    // const msel = multiSelChildren(state.sel, state.top);
-    // const mkeys = msel ? multiSelKeys(msel.parent, msel.children) : null;
-
-    // const mhover = hover ? multiSelChildren(hover, state.top) : null;
-    // const hoverkeys = mhover ? multiSelKeys(mhover.parent, mhover.children) : null;
-
-    // const xmlKeys = useMemo(() => {
-    //     // msel?.children ??
-    //     const keys = [lastChild(state.sel.start.path)];
-    //     const extra: number[] = [];
-    //     keys.forEach((key) => {
-    //         extra.push(...childLocs(state.top.nodes[key]));
-    //     });
-    //     return keys.concat(extra);
-    // }, [msel, state.sel]);
-
     const parser = jsMinusParser;
-    // const parser = state.parser ?? dsl3.parser;
-    // const parser = state.parser ?? ts.tsParser;
     const rootNode = root(state, (idx) => [{ id: '', idx }]);
-    // state.sel.multi ? undefined :
     const cursor = lastChild(state.selections[0].start.path);
     const parsed = parser.parse(rootNode, cursor);
     const errors = useMemo(() => {
@@ -157,16 +135,9 @@ export const App = ({ id }: { id: string }) => {
     const hoverSrc = (src: Src | null) => {
         if (!src || !src.left.length) return setHover(null);
         const l = paths[src.left[0].idx];
-        if (!src.right || !src.right.length)
-            return setHover({
-                start: selStart(l, { type: 'list', where: 'before' }),
-                // multi: { end: selEnd(l), aux: selEnd(l) },
-            });
+        if (!src.right || !src.right.length) return setHover({ start: selStart(l, { type: 'list', where: 'before' }) });
         const r = paths[src.right[0].idx];
-        return setHover({
-            start: selStart(l, { type: 'list', where: 'before' }),
-            // multi: { end: selEnd(r) },
-        });
+        return setHover({ start: selStart(l, { type: 'list', where: 'before' }) });
     };
 
     const clickSrc = (src: Src | null) => {
@@ -175,204 +146,21 @@ export const App = ({ id }: { id: string }) => {
         const start = selectStart(l, state.top);
         if (!start) return;
         if (!src.right) {
-            return dispatch({ type: 'update', update: moveA(start) }); // multi: { end: selEnd(l) }
+            return dispatch({ type: 'update', update: moveA(start) });
         }
         const r = paths[src.right[0].idx];
-        return dispatch({ type: 'update', update: moveA(start) }); // multi: { end: selEnd(r) }
+        return dispatch({ type: 'update', update: moveA(start) });
     };
 
     const [menu, setMenu] = useState(null as null | Menu);
-
-    // const [dragMods, setDragMods] = useState({} as Mods);
-
-    // const { lastKey, refs } = useKeyHandler(state, parsed, dispatch, parser, menu, setMenu);
     const { keyFns, lastKey, refs } = useKeyFns(state, parsed, dispatch, parser, menu, setMenu);
 
     const cstate = useLatest(state);
 
-    useEffect(() => {
-        const sel = state.selections[0];
-        // if (state.sel.multi) return setMenu(null);
-        const pos = selectionPos(sel.start, refs, state.top);
-        if (!pos) return;
-        const current = getCurrent(sel, state.top);
-        if (current.type === 'text' && current.cursor.type === 'text') {
-            const span = getSpan(current.node, current.cursor.end.index);
-            const end = current.cursor.end;
-            if (span.type === 'text') {
-                const text = spanText(span);
-                // idText(state.top.tmpText, current.cursor.end, span);
-                if (text[current.cursor.end.cursor - 1] === '\\') {
-                    return setMenu({
-                        top: pos.top + pos.height,
-                        left: pos.left,
-                        selection: 0,
-                        items: [
-                            {
-                                title: 'Image embed',
-                                action() {
-                                    // const spans = current.node.spans.slice()
-                                    // spans[end.index] = {type: 'embed'}
-                                    // setState((s) =>
-                                    //     applyUpdate(s, {
-                                    //         nodes: {
-                                    //             [current.node.loc]: {
-                                    //                 ...current.node,
-                                    //                 spans
-                                    //             },
-                                    //         },
-                                    //         selection: {
-                                    //             start: selStart(pathWithChildren(current.path, s.top.nextLoc), { type: 'text', end: { index: 0, cursor: 0 } }),
-                                    //         },
-                                    //         nextLoc: s.top.nextLoc + 1,
-                                    //     }),
-                                    // );
-                                },
-                            },
-                        ],
-                    });
-                }
-            }
-        }
-        if (current.type !== 'id') return setMenu(null);
-        // oh lol. the slash.
-        // it's gotta be, a thing. gotta parse that out my good folks.
-        const slash = idText(state.top.tmpText, current.cursor, current.node)[0] === '\\';
-        if (!slash) return setMenu(null);
+    useBackslashMenu(state.selections[0], state.top, refs, setMenu, dispatch);
 
-        const kinds: { title: string; kind: RichKind }[] = [
-            { title: 'Rich Text', kind: { type: 'plain' } },
-            { title: 'Rich Text: Bullet', kind: { type: 'list', ordered: false } },
-            { title: 'Rich Text: Section', kind: { type: 'section' } },
-            { title: 'Rich Text: Numbered', kind: { type: 'list', ordered: true } },
-            { title: 'Rich Text: Checkboxes', kind: { type: 'checks', checked: {} } },
-            { title: 'Rich Text: Radio', kind: { type: 'opts' } },
-            { title: 'Rich Text: Quote', kind: { type: 'indent', quote: true } },
-            { title: 'Rich Text: Indent', kind: { type: 'indent', quote: false } },
-            { title: 'Rich Text: Info', kind: { type: 'callout', vibe: 'info' } },
-            { title: 'Rich Text: Warning', kind: { type: 'callout', vibe: 'info' } },
-            { title: 'Rich Text: Error', kind: { type: 'callout', vibe: 'info' } },
-        ];
-
-        setMenu({
-            top: pos.top + pos.height,
-            left: pos.left,
-            selection: 0,
-            items: kinds
-                .map(({ title, kind }) => ({
-                    title,
-                    action() {
-                        dispatch({
-                            type: 'update',
-                            update: [
-                                {
-                                    type: 'replace-self',
-                                    path: sel.start.path,
-                                    node: {
-                                        type: 'list',
-                                        kind,
-                                        loc: false,
-                                        children: [
-                                            {
-                                                type: 'text',
-                                                loc: true,
-                                                spans: [{ type: 'text', text: '', loc: false }],
-                                            },
-                                        ],
-                                    },
-                                    cursor: { type: 'text', end: { index: 0, cursor: 0 } },
-                                },
-                            ],
-                        });
-                    },
-                }))
-                .concat([
-                    {
-                        title: 'Attachment',
-                        action() {
-                            // doing a thing
-                        },
-                    },
-                    {
-                        title: 'Rich Table',
-                        action() {
-                            dispatch({
-                                type: 'update',
-                                update: [
-                                    {
-                                        type: 'replace-self',
-                                        path: sel.start.path,
-                                        cursor: { type: 'text', end: { index: 0, cursor: 0 } },
-                                        node: {
-                                            type: 'table',
-                                            kind: { type: 'rich' },
-                                            loc: false,
-                                            rows: [
-                                                [
-                                                    { type: 'text', loc: true, spans: [{ type: 'text', text: '', loc: false }] },
-                                                    { type: 'text', loc: false, spans: [{ type: 'text', text: '', loc: false }] },
-                                                ],
-                                            ],
-                                        },
-                                    },
-                                ],
-                            });
-                        },
-                    },
-                ]),
-        });
-    }, [state.selections[0], state.top]);
-
-    const selectionStatuses = useMemo(() => {
-        let statuses: SelectionStatuses = {};
-        state.selections.forEach((sel) => {
-            const st = getSelectionStatuses(sel, state.top);
-            Object.entries(st).forEach(([key, status]) => {
-                if (statuses[key]) {
-                    statuses[key].cursors.push(...status.cursors);
-                    statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
-                } else {
-                    statuses[key] = status;
-                }
-            });
-        });
-        return statuses;
-    }, [state.selections, state.top]);
-
-    // const latestDragMods = useLatest(dragMods);
-
-    const drag = useMemo(() => {
-        const up = (evt: MouseEvent) => {
-            document.removeEventListener('mouseup', up);
-            drag.dragging = false;
-        };
-        const drag = {
-            dragging: false,
-            start(sel: SelStart, meta = false) {
-                if (meta) {
-                    dispatch(
-                        { type: 'add-sel', sel: { start: sel } },
-                        // cstate.current.selections.map((s): undefined | Update => undefined).concat([{ nodes: [], selection: { start: sel } }]),
-                        // [undefined, { nodes: [], selection: { start: sel } }]
-                    );
-                } else {
-                    drag.dragging = true;
-                    dispatch({ type: 'update', update: moveA(sel) });
-                    document.addEventListener('mouseup', up);
-                }
-            },
-            move(sel: SelStart, ctrl = false, alt = false) {
-                let start = cstate.current.selections[0].start;
-                if (ctrl) {
-                    [start, sel] = argify(start, sel, cstate.current.top);
-                } else if (alt) {
-                    [start, sel] = atomify(start, sel, cstate.current.top);
-                }
-                dispatch({ type: 'update', update: [{ type: 'move', sel: start, end: sel }] });
-            },
-        };
-        return drag;
-    }, []);
+    const selectionStatuses = useSelectionStatuses(state);
+    const drag = useDrag(dispatch, cstate);
 
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0 }}>
@@ -384,9 +172,9 @@ export const App = ({ id }: { id: string }) => {
                     padding: 50,
                     paddingBottom: 0,
                     minHeight: 0,
-                    // maxHeight: '30vh',
                     overflow: 'auto',
                     flexShrink: 1,
+                    flex: 1,
                 }}
             >
                 <div style={{ height: '1em', paddingBottom: 20 }}>{lastKey ?? ''}</div>
@@ -403,8 +191,6 @@ export const App = ({ id }: { id: string }) => {
                         placeholders,
                         selectionStatuses,
                         config: { sep: { curly: '; ', round: ', ', square: ', ' } },
-                        // msel: mkeys,
-                        // mhover: hoverkeys,
                         dispatch(up) {
                             dispatch({ type: 'update', update: up });
                         },
@@ -430,78 +216,38 @@ export const App = ({ id }: { id: string }) => {
                                 padding: '2px 4px',
                                 cursor: 'pointer',
                             }}
-                            onClick={() => {
-                                action();
-                            }}
+                            onClick={() => action()}
                         >
                             {title}
                         </div>
                     ))}
                 </div>
             ) : null}
-            {/* <div style={{ paddingLeft: 50, paddingTop: 20 }}>
-                SEL{' '}
-                {state.selections.map((sel, i) => (
-                    <div key={i}>{JSON.stringify(sel)}</div>
-                ))}
-            </div>
-            <div style={{ paddingLeft: 50, paddingTop: 20 }}>TMPText {JSON.stringify(state.top.tmpText)}</div>
-            <div style={{ paddingLeft: 50, paddingTop: 14 }}>
-                {Object.entries(selectionStatuses).map(([k, v]) => (
-                    <div key={k}>
-                        {k}: {JSON.stringify(v)}
-                    </div>
-                ))}
-            </div> */}
-            {/* <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'auto', whiteSpace: 'nowrap' }}> */}
-            {/* <div style={{ flex: 1, overflow: 'auto', padding: 25 }}>
-                    <h3>History</h3>
-                    <div>
-                        {state.history.map((item, i) => (
-                            <div key={i}>
-                                <ShowHistoryItem item={item} />
+            <div style={{ display: 'flex', flexDirection: 'column', width: 800, borderLeft: '1px solid #aaa', overflow: 'auto' }}>
+                <div style={{ overflow: 'auto', padding: 25 }}>
+                    <h3>CST</h3>
+                    <ShowXML root={xmlcst} onClick={clickSrc} setHover={hoverSrc} sel={[]} statuses={selectionStatuses} />
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', padding: 25 }}>
+                    <h3>AST</h3>
+                    {xml ? <ShowXML root={xml} onClick={clickSrc} setHover={hoverSrc} statuses={selectionStatuses} sel={[]} /> : 'NO xml'}
+                    <div style={{ marginTop: 50, whiteSpace: 'pre-wrap' }}>
+                        {parsed.bads.map((er, i) => (
+                            <div key={i} style={{ color: 'red' }}>
+                                <div>
+                                    {show(er.matcher)} {er.type}
+                                </div>
+                                <div style={{ fontSize: '80%', padding: 12 }}>{JSON.stringify(er)}</div>
                             </div>
                         ))}
                     </div>
-                </div> */}
-            <div style={{ overflow: 'auto', padding: 25 }}>
-                <h3>CST</h3>
-                <ShowXML root={xmlcst} onClick={clickSrc} setHover={hoverSrc} sel={[]} statuses={selectionStatuses} />
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: 25 }}>
-                <h3>AST</h3>
-                {xml ? <ShowXML root={xml} onClick={clickSrc} setHover={hoverSrc} statuses={selectionStatuses} sel={[]} /> : 'NO xml'}
-                <div style={{ marginTop: 50, whiteSpace: 'pre-wrap' }}>
-                    {parsed.bads.map((er, i) => (
-                        <div key={i} style={{ color: 'red' }}>
-                            <div>
-                                {show(er.matcher)} {er.type}
-                            </div>
-                            <div style={{ fontSize: '80%', padding: 12 }}>{JSON.stringify(er)}</div>
-                        </div>
-                    ))}
                 </div>
             </div>
-            {/* </div> */}
         </div>
     );
 };
 
-// const ShowHistoryItem = ({ item }: { item: HistoryItem }) => {
-//     const nodes = item.type === 'change' ? Object.keys(item.top.next.nodes).length : 0;
-//     return (
-//         <div>
-//             {/* {item.id + ' '} */}
-//             {/* onlyy {item.onlyy}
-//             reverts {item.reverts} */}
-//             {new Date(item.ts).toLocaleString()}
-//             {' ' + item.type}
-//             {' ' + nodes + ' nodes'}
-//         </div>
-//     );
-// };
-
-const walxml = (xml: XML, f: (n: XML) => void) => {
+export const walxml = (xml: XML, f: (n: XML) => void) => {
     f(xml);
     if (xml.children) {
         Object.values(xml.children).forEach((value) => {
@@ -512,132 +258,7 @@ const walxml = (xml: XML, f: (n: XML) => void) => {
     }
 };
 
-const XMLShow = ({
-    xml,
-    refs,
-    state,
-    spans,
-    dispatch,
-}: {
-    spans: Src[];
-    state: TestState;
-    xml: XML;
-    refs: Record<string, HTMLElement>;
-    dispatch: (up: Update | void) => void;
-}) => {
-    const alls = useMemo(() => {
-        const lst: XML[] = [];
-        walxml(xml, (m) => {
-            if (!m.src) return;
-            if (m.src.right || state.top.nodes[m.src.left[0].idx].type !== 'id') {
-                lst.push(m);
-            }
-        });
-        return lst;
-    }, [xml, state]);
-
-    const pos = (loc: Loc, right?: Loc): [number, number] | null => {
-        const lf = refs[loc[0].idx];
-        if (!lf) return null;
-        const lb = lf.getBoundingClientRect();
-        if (!right) {
-            return [lb.left, lb.right];
-        }
-        const rf = refs[right[0].idx];
-        if (!rf) return null;
-        const rb = rf.getBoundingClientRect();
-        return [lb.left, rb.right];
-    };
-
-    const calc = () => {
-        const posed = spans
-            .map((src) => {
-                const { left, right } = src;
-                // const { left, right } = node.src;
-                if (!right) return null;
-                const sides = pos(left, right);
-                if (!sides) return null;
-                return { sides, span: { left, right } };
-            })
-            .filter(Boolean) as { sides: [number, number]; node?: XML; span: Src }[];
-        posed.sort((a, b) => a.sides[1] - a.sides[0] - (b.sides[1] - b.sides[0]));
-
-        const placed: { node?: XML; sides: [number, number]; span: Src }[][] = [[]];
-        posed.forEach(({ node, sides, span }) => {
-            for (let i = 0; i < placed.length; i++) {
-                const row = placed[i];
-                if (!row.some((one) => collides(one.sides, sides))) {
-                    row.push({ node, sides, span });
-                    return;
-                }
-            }
-            placed.push([{ node, sides, span }]);
-        });
-        return placed;
-    };
-    const [placed, setPlaced] = useState<{ node?: XML; sides: [number, number]; span: Src }[][]>([]);
-    useLayoutEffect(() => {
-        // setTimeout(() => {
-        setPlaced(calc());
-        // }, 10);
-    }, [state, xml]);
-
-    const h = 14;
-
-    return (
-        <div>
-            {placed.map((row, i) => {
-                return (
-                    <div key={i} style={{ position: 'relative', height: h + 2 }}>
-                        {row.map(({ node, sides, span }, j) => {
-                            return (
-                                <div
-                                    key={j}
-                                    onClick={() => {
-                                        const all = allPaths(state.top);
-                                        const st = all[span.left[0].idx];
-                                        if (!span.right) {
-                                            return;
-                                        }
-                                        const ssel = selectStart(st, state.top);
-                                        if (!ssel) return;
-
-                                        const ed = all[span.right[0].idx];
-                                        dispatch({
-                                            nodes: {},
-                                            selection: {
-                                                start: ssel,
-                                                // multi: { end: selEnd(ed) },
-                                            },
-                                        });
-                                        console.log(span, all[span.left[0].idx]);
-                                        state.top;
-                                    }}
-                                    style={{
-                                        position: 'absolute',
-                                        left: sides[0],
-                                        width: sides[1] - sides[0],
-                                        backgroundColor: 'rgba(200,200,255)',
-                                        marginTop: 2,
-                                        height: h,
-                                        // height: 4,
-                                        // fontSize: 8,
-                                        borderRadius: 4,
-                                        // padding: 2,
-                                    }}
-                                >
-                                    {node?.tag}
-                                </div>
-                            );
-                        })}
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
-const collides = (one: [number, number], two: [number, number]) => {
+export const collides = (one: [number, number], two: [number, number]) => {
     return (
         (one[0] < two[0] && one[1] > two[0]) ||
         (one[0] < two[1] && one[1] > two[1]) ||
@@ -646,225 +267,51 @@ const collides = (one: [number, number], two: [number, number]) => {
     );
 };
 
-const useKeyFns = (
-    state: AppState,
-    parsed: ParseResult<any>,
-    dispatch: (s: Action) => void,
-    parser: TestParser<any>,
-    menu: Menu | null,
-    setMenu: (m: Menu | null) => void,
-) => {
-    const cstate = useLatest(state);
-    const spans: Src[] = parsed.result ? parser.spans(parsed.result) : [];
-    const cspans = useLatest(spans);
-    const [lastKey, setLastKey] = useState(null as null | string);
-    const refs: Record<number, HTMLElement> = useMemo(() => ({}), []);
-    const cmenu = useLatest(menu);
-
-    const visual: Visual = {
-        up(sel) {
-            return posUp(sel, cstate.current.top, refs);
-        },
-        down(sel) {
-            return posDown(sel, cstate.current.top, refs);
-        },
-        spans: cspans.current,
-    };
-
-    const onKeyDown = (evt: React.KeyboardEvent) => {
-        if (evt.metaKey && (evt.key === 'r' || evt.key === 'l')) return;
-        if (evt.metaKey && (evt.key === 'v' || evt.key === 'c' || evt.key === 'x')) return;
-
-        if (evt.key === 'Dead') {
-            return;
-        }
-        if (evt.key === 'z' && evt.metaKey) {
-            evt.preventDefault();
-            evt.stopPropagation();
-            console.log('undo');
-            return dispatch({ type: evt.shiftKey ? 'redo' : 'undo' });
-        }
-        if (cmenu.current) {
-            const menu = cmenu.current;
-            if (evt.key === 'Escape') {
-                setMenu(null);
-                evt.preventDefault();
-                return;
-            }
-            if (evt.key === 'ArrowUp') {
-                setMenu({
-                    ...menu,
-                    selection: menu.selection <= 0 ? menu.items.length - 1 : menu.selection - 1,
-                });
-                evt.preventDefault();
-                return;
-            }
-            if (evt.key === 'ArrowDown') {
-                setMenu({
-                    ...menu,
-                    selection: menu.selection >= menu.items.length - 1 ? 0 : menu.selection + 1,
-                });
-                evt.preventDefault();
-                return;
-            }
-            if (evt.key === 'Enter') {
-                const item = menu.items[menu.selection];
-                if (item) {
-                    item.action();
-                    setMenu(null);
-                    evt.preventDefault();
-                    return;
+export const useSelectionStatuses = (state: AppState) => {
+    return useMemo(() => {
+        let statuses: SelectionStatuses = {};
+        state.selections.forEach((sel) => {
+            const st = getSelectionStatuses(sel, state.top);
+            Object.entries(st).forEach(([key, status]) => {
+                if (statuses[key]) {
+                    statuses[key].cursors.push(...status.cursors);
+                    statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+                } else {
+                    statuses[key] = status;
                 }
-            }
-        }
-
-        setLastKey(showKey(evt));
-
-        dispatch({
-            type: 'key',
-            key: evt.key,
-            mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
-            visual,
-            config: parser.config,
+            });
         });
-
-        evt.preventDefault();
-        evt.stopPropagation();
-    };
-
-    return {
-        keyFns: {
-            onKeyDown,
-            getDataToCopy() {
-                const state = cstate.current;
-                const copied = state.selections.map((sel) => handleCopyMulti({ top: state.top, sel })).filter(Boolean) as {
-                    tree: RecNodeT<NodeID>;
-                }[];
-                if (!copied.length) return null;
-                console.log(
-                    copied,
-                    copied.map((m) => shape(m.tree)),
-                );
-                return { json: copied, display: 'lol thanks' };
-            },
-            onPaste(data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string }) {
-                console.log('pasting I guess', data);
-                dispatch({ type: 'paste', data });
-            },
-            onInput(text: string) {
-                //
-            },
-            onDelete() {
-                dispatch({
-                    type: 'key',
-                    key: 'Backspace',
-                    mods: {},
-                    visual,
-                    config: parser.config,
-                });
-            },
-        },
-        lastKey,
-        refs,
-    };
+        return statuses;
+    }, [state.selections, state.top]);
 };
 
-// const useKeyHandler = (
-//     state: AppState,
-//     parsed: ParseResult<any>,
-//     dispatch: (s: Action) => void,
-//     parser: TestParser,
-//     menu: Menu | null,
-//     setMenu: (m: Menu | null) => void,
-//     // setDragMods: (f: (m: Mods) => Mods) => void,
-// ) => {
-//     const cstate = useLatest(state);
-//     const spans: Src[] = parsed.result ? parser.spans(parsed.result) : [];
-//     const cspans = useLatest(spans);
-//     const [lastKey, setLastKey] = useState(null as null | string);
-//     const refs: Record<number, HTMLElement> = useMemo(() => ({}), []);
-//     // const [autoComplete, setAutocomplete] = useState(null as null | {
-//     //     items: string[]
-//     // })
-//     const cmenu = useLatest(menu);
-
-//     useEffect(() => {
-//         const f = (evt: KeyboardEvent) => {
-//             if (evt.metaKey && (evt.key === 'r' || evt.key === 'l')) return;
-
-//             if (evt.key === 'Dead') {
-//                 return;
-//             }
-//             if (evt.key === 'z' && evt.metaKey) {
-//                 evt.preventDefault();
-//                 evt.stopPropagation();
-//                 console.log('undo');
-//                 return dispatch({ type: evt.shiftKey ? 'redo' : 'undo' });
-//             }
-//             if (cmenu.current) {
-//                 const menu = cmenu.current;
-//                 if (evt.key === 'Escape') {
-//                     setMenu(null);
-//                     evt.preventDefault();
-//                     return;
-//                 }
-//                 if (evt.key === 'ArrowUp') {
-//                     setMenu({
-//                         ...menu,
-//                         selection: menu.selection <= 0 ? menu.items.length - 1 : menu.selection - 1,
-//                     });
-//                     evt.preventDefault();
-//                     return;
-//                 }
-//                 if (evt.key === 'ArrowDown') {
-//                     setMenu({
-//                         ...menu,
-//                         selection: menu.selection >= menu.items.length - 1 ? 0 : menu.selection + 1,
-//                     });
-//                     evt.preventDefault();
-//                     return;
-//                 }
-//                 if (evt.key === 'Enter') {
-//                     const item = menu.items[menu.selection];
-//                     if (item) {
-//                         item.action();
-//                         setMenu(null);
-//                         evt.preventDefault();
-//                         return;
-//                     }
-//                 }
-//             }
-
-//             setLastKey(showKey(evt));
-
-//             dispatch({
-//                 type: 'key',
-//                 key: evt.key,
-//                 mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
-//                 visual: {
-//                     up(sel) {
-//                         const nxt = posUp(sel, cstate.current.top, refs);
-//                         return nxt ? { start: nxt } : null;
-//                     },
-//                     down(sel) {
-//                         const nxt = posDown(sel, cstate.current.top, refs);
-//                         return nxt ? { start: nxt } : null;
-//                     },
-//                     spans: cspans.current,
-//                 },
-//                 config: parser.config,
-//             });
-
-//             evt.preventDefault();
-//             evt.stopPropagation();
-//         };
-//         document.addEventListener('keydown', f);
-//         // document.addEventListener('keyup', up);
-//         return () => {
-//             document.removeEventListener('keydown', f);
-//             // document.removeEventListener('keyup', up);
-//         };
-//     }, []);
-
-//     return { lastKey, refs };
-// };
+const useDrag = (dispatch: (a: Action) => void, cstate: { current: AppState }) => {
+    return useMemo(() => {
+        const up = (evt: MouseEvent) => {
+            document.removeEventListener('mouseup', up);
+            drag.dragging = false;
+        };
+        const drag = {
+            dragging: false,
+            start(sel: SelStart, meta = false) {
+                if (meta) {
+                    dispatch({ type: 'add-sel', sel: { start: sel } });
+                } else {
+                    drag.dragging = true;
+                    dispatch({ type: 'update', update: moveA(sel) });
+                    document.addEventListener('mouseup', up);
+                }
+            },
+            move(sel: SelStart, ctrl = false, alt = false) {
+                let start = cstate.current.selections[0].start;
+                if (ctrl) {
+                    [start, sel] = argify(start, sel, cstate.current.top);
+                } else if (alt) {
+                    [start, sel] = atomify(start, sel, cstate.current.top);
+                }
+                dispatch({ type: 'update', update: [{ type: 'move', sel: start, end: sel }] });
+            },
+        };
+        return drag;
+    }, []);
+};

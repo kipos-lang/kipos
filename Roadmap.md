@@ -1,4 +1,8 @@
 
+## So,
+
+I have an editor. like. right?
+
 ## Basic multi-top setup
 
 - I can require you to click a toplevel to get selection there

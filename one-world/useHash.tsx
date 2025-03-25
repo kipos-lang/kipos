@@ -9,5 +9,5 @@ export const useHash = (): string => {
         window.addEventListener('hashchange', fn);
         return () => window.removeEventListener('hashchange', fn);
     }, []);
-    return hash;
+    return hash?.slice(1);
 };

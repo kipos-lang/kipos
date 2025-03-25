@@ -8,6 +8,7 @@ import { init } from '../test-utils';
 import { Top, NodeSelection } from '../utils';
 import { AppState, Action } from './App';
 import { keyUpdate } from './keyUpdate';
+import { genId } from './genId';
 
 type Delta<T> = { next: T; prev: T };
 export type HistoryItem =
@@ -30,7 +31,6 @@ export type HistoryChange = {
     selections: Delta<NodeSelection[]>;
 };
 
-export const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const revDelta = <T>(d: Delta<T>): Delta<T> => ({ next: d.prev, prev: d.next });
 
 const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), top: revDelta(change.top) });

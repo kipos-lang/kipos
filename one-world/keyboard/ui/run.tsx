@@ -15,7 +15,7 @@ const getRoot = (): Root => {
 };
 
 const Loader = () => {
-    const hash = useHash()?.slice(1) || 'base';
+    const hash = useHash() || 'base';
     const namesRaw = localStorage['ow:tabs'];
     const names: string[] = namesRaw ? JSON.parse(namesRaw) : [hash];
     const [name, setName] = useState('');
