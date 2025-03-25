@@ -111,7 +111,6 @@ export type Top = {
     nodes: Nodes;
     root: NodeID;
     nextLoc(): string;
-    tmpText?: TmpText;
 };
 
 export const getNode = (path: Path, top: Top) => top.nodes[path.children[path.children.length - 1]];

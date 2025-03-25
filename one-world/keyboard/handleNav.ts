@@ -261,7 +261,7 @@ export const navRight = (current: Current, state: TestState): SelStart | void =>
                 const { right } = cursorSides(current.cursor, current.start);
                 return selStart(current.path, { type: 'id', end: right });
             }
-            const text = idText(state.top.tmpText, current.cursor, current.node);
+            const text = idText(current.cursor, current.node);
             if (current.cursor.end < text.length) {
                 return selStart(current.path, { type: 'id', end: current.cursor.end + 1 });
             }

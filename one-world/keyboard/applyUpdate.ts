@@ -52,7 +52,6 @@ export const applyNormalUpdate = <T extends TestState>(state: T, update: null | 
             nextLoc: state.top.nextLoc,
             nodes: { ...state.top.nodes, ...update.nodes },
             root: update.root ?? state.top.root,
-            tmpText: state.top.tmpText,
         },
     };
 

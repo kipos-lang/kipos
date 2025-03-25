@@ -117,7 +117,7 @@ export const leftJoin = (state: TestState, cursor: Cursor): KeyAction[] | void =
             if (node.type === 'id') {
                 if (cursor.type !== 'id') throw new Error(`invalid cursor for id node`);
                 // check empty cursor
-                const text = idText(state.top.tmpText, cursor, node);
+                const text = idText(cursor, node);
                 if (text.length === 0) {
                     const ppath = parentPath(state.sel.start.path);
                     return [{ type: 'remove-span', path: ppath, index: at }];
@@ -249,7 +249,7 @@ export const handleDelete = (state: TestState): KeyAction[] | void => {
                 if (left === right) {
                     left--;
                 }
-                const text = idText(state.top.tmpText, current.cursor, current.node).slice();
+                const text = idText(current.cursor, current.node).slice();
                 text.splice(left, right - left);
                 return [{ type: 'set-id-text', path: state.sel.start.path, text: text.join(''), end: left }];
             }

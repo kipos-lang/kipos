@@ -71,7 +71,7 @@ export const selectionPos = (
     const range = new Range();
     switch (cur.type) {
         case 'id': {
-            const text = idText(top.tmpText, cur.cursor, cur.node);
+            const text = idText(cur.cursor, cur.node);
             if (text.length === 0) {
                 return boxAt(span.getBoundingClientRect());
             }

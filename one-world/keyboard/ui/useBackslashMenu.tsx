@@ -23,7 +23,7 @@ export const useBackslashMenu = (
             const end = current.cursor.end;
             if (span.type === 'text') {
                 const text = spanText(span);
-                // idText(top.tmpText, current.cursor.end, span);
+                // idText(current.cursor.end, span);
                 if (text[current.cursor.end.cursor - 1] === '\\') {
                     return setMenu({
                         top: pos.top + pos.height,
@@ -59,7 +59,7 @@ export const useBackslashMenu = (
         if (current.type !== 'id') return setMenu(null);
         // oh lol. the slash.
         // it's gotta be, a thing. gotta parse that out my good folks.
-        const slash = idText(top.tmpText, current.cursor, current.node)[0] === '\\';
+        const slash = idText(current.cursor, current.node)[0] === '\\';
         if (!slash) return setMenu(null);
 
         const kinds: { title: string; kind: RichKind }[] = [
