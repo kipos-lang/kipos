@@ -1,10 +1,14 @@
-import React, { useCallback, useContext, useEffect } from 'react';
-import { ModuleTree, useStore } from './store';
+import React, { useCallback, useContext, useEffect, useMemo } from 'react';
+import { ModuleTree, SelStatus, useStore } from './store';
 import { zedlight } from './zedcolors';
 import { js } from '../keyboard/test-utils';
 import { Node } from '../shared/cnodes';
 import { closer, opener } from '../keyboard/ui/RenderNode';
 import { interleave, interleaveF } from '../keyboard/interleave';
+import { TextWithCursor } from '../keyboard/ui/cursor';
+import { splitGraphemes } from '../splitGraphemes';
+import { Cursor, Highlight, IdCursor, Path, pathWithChildren } from '../keyboard/utils';
+import { pathKey } from '../../../../exploration/j3/one-world/keyboard/utils';
 
 export const App = () => {
     const store = useStore();
@@ -30,28 +34,43 @@ const Top = ({ id }: { id: string }) => {
 
     const isSelected = editor.module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
     const root = top.useRoot();
+    const rootPath = useMemo(
+        () => ({
+            root: { ids: [], top: id },
+            children: [],
+        }),
+        [id],
+    );
 
-    const useNode = useCallback((id: string) => top.useNode(id), [id]);
+    const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
         <div>
             <UseNodeCtx.Provider value={useNode}>
-                <RenderNode id={root} />
+                <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
         </div>
     );
 };
 
-const UseNodeCtx = React.createContext((id: string): Node => {
+const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
     throw new Error('n');
 });
 
-const R = ({ node }: { node: Node }) => {
+const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
         case 'id':
-            return <span>{node.text}</span>;
+            if (!sel) return <span>{node.text}</span>;
+            return (
+                <TextWithCursor
+                    text={splitGraphemes(node.text)}
+                    highlight={sel.highlight?.type === 'id' ? sel.highlight.spans : undefined}
+                    cursors={(sel.cursors.filter((c) => c.type === 'id') as IdCursor[]).map((c) => c.end)}
+                />
+            );
+        // return <span>{node.text}</span>;
         case 'list':
             if (typeof node.kind !== 'string') return 'UK';
-            const children = node.children.map((id) => <RenderNode id={id} key={id} />);
+            const children = node.children.map((id) => <RenderNode parent={self} id={id} key={id} />);
             if (node.kind === 'smooshed') {
                 return <span>{children}</span>;
             }
@@ -76,10 +95,17 @@ const R = ({ node }: { node: Node }) => {
     }
 };
 
-const RenderNode = ({ id }: { id: string }) => {
-    const node = useContext(UseNodeCtx)(id);
+const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
+    const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
+    const { node, sel } = useContext(UseNodeCtx)(self);
 
-    return <R node={node} />;
+    return (
+        <>
+            {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>
+            {JSON.stringify(sel)} */}
+            <R node={node} self={self} sel={sel} />
+        </>
+    );
 };
 
 const Editor = () => {

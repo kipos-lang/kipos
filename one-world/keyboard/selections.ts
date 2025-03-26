@@ -1,5 +1,5 @@
 import { splitGraphemes } from '../splitGraphemes';
-import { List, Node, NodeID, childLocs } from '../shared/cnodes';
+import { List, Node, NodeID, Nodes, childLocs } from '../shared/cnodes';
 import { isTag, selectEnd, selectStart } from './handleNav';
 import { SelStart } from './handleShiftNav';
 import {
@@ -160,7 +160,7 @@ export const argify = (start: SelStart, sel: SelStart, top: Top): [SelStart, Sel
 //     return false;
 // };
 
-export const getSelectionStatuses = (selection: NodeSelection, top: Top): SelectionStatuses => {
+export const getSelectionStatuses = (selection: NodeSelection, top: { nodes: Nodes }): SelectionStatuses => {
     if (!selection.end) {
         const { cursor, key } = selection.start;
         return { [key]: { cursors: [cursor] } };
@@ -282,7 +282,7 @@ export const compareSelections = (one: SelStart, two: SelStart, top: Top) => {
     }
 };
 
-export const orderSelections = (one: SelStart, two: SelStart, top: Top): SelectionStatuses => {
+export const orderSelections = (one: SelStart, two: SelStart, top: { nodes: Nodes }): SelectionStatuses => {
     const [left, neighbors, right, inside] = collectSelectedNodes(one, two, (id) => top.nodes[id]);
     const statuses: SelectionStatuses = {};
     neighbors.forEach((n) => (statuses[pathKey(n.path)] = { cursors: [], highlight: n.hl }));
@@ -306,7 +306,7 @@ export const orderSelections = (one: SelStart, two: SelStart, top: Top): Selecti
     return statuses;
 };
 
-const checkSmooshy = (path: Path, top: Top, statuses: SelectionStatuses): false | List<NodeID> => {
+const checkSmooshy = (path: Path, top: { nodes: Nodes }, statuses: SelectionStatuses): false | List<NodeID> => {
     const node = top.nodes[lastChild(path)];
     if (node && hasNoBraces(node)) {
         const f = node.children[0];
@@ -322,7 +322,7 @@ const checkSmooshy = (path: Path, top: Top, statuses: SelectionStatuses): false 
     return false;
 };
 
-const higlightSmooshy = (path: Path, top: Top, statuses: SelectionStatuses) => {
+const higlightSmooshy = (path: Path, top: { nodes: Nodes }, statuses: SelectionStatuses) => {
     const k = pathKey(path);
     if (statuses[k]?.highlight?.type === 'full') return;
     const node = checkSmooshy(path, top, statuses);

@@ -267,6 +267,22 @@ export const collides = (one: [number, number], two: [number, number]) => {
     );
 };
 
+// export const calculateSelectionStatuses = (selections: NodeSelection) => {
+//     let statuses: SelectionStatuses = {};
+//     selections.forEach((sel) => {
+//         const st = getSelectionStatuses(sel, state.top);
+//         Object.entries(st).forEach(([key, status]) => {
+//             if (statuses[key]) {
+//                 statuses[key].cursors.push(...status.cursors);
+//                 statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+//             } else {
+//                 statuses[key] = status;
+//             }
+//         });
+//     });
+//     return statuses;
+// }
+
 export const useSelectionStatuses = (state: AppState) => {
     return useMemo(() => {
         let statuses: SelectionStatuses = {};

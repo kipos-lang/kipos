@@ -4,8 +4,9 @@ import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
 import { genId } from '../keyboard/ui/genId';
-import { NodeSelection, selStart, Top } from '../keyboard/utils';
+import { Cursor, Highlight, lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses, selStart, Top } from '../keyboard/utils';
 import { loadLanguageConfigs, loadModules, saveModule } from './storage';
+import { getSelectionStatuses } from '../keyboard/selections';
 
 export type ModuleTree = {
     node?: Module;
@@ -27,10 +28,15 @@ interface EditorStore {
     update(action: Action): void;
 }
 
+export type SelStatus = {
+    cursors: Cursor[];
+    highlight?: Highlight;
+};
+
 interface TopStore {
     top: Toplevel;
     useRoot(): string;
-    useNode(id: string): Node;
+    useNode(path: Path): { node: Node; sel?: SelStatus };
 }
 
 const newModule = (): Module => {
@@ -114,16 +120,15 @@ const createStore = (): Store => {
         }, [evt]);
     };
 
+    let selectionStatuses: Record<string, SelStatus> = recalcSelectionStatuses(modules[selected]);
+
     const makeEditor = (selected: string) => ({
         selected,
         get module() {
             return modules[selected];
         },
         update(action: Action) {
-            console.log('update', action);
-            // const top = '';
             const mod = modules[selected];
-            // const tl = mod.toplevels[top];
             const tops: Record<string, Top> = {};
             Object.entries(mod.toplevels).forEach(([key, top]) => {
                 tops[key] = { ...top, nextLoc: genId };
@@ -135,8 +140,11 @@ const createStore = (): Store => {
             };
             const result = reduce(state, action, false);
             mod.history = result.history;
-            const changed = diffIds(allIds(mod.selections), allIds(result.selections));
+            const changed = allIds(result.selections);
+            Object.assign(changed, allIds(mod.selections));
             mod.selections = result.selections;
+
+            selectionStatuses = recalcSelectionStatuses(mod);
 
             Object.entries(result.tops).forEach(([key, top]) => {
                 Object.keys(top.nodes).forEach((k) => {
@@ -159,9 +167,12 @@ const createStore = (): Store => {
         useTop(top: string) {
             useTick(`top:${top}`);
             return {
-                useNode(id: string) {
-                    useTick(`node:${id}`);
-                    return modules[selected].toplevels[top].nodes[id];
+                useNode(path: Path) {
+                    useTick(`node:${lastChild(path)}`);
+                    return {
+                        node: modules[selected].toplevels[top].nodes[lastChild(path)],
+                        sel: selectionStatuses[pathKey(path)],
+                    };
                 },
                 useRoot() {
                     useTick(`top:${top}:root`);
@@ -200,6 +211,8 @@ const createStore = (): Store => {
     };
 };
 
+// const nodeStatus = (id: string, selections: NodeSelection): SelStatus | undefined => {};
+
 const StoreCtx = createContext({ store: null } as { store: null | Store });
 
 export const useStore = (): Store => {
@@ -222,4 +235,21 @@ const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
         if (!one[k]) res[k] = true;
     });
     return res;
+};
+
+const recalcSelectionStatuses = (mod: Module) => {
+    const statuses: SelectionStatuses = {};
+    mod.selections.forEach((sel) => {
+        const st = getSelectionStatuses(sel, mod.toplevels[sel.start.path.root.top]);
+
+        Object.entries(st).forEach(([key, status]) => {
+            if (statuses[key]) {
+                statuses[key].cursors.push(...status.cursors);
+                statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+            } else {
+                statuses[key] = status;
+            }
+        });
+    });
+    return statuses;
 };
