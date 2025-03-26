@@ -7,11 +7,13 @@ import { KeyAction, keyActionToUpdate } from '../keyboard/keyActionToUpdate';
 import { Config } from '../keyboard/test-utils';
 import { keyUpdate, Visual } from '../keyboard/ui/keyUpdate';
 import { CopiedValues } from '../keyboard/update/multi-change';
-import { NodeSelection, Top } from '../keyboard/utils';
+import { NodeSelection, selStart, Top } from '../keyboard/utils';
 import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
+import { Toplevel } from './types';
 
 export type AppState = {
-    tops: Record<string, Top>;
+    roots: string[];
+    tops: Record<string, Toplevel>;
     selections: NodeSelection[];
     history: HistoryItem<HistoryChange>[];
 };
@@ -26,7 +28,7 @@ export type HistoryChange = {
     selections: Delta<NodeSelection[]>;
 };
 
-type TopUpdate = Omit<Top, 'nodes'> & { nodes: Record<string, Node | null> };
+type TopUpdate = Omit<Toplevel, 'nodes'> & { nodes: Record<string, Node | null> };
 
 export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryChange => {
     return {
@@ -36,7 +38,7 @@ export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryCh
     };
 };
 
-const diffTop = (prev: Top, next: Top): [TopUpdate, TopUpdate, boolean] => {
+const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean] => {
     const redo: TopUpdate = { ...next, nodes: {} };
     const undo: TopUpdate = { ...prev, nodes: {} };
 
@@ -193,11 +195,26 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
         case 'update':
             throw new Error('noaa');
-        // const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
-        // return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
 
         case 'new-tl': {
-            // if (action.parent == null)
+            if (action.parent == null) {
+                const tid = genId();
+                const rid = genId();
+                return {
+                    ...state,
+                    tops: {
+                        ...state.tops,
+                        [tid]: {
+                            id: tid,
+                            root: rid,
+                            children: [],
+                            nodes: { [rid]: { type: 'id', text: '', loc: rid } },
+                        },
+                    },
+                    roots: state.roots.concat([tid]),
+                    selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
+                };
+            }
             return state;
         }
 

@@ -82,7 +82,7 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-type Evt = 'selected' | 'selection' | `top:${string}` | `node:${string}`;
+type Evt = 'roots' | 'selected' | 'selection' | `top:${string}` | `node:${string}`;
 
 const createStore = (): Store => {
     const modules = loadModules();
@@ -135,13 +135,17 @@ const createStore = (): Store => {
         },
         update(action: Action) {
             const mod = modules[selected];
-            const tops: Record<string, Top> = { ...mod.toplevels };
-            const state: AppState = {
-                tops,
-                history: mod.history,
-                selections: mod.selections,
-            };
-            const result = reduce(state, action, false, genId);
+            const result = reduce(
+                {
+                    tops: { ...mod.toplevels },
+                    roots: mod.roots,
+                    history: mod.history,
+                    selections: mod.selections,
+                },
+                action,
+                false,
+                genId,
+            );
             mod.history = result.history;
             const changed = allIds(result.selections);
             Object.assign(changed, allIds(mod.selections));
@@ -155,6 +159,10 @@ const createStore = (): Store => {
             Object.keys(old).forEach((k) => {});
 
             Object.entries(result.tops).forEach(([key, top]) => {
+                if (!mod.toplevels[key]) {
+                    mod.toplevels[key] = top;
+                    return;
+                }
                 Object.keys(top.nodes).forEach((k) => {
                     if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
                         changed[k] = true;
@@ -164,8 +172,19 @@ const createStore = (): Store => {
                 if (mod.toplevels[key].root !== top.root) {
                     mod.toplevels[key].root = top.root;
                     shout(`top:${key}:root`);
+                    shout(`top:${key}`);
+                }
+                if (top.children !== mod.toplevels[key].children) {
+                    mod.toplevels[key].children = top.children;
+                    shout(`top:${key}:children`);
+                    shout(`top:${key}`);
                 }
             });
+
+            if (mod.roots !== result.roots) {
+                mod.roots = result.roots;
+                shout('roots');
+            }
 
             Object.keys(changed).forEach((k) => {
                 shout(`node:${k}`);
@@ -211,6 +230,7 @@ const createStore = (): Store => {
         },
         useEditor() {
             useTick(`selected`);
+            useTick(`roots`);
             if (editor.selected !== selected) {
                 editor = makeEditor(selected);
             }
