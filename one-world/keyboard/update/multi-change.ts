@@ -115,8 +115,7 @@ export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart): J
             const i2 = pnode.children.indexOf(lastChild(right.path));
             if (i2 === i1 + 1) {
                 const children = pnode.children.slice();
-                nextLoc = top.nextLoc;
-                const loc = nextLoc++ + '';
+                const loc = top.nextLoc();
                 const two = children.splice(i1, 2, loc);
                 nodes[loc] = { type: 'list', kind: 'smooshed', children: two, loc };
                 nodes[pnode.loc] = { ...pnode, children };
@@ -126,7 +125,7 @@ export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart): J
         }
     }
 
-    return { nodes, selection, nextLoc };
+    return { nodes, selection };
 };
 
 const copyDeep = (loc: NodeID, top: Top, dest: Nodes) => {
@@ -143,7 +142,7 @@ export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: Copied
 
     const root = fromRec(values.tree, nodes, (l) => {
         if (l == null || l === '-1' || nodes[l] || top.nodes[l]) {
-            return nextLoc++ + '';
+            return top.nextLoc();
         }
         return l;
     });
@@ -168,7 +167,7 @@ export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: Copied
                 const selS = selectStart(pathWithChildren(parentPath(path), rootNode.children[0]), stop);
                 const selE = selectEnd(pathWithChildren(parentPath(path), rootNode.children[rootNode.children.length - 1]), stop);
                 if (selS && selE) {
-                    return { ...update, selection: { start: selS, end: selE }, nextLoc };
+                    return { ...update, selection: { start: selS, end: selE } };
                 }
             }
 
@@ -180,7 +179,7 @@ export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: Copied
             const ed = selectEnd(path, stop);
 
             if (st && ed) {
-                return { nodes, selection: { start: st, end: ed }, nextLoc };
+                return { nodes, selection: { start: st, end: ed } };
             }
             return;
         }

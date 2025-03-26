@@ -9,7 +9,6 @@ export const RenderId = (
     status: SelectionStatuses[''],
     readOnly: boolean | undefined,
     node: Id<NodeID>,
-    tmpText: TmpText,
     style: React.CSSProperties | undefined,
     ref: (el: HTMLElement) => void,
     ctx: RCtx,

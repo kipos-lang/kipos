@@ -5,13 +5,10 @@ import { IdCursor, Top } from './utils';
 
 export const spanText = (span: { text: string }) => splitGraphemes(span.text);
 
-export const idText = (tmpText: Top['tmpText'], cursor: IdCursor | { text?: string[] }, node: { text: string; loc: NodeID }) =>
-    splitGraphemes(node.text);
-// export const idString = (tmpText: Top['tmpText'], cursor: IdCursor | { text?: string[] }, loc: number, text: string) =>
-//     getIdText(tmpText, loc) ?? cursor.text ?? splitGraphemes(text);
+export const idText = (cursor: IdCursor | { text?: string[] }, node: { text: string; loc: NodeID }) => splitGraphemes(node.text);
 
-export const cursorSplit = (tmpText: Top['tmpText'], node: { text: string; loc: NodeID }, cursor: IdCursor, start: number | undefined): Split => {
-    const text = idText(tmpText, cursor, node);
+export const cursorSplit = (node: { text: string; loc: NodeID }, cursor: IdCursor, start: number | undefined): Split => {
+    const text = idText(cursor, node);
 
     const { left, right } = cursorSides(cursor, start);
 

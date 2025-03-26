@@ -40,7 +40,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
     const table = handleTableSplit(grem, config, path, top, current.cursor.end);
     if (table) return table;
 
-    const text = idText(top.tmpText, cursor, node);
+    const text = idText(cursor, node);
     if (config.xml && grem === '/' && cursor.end === 1 && text.length === 1 && text[0] === '<') {
         const pnode = top.nodes[parentLoc(path)];
         if (pnode?.type !== 'list' || pnode.kind !== 'smooshed') {
@@ -62,7 +62,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
 
     if (config.xml && grem === '>') {
         const pnode = top.nodes[parentLoc(path)];
-        const chars = idText(top.tmpText, cursor, node);
+        const chars = idText(cursor, node);
         if (
             pnode?.type === 'list' &&
             pnode.kind === 'smooshed' &&
@@ -97,7 +97,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
         }
 
         if (node.ccls === kind) {
-            const chars = idText(top.tmpText, cursor, node).slice();
+            const chars = idText(cursor, node).slice();
             const { left, right } = cursorSides(cursor, current.start);
             chars.splice(left, right - left, grem);
             return [{ type: 'set-id-text', path, end: left + 1, text: chars.join(''), ccls: kind }];
@@ -133,7 +133,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
 
     const pnode = top.nodes[parentLoc(path)];
     if (grem === '\n' && pnode?.type === 'list' && braced(pnode) && pnode.children.length === 1 && !pnode.forceMultiline) {
-        if (idText(top.tmpText, cursor, node).length === 0) {
+        if (idText(cursor, node).length === 0) {
             // return { nodes: { [pnode.loc]: { ...pnode, forceMultiline: true } } };
             return [{ type: 'toggle-multiline', loc: pnode.loc }];
         }
@@ -254,7 +254,7 @@ export const handleTableSplit = (grem: string, config: Config, path: Path, top: 
 };
 
 export type SplitRes = {
-    result: { sloc: NodeID | null; other: NodeID[]; nodes: UNodes; forceMultiline: boolean | undefined; nextLoc: number };
+    result: { sloc: NodeID | null; other: NodeID[]; nodes: UNodes; forceMultiline: boolean | undefined };
     two: { items: Flat[]; selection: { node: Node; cursor: Cursor } };
 };
 
@@ -303,7 +303,7 @@ export function addIdNeighbor({
     //     tmpText[node.loc] = undefined;
     // }
 
-    const split = cursorSplit(top.tmpText, node, cursor, current.start);
+    const split = cursorSplit(node, cursor, current.start);
 
     let sel: Node = node;
     let ncursor: Cursor = { ...cursor };

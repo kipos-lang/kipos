@@ -39,7 +39,7 @@ export const flatten = (node: Node, top: Top, remap: Nodes = {}, depth: number =
 // can't we just look at the parent (from findParent) in the handleId key?
 // I guess that wouldn't handle the other places where flat/rough get called...
 export const rough = (flat: Flat[], top: Top, sel: Node, outer?: NodeID) => {
-    const { sloc, other, nodes, forceMultiline, nextLoc } = unflat(top, flat, sel);
+    const { sloc, other, nodes, forceMultiline } = unflat(top, flat, sel);
 
     if (sloc == null) throw new Error(`sel node not encountered`);
 
@@ -64,7 +64,7 @@ export const rough = (flat: Flat[], top: Top, sel: Node, outer?: NodeID) => {
         throw new Error(`Cannot find path to selected node: ${sloc}`);
     }
 
-    return { nodes, nextLoc, selPath, root };
+    return { nodes, selPath, root };
 };
 
 // type FNode = Omit<List<number>, 'type' | 'children'> & { type: 'flist'; children: (Node | FNode)[] };
@@ -186,7 +186,6 @@ export const collapseAdjacentIDs = (flat: Flat[], selection: { node: Node; curso
 
 export function unflat(top: Top, flat: Flat[], sel: Node) {
     const nodes: Update['nodes'] = {};
-    let nextLoc = top.nextLoc;
     let sloc: NodeID | null = null;
     let forceMultiline = undefined as undefined | boolean;
     const other: NodeID[] = [];
@@ -206,7 +205,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
                 if (flat[i].type === 'smoosh') continue;
                 const node = flat[i] as Node;
                 if (node.loc === '-1') {
-                    let nloc = nextLoc++ + '';
+                    let nloc = top.nextLoc();
                     nodes[nloc] = { ...node, loc: nloc };
                     schildren.push(nloc);
                     if (node === sel) {
@@ -225,7 +224,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
                 children.push(schildren[0]);
             } else {
                 if (loc === '-1') {
-                    loc = nextLoc++ + '';
+                    loc = top.nextLoc();
                     nodes[loc] = { type: 'list', kind: 'smooshed', loc, children: schildren };
                 } else {
                     const parent = top.nodes[loc];
@@ -252,7 +251,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
             other.push(children[0]);
         } else {
             if (ploc === '-1') {
-                const loc = nextLoc++ + '';
+                const loc = top.nextLoc();
                 nodes[loc] = { type: 'list', kind: 'spaced', loc, children };
                 other.push(loc);
             } else {
@@ -265,7 +264,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
             }
         }
     }
-    return { sloc, other, nodes, forceMultiline, nextLoc };
+    return { sloc, other, nodes, forceMultiline };
 }
 
 export function flatToUpdateNew(
@@ -297,7 +296,6 @@ export function flatToUpdateNew(
     return {
         root,
         nodes: r.nodes,
-        nextLoc: r.nextLoc,
         selection: {
             start: fixSelection(selStart(pathWithChildren(parentPath(parent.path), ...r.selPath), two.selection.cursor), r.nodes, top),
         },

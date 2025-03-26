@@ -32,18 +32,22 @@ export type TestParser<T> = {
     spans(ast: any): Src[];
 };
 
-export const initTop: Top = {
-    nextLoc: 1,
-    nodes: { [0]: { type: 'id', text: '', loc: '0' } },
-    root: '0',
-    // tmpText: {},
+export const initTop = (): Top => {
+    let lid = 1;
+    return {
+        nextLoc: () => lid++ + '',
+        nodes: { [0]: { type: 'id', text: '', loc: '0' } },
+        root: '0',
+        // tmpText: {},
+    };
 };
-export const init: TestState = {
-    top: initTop,
+
+export const init = (): TestState => ({
+    top: initTop(),
     sel: {
         start: selStart({ root: { ids: [], top: '' }, children: ['0'] }, { type: 'id', end: 0 }),
     },
-};
+});
 
 export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel: NodeID[]; sels: Record<number, NodeID[]> } => {
     const nodes: Nodes = {};
@@ -59,7 +63,7 @@ export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel:
         }
         return loc;
     });
-    return { top: { nextLoc, nodes, root }, sel, sels };
+    return { top: { nextLoc: () => nextLoc++ + '', nodes, root }, sel, sels };
 };
 
 export type Sels = null | [number, Cursor] | [number, Cursor][];
@@ -76,7 +80,7 @@ export const asTopAndLocs = (node: RecNodeT<number>): { top: Top; locs: Record<n
         }
         return loc;
     });
-    return { top: { nextLoc, nodes, root: rootLoc }, locs };
+    return { top: { nextLoc: () => nextLoc++ + '', nodes, root: rootLoc }, locs };
 };
 
 export const asTopAndPaths = (node: RecNodeT<Sels>, root: Path['root']): { top: Top; sels: Record<number, NodeSelection> } => {
@@ -97,7 +101,7 @@ export const asTopAndPaths = (node: RecNodeT<Sels>, root: Path['root']): { top: 
         }
         return loc;
     });
-    return { top: { nextLoc, nodes, root: rootLoc }, sels };
+    return { top: { nextLoc: () => nextLoc++ + '', nodes, root: rootLoc }, sels };
 };
 
 // export { initial as asTop };

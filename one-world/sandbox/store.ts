@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Action } from './state';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Action, AppState, reduce } from './state';
 import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
 import { genId } from '../keyboard/ui/genId';
-import { selStart } from '../keyboard/utils';
-import { loadLanguageConfigs, loadModules } from './storage';
+import { Cursor, Highlight, lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses, selStart, Top } from '../keyboard/utils';
+import { loadLanguageConfigs, loadModules, saveModule } from './storage';
+import { getSelectionStatuses } from '../keyboard/selections';
 
-type ModuleTree = {
+export type ModuleTree = {
     node?: Module;
     children: ModuleTree[];
 };
@@ -24,12 +25,18 @@ interface Store {
 interface EditorStore {
     get module(): Module;
     useTop(id: string): TopStore;
+    update(action: Action): void;
 }
+
+export type SelStatus = {
+    cursors: Cursor[];
+    highlight?: Highlight;
+};
 
 interface TopStore {
     top: Toplevel;
-    update(action: Action): void;
-    useNode(id: string): Node;
+    useRoot(): string;
+    useNode(path: Path): { node: Node; sel?: SelStatus };
 }
 
 const newModule = (): Module => {
@@ -74,77 +81,175 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-export const useStore = (): Store => {
-    return useMemo((): Store => {
-        const modules = loadModules();
-        const configs = loadLanguageConfigs();
+type Evt = 'selected' | `top:${string}` | `node:${string}`;
 
-        let treeCache = makeModuleTree(modules);
-        let selected = location.hash.slice(1);
-        if (!selected) {
-            if (treeCache.children.length && treeCache.children[0].node) {
-                selected = treeCache.children[0].node!.id;
-            }
-        }
-        if (!selected) {
-            const module = newModule();
-            modules[module.id] = module;
-            selected = module.id;
-            treeCache.children.push({ node: module, children: [] });
-        }
+const createStore = (): Store => {
+    const modules = loadModules();
+    const configs = loadLanguageConfigs();
 
-        const listeners: Record<string, (() => void)[]> = {};
-        const listen = (evt: string, fn: () => void) => {
-            if (!listeners[evt]) listeners[evt] = [fn];
-            else listeners[evt].push(fn);
-            return () => {
-                const at = listeners[evt].indexOf(fn);
-                if (at !== -1) listeners[evt].splice(at, 1);
+    let treeCache = makeModuleTree(modules);
+    let selected = location.hash.slice(1);
+    if (!selected) {
+        if (treeCache.children.length && treeCache.children[0].node) {
+            selected = treeCache.children[0].node!.id;
+        }
+    }
+    if (!selected) {
+        const module = newModule();
+        modules[module.id] = module;
+        selected = module.id;
+        treeCache.children.push({ node: module, children: [] });
+    }
+
+    const listeners: Partial<Record<Evt, (() => void)[]>> = {};
+    const listen = (evt: Evt, fn: () => void) => {
+        if (!listeners[evt]) listeners[evt] = [fn];
+        else listeners[evt].push(fn);
+        return () => {
+            if (!listeners[evt]) return;
+            const at = listeners[evt].indexOf(fn);
+            if (at !== -1) listeners[evt].splice(at, 1);
+        };
+    };
+    const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
+
+    const useTick = (evt: Evt) => {
+        const [_, setTick] = useState(0);
+        useEffect(() => {
+            return listen(evt, () => setTick((t) => t + 1));
+        }, [evt]);
+    };
+
+    let selectionStatuses: Record<string, SelStatus> = recalcSelectionStatuses(modules[selected]);
+
+    const makeEditor = (selected: string) => ({
+        selected,
+        get module() {
+            return modules[selected];
+        },
+        update(action: Action) {
+            const mod = modules[selected];
+            const tops: Record<string, Top> = {};
+            Object.entries(mod.toplevels).forEach(([key, top]) => {
+                tops[key] = { ...top, nextLoc: genId };
+            });
+            const state: AppState = {
+                tops,
+                history: mod.history,
+                selections: mod.selections,
             };
-        };
+            const result = reduce(state, action, false);
+            mod.history = result.history;
+            const changed = allIds(result.selections);
+            Object.assign(changed, allIds(mod.selections));
+            mod.selections = result.selections;
 
-        const useTick = (evt: string) => {
-            const [_, setTick] = useState(0);
-            useEffect(() => {
-                return listen(evt, () => setTick((t) => t + 1));
-            }, [evt]);
-        };
+            selectionStatuses = recalcSelectionStatuses(mod);
 
-        return {
-            module(id: string) {
-                return modules[id];
-            },
-            get languageConfigs() {
-                return configs;
-            },
-            get moduleTree() {
-                return treeCache;
-            },
-            useSelected() {
-                useTick('selected');
-                return selected;
-            },
-            useEditor() {
-                useTick(`selected`);
-                return {
-                    get module() {
-                        return modules[selected];
-                    },
-                    useTop(top: string) {
-                        useTick(`top:${top}`);
-                        return {
-                            update(action: Action) {},
-                            useNode(id: string) {
-                                useTick(`node:${id}`);
-                                return modules[selected].toplevels[top].nodes[id];
-                            },
-                            get top() {
-                                return modules[selected].toplevels[top];
-                            },
-                        };
-                    },
-                };
-            },
-        };
-    }, []);
+            Object.entries(result.tops).forEach(([key, top]) => {
+                Object.keys(top.nodes).forEach((k) => {
+                    if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
+                        changed[k] = true;
+                    }
+                });
+                mod.toplevels[key].nodes = top.nodes;
+                if (mod.toplevels[key].root !== top.root) {
+                    mod.toplevels[key].root = top.root;
+                    shout(`top:${key}:root`);
+                }
+            });
+
+            Object.keys(changed).forEach((k) => {
+                shout(`node:${k}`);
+            });
+            saveModule(mod);
+        },
+        useTop(top: string) {
+            useTick(`top:${top}`);
+            return {
+                useNode(path: Path) {
+                    useTick(`node:${lastChild(path)}`);
+                    return {
+                        node: modules[selected].toplevels[top].nodes[lastChild(path)],
+                        sel: selectionStatuses[pathKey(path)],
+                    };
+                },
+                useRoot() {
+                    useTick(`top:${top}:root`);
+                    return modules[selected].toplevels[top].root;
+                },
+                get top() {
+                    return modules[selected].toplevels[top];
+                },
+            };
+        },
+    });
+
+    let editor = makeEditor(selected);
+
+    return {
+        module(id: string) {
+            return modules[id];
+        },
+        get languageConfigs() {
+            return configs;
+        },
+        get moduleTree() {
+            return treeCache;
+        },
+        useSelected() {
+            useTick('selected');
+            return selected;
+        },
+        useEditor() {
+            useTick(`selected`);
+            if (editor.selected !== selected) {
+                editor = makeEditor(selected);
+            }
+            return editor;
+        },
+    };
+};
+
+// const nodeStatus = (id: string, selections: NodeSelection): SelStatus | undefined => {};
+
+const StoreCtx = createContext({ store: null } as { store: null | Store });
+
+export const useStore = (): Store => {
+    const v = useContext(StoreCtx);
+    if (!v.store) v.store = createStore();
+    return v.store;
+};
+
+const allIds = (sels: NodeSelection[]) => {
+    const ids: Record<string, true> = {};
+    sels.forEach((sel) => {
+        sel.start.path.children.forEach((id) => (ids[id] = true));
+        sel.end?.path.children.forEach((id) => (ids[id] = true));
+    });
+    return ids;
+};
+const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
+    const res: Record<string, true> = {};
+    Object.keys(two).forEach((k) => {
+        if (!one[k]) res[k] = true;
+    });
+    return res;
+};
+
+const recalcSelectionStatuses = (mod: Module) => {
+    const statuses: SelectionStatuses = {};
+    mod.selections.forEach((sel) => {
+        const st = getSelectionStatuses(sel, mod.toplevels[sel.start.path.root.top]);
+
+        Object.entries(st).forEach(([key, status]) => {
+            if (statuses[key]) {
+                statuses[key].cursors.push(...status.cursors);
+                statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+            } else {
+                statuses[key] = status;
+            }
+        });
+    });
+    return statuses;
 };

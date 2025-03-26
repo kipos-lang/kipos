@@ -1,6 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { lightColor } from './colors';
 
+// const cursorColor = 'red'
+const cursorColor = 'blue';
+
 export const Cursor = ({ innerRef, rich }: { rich?: boolean; innerRef?: (node: HTMLSpanElement | null) => void }) => (
     <span
         ref={innerRef}
@@ -9,7 +12,7 @@ export const Cursor = ({ innerRef, rich }: { rich?: boolean; innerRef?: (node: H
             width: 1,
             marginRight: 0,
             marginLeft: -1,
-            backgroundColor: 'red',
+            backgroundColor: cursorColor,
             position: 'relative',
             pointerEvents: 'none',
         }}
@@ -32,6 +35,13 @@ const useResizeTick = () => {
     return tick;
 };
 
+type Rect = {
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+}[];
+
 export const TextWithCursor = ({
     text,
     // left,
@@ -52,17 +62,64 @@ export const TextWithCursor = ({
     // left: number;
     // right: number;
     rich?: boolean;
-    onMouseDown: React.ComponentProps<'span'>['onMouseDown'];
-    onMouseMove: React.ComponentProps<'span'>['onMouseMove'];
+    onMouseDown?: React.ComponentProps<'span'>['onMouseDown'];
+    onMouseMove?: React.ComponentProps<'span'>['onMouseMove'];
 }) => {
     const ref = useRef<HTMLSpanElement>(null);
-    type Rect = {
-        width: number;
-        height: number;
-        left: number;
-        top: number;
-    }[];
 
+    const rects = useHighlightRects(ref, text, cursors, highlight);
+
+    return (
+        <span style={{ position: 'relative' }}>
+            <span
+                ref={(span) => {
+                    if (span) {
+                        innerRef?.(span);
+                        ref.current = span;
+                    }
+                }}
+                onMouseDown={onMouseDown}
+                onMouseMove={onMouseMove}
+                style={{ zIndex: 1, position: 'relative' }}
+            >
+                {text.length ? text.join('') : <Zwd />}
+            </span>
+            {rects?.length === 1 && rects[0].width === 1 ? (
+                <span
+                    ref={cursorRef}
+                    style={{
+                        ...rects[0],
+                        position: 'absolute',
+                        backgroundColor: rich ? 'teal' : cursorColor,
+                        opacity: 1,
+                    }}
+                >
+                    {rich && richHats}
+                </span>
+            ) : (
+                rects?.map((rect, i) => (
+                    <span
+                        key={i}
+                        ref={i === 0 && rect.width === 1 ? cursorRef : null}
+                        style={{
+                            ...rect,
+                            position: 'absolute',
+                            backgroundColor: rect.width === 1 ? cursorColor : lightColor,
+                            opacity: 1, // rect.width === 1 ? 1 : 0.2,
+                        }}
+                    />
+                ))
+            )}
+        </span>
+    );
+};
+
+const useHighlightRects = (
+    ref: { current: HTMLSpanElement | null },
+    text: string[],
+    cursors: number[],
+    highlight?: { start?: number; end?: number }[] | boolean,
+) => {
     const [rects, setRects] = useState(null as null | Rect);
     const tick = useResizeTick();
 
@@ -109,60 +166,15 @@ export const TextWithCursor = ({
         );
     }, [text, highlight, tick, cursors]);
 
-    return (
-        <span style={{ position: 'relative' }}>
-            <span
-                ref={(span) => {
-                    if (span) {
-                        innerRef?.(span);
-                        ref.current = span;
-                    }
-                }}
-                onMouseDown={onMouseDown}
-                onMouseMove={onMouseMove}
-                style={{ zIndex: 1, position: 'relative' }}
-            >
-                {text.length ? text.join('') : <Zwd />}
-            </span>
-            {rects?.length === 1 && rects[0].width === 1 ? (
-                <span
-                    ref={cursorRef}
-                    style={{
-                        ...rects[0],
-                        position: 'absolute',
-                        backgroundColor: rich ? 'teal' : 'red',
-                        opacity: 1,
-                    }}
-                >
-                    {rich ? (
-                        <span style={{ position: 'absolute', top: 0, left: -1, width: 3, height: 3, borderRadius: '50%', backgroundColor: 'teal' }} />
-                    ) : null}
-                    {rich ? (
-                        <span
-                            style={{ position: 'absolute', bottom: 0, left: -1, width: 3, height: 3, borderRadius: '50%', backgroundColor: 'teal' }}
-                        />
-                    ) : null}
-                    {/* {rich ? <span style={{ position: 'absolute', bottom: 0, left: -2, width: 5, height: 1, backgroundColor: 'red' }} /> : null} */}
-                    {/* {rich ? <span style={{ position: 'absolute', top: 0, left: -2, width: 5, height: 1, backgroundColor: 'red' }} /> : null}
-                    {rich ? <span style={{ position: 'absolute', bottom: 0, left: -2, width: 5, height: 1, backgroundColor: 'red' }} /> : null} */}
-                </span>
-            ) : (
-                rects?.map((rect, i) => (
-                    <span
-                        key={i}
-                        ref={i === 0 && rect.width === 1 ? cursorRef : null}
-                        style={{
-                            ...rect,
-                            position: 'absolute',
-                            backgroundColor: rect.width === 1 ? 'red' : lightColor,
-                            opacity: 1, // rect.width === 1 ? 1 : 0.2,
-                        }}
-                    />
-                ))
-            )}
-        </span>
-    );
+    return rects;
 };
+
+const richHats = (
+    <>
+        <span style={{ position: 'absolute', top: 0, left: -1, width: 3, height: 3, borderRadius: '50%', backgroundColor: 'teal' }} />
+        <span style={{ position: 'absolute', bottom: 0, left: -1, width: 3, height: 3, borderRadius: '50%', backgroundColor: 'teal' }} />
+    </>
+);
 
 export const Zwd = () => {
     // return '\u200B';

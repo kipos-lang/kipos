@@ -4,9 +4,10 @@
 I have an editor. like. right?
 
 - [x] longish refactoring of the history stuff to make it easier to think about
-
-hrmmmmsymhrms. do I just junk the nextLoc stuff?
-like ultimately I need to.
+- [x] tmpText is gone
+- [x] nextLoc is a function now
+- [ ] now ... we do a little rendering I think
+- [ ] thennn eedd a way to make new toplevels
 
 ## Basic multi-top setup
 

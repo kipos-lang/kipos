@@ -11,7 +11,7 @@ import { NodeSelection, Top } from '../keyboard/utils';
 import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
 
 export type AppState = {
-    top: Top;
+    tops: Record<string, Top>;
     selections: NodeSelection[];
     history: HistoryItem<HistoryChange>[];
 };
@@ -20,67 +20,82 @@ export type HistoryChange = {
     type: 'change';
     ts: number;
     id: string;
-    onlyy?: string; // the id or text:index that is the "only" thing that was modified
+    // onlyy?: string; // the id or text:index that is the "only" thing that was modified
     // session: string;
-    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<number, Node | null> }>;
+    tops: Delta<Record<string, TopUpdate | null>>;
     selections: Delta<NodeSelection[]>;
 };
+
+type TopUpdate = Omit<Top, 'nodes'> & { nodes: Record<string, Node | null> };
 
 export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryChange => {
     return {
         ...prev,
         selections: { prev: prev.selections.prev, next: next.selections.next },
-        top: { prev: prev.top.prev, next: next.top.next },
+        tops: { prev: prev.tops.prev, next: next.tops.next },
     };
 };
 
-const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, string | undefined] => {
-    const diff: HistoryChange['top']['next'] = {
-        ...next,
-        nodes: {},
-    };
-    let only = [] as false | number[];
-    let changed = next.nextLoc !== prev.nextLoc || next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
-    Object.entries(next.nodes).forEach(([key, value]) => {
-        if (prev.nodes[+key] !== value) {
-            if (only) {
-                const pnode = prev.nodes[+key];
+const diffTop = (prev: Top, next: Top): [TopUpdate, TopUpdate, boolean] => {
+    const redo: TopUpdate = { ...next, nodes: {} };
+    const undo: TopUpdate = { ...prev, nodes: {} };
 
-                if (
-                    (pnode?.type === 'id' && value.type === 'id') ||
-                    (pnode?.type === 'text' &&
-                        value.type === 'text' &&
-                        pnode.spans.length === value.spans.length &&
-                        pnode.spans.every((span, i) => span.type === value.spans[i].type))
-                ) {
-                    only.push(+key);
-                } else {
-                    only = false;
-                }
+    let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
+    Object.entries(next.nodes).forEach(([key, value]) => {
+        if (prev.nodes[key] !== value) {
+            redo.nodes[key] = value;
+            undo.nodes[key] = prev.nodes[key] ?? null;
+            changed = true;
+        }
+    });
+    Object.entries(prev.nodes).forEach(([key, value]) => {
+        if (next.nodes[key] !== value) {
+            redo.nodes[key] = next.nodes[key] ?? null;
+            undo.nodes[key] = value;
+            changed = true;
+        }
+    });
+    return [redo, undo, changed]; //, only === false ? undefined : only.sort().join(':')];
+};
+
+const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChange['tops']['next'], HistoryChange['tops']['prev'], boolean] => {
+    const redo: Record<string, TopUpdate | null> = {};
+    const undo: Record<string, TopUpdate | null> = {};
+    let changed = false;
+
+    Object.entries(next).forEach(([key, value]) => {
+        if (prev[key] !== value) {
+            if (!prev[key]) {
+                redo[key] = value;
+                undo[key] = null;
+            } else {
+                const [r, u, c] = diffTop(prev[key], value);
+                redo[key] = r;
+                undo[key] = u;
             }
-            diff.nodes[+key] = value;
             changed = true;
         }
     });
-    Object.keys(prev.nodes).forEach((key) => {
-        if (!next.nodes[+key]) {
-            diff.nodes[+key] = null;
+
+    Object.entries(prev).forEach(([key, value]) => {
+        if (!next[key]) {
+            redo[key] = null;
+            undo[key] = value;
             changed = true;
         }
     });
-    return [diff, changed, only === false ? undefined : only.sort().join(':')];
+
+    return [redo, undo, changed];
 };
 
 const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | void => {
-    const [nt, cn, onlyy] = diffTop(prev.top, next.top);
-    const [pt, cp] = diffTop(next.top, prev.top);
-    if (!cn && !cp) return;
+    const [redo, undo, changed] = diffTops(prev.tops, next.tops);
+    if (!changed) return;
     return {
         type: 'change',
         id: genId(),
         ts: Date.now(),
-        onlyy,
-        top: { next: nt, prev: pt },
+        tops: { next: redo, prev: undo },
         selections: { next: next.selections, prev: prev.selections },
     };
 };
@@ -108,9 +123,15 @@ export const recordHistory = (prev: AppState, next: AppState, noJoin = false): A
 };
 
 const applyHistoryChange = (state: AppState, item: HistoryChange) => {
-    state = { ...state };
+    state = { ...state, tops: { ...state.tops } };
     state.selections = item.selections.next;
-    state.top = { ...item.top.next, nodes: withNodes(state.top.nodes, item.top.next.nodes) };
+    Object.entries(item.tops.next).forEach(([key, value]) => {
+        if (!value) {
+            delete state.tops[key];
+        } else {
+            state.tops[key] = { ...value, nodes: withNodes(state.tops[key].nodes, value.nodes) };
+        }
+    });
     return state;
 };
 
@@ -137,7 +158,7 @@ type MyState = {
     state: AppState;
 };
 
-const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), top: revDelta(change.top) });
+const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), tops: revDelta(change.tops) });
 
 const wrap = (state: AppState): MyState => {
     return {
@@ -170,71 +191,81 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
         case 'update':
-            const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
-            return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
+            throw new Error('noaa');
+        // const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
+        // return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
 
-        case 'paste':
+        case 'paste': {
             console.log('pasting', action.data);
-            if (action.data.type === 'json') {
-                const selections = state.selections.slice();
-                let top = state.top;
-
-                selections.forEach((sel, i) => {
-                    if (sel.end) {
-                        const result = _applyUpdate({ top, sel: state.selections[i] }, [{ type: 'multi-delete', start: sel.start, end: sel.end }]);
-                        top = result.top;
-                        selections[i] = result.sel;
-                    }
-                });
-
-                for (let i = 0; i < state.selections.length; i++) {
-                    const v = action.data.data.length === 1 ? action.data.data[0] : action.data.data[i];
-                    if (!v) break;
-                    const sel = state.selections[i];
-
-                    const result = _applyUpdate({ top, sel: state.selections[i] }, [
-                        {
-                            type: 'paste',
-                            path: sel.start.path,
-                            cursor: sel.start.cursor,
-                            values: v,
-                        },
-                    ]);
-                    selections[i] = result.sel;
-                    top = result.top;
-                }
-                return recordHistory(state, { ...state, top, selections }, noJoin);
+            if (action.data.type !== 'json') {
+                return state;
             }
-            return state;
-
-        case 'key':
             const selections = state.selections.slice();
-            let top = state.top;
+
+            selections.forEach((sel, i) => {
+                // let top = state.top;
+                if (sel.end) {
+                    throw new Error('need to multideleete');
+                    // const result = _applyUpdate({ top, sel: state.selections[i] }, [{ type: 'multi-delete', start: sel.start, end: sel.end }]);
+                    // top = result.top;
+                    // selections[i] = result.sel;
+                }
+            });
+
+            const tops = { ...state.tops };
+
+            for (let i = 0; i < state.selections.length; i++) {
+                const v = action.data.data.length === 1 ? action.data.data[0] : action.data.data[i];
+                if (!v) break;
+                const sel = state.selections[i];
+                const top = tops[sel.start.path.root.top];
+
+                const result = _applyUpdate({ top, sel: state.selections[i] }, [
+                    {
+                        type: 'paste',
+                        path: sel.start.path,
+                        cursor: sel.start.cursor,
+                        values: v,
+                    },
+                ]);
+                selections[i] = result.sel;
+                tops[sel.start.path.root.top] = result.top;
+            }
+
+            return recordHistory(state, { ...state, tops, selections }, noJoin);
+        }
+
+        case 'key': {
+            const selections = state.selections.slice();
+            const tops = { ...state.tops };
+            // let top = state.top;
             for (let i = 0; i < selections.length; i++) {
                 const sel = selections[i];
+                if (sel.end && sel.start.path.root.top !== sel.end.path.root.top) {
+                    throw new Error(`multi-toplevel, not doing`);
+                }
+                const top = tops[sel.start.path.root.top];
                 const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
-                if (Array.isArray(update)) {
-                    for (let keyAction of update) {
-                        const sub = keyActionToUpdate({ top, sel }, keyAction);
-                        const result = applyNormalUpdate({ top, sel }, sub);
-                        top = result.top;
-                        selections[i] = result.sel;
-                        if (sub && Array.isArray(sub.selection)) {
-                            for (let j = 0; j < selections.length; j++) {
-                                if (j !== i) {
-                                    sub.selection.forEach((up) => {
-                                        selections[j] = applySelUp(selections[i], up);
-                                    });
-                                }
+                if (!update) continue;
+                for (let keyAction of update) {
+                    const sub = keyActionToUpdate({ top, sel }, keyAction);
+                    // console.log('sub', sub);
+                    const result = applyNormalUpdate({ top, sel }, sub);
+                    tops[sel.start.path.root.top] = result.top;
+                    selections[i] = result.sel;
+                    if (sub && Array.isArray(sub.selection)) {
+                        for (let j = 0; j < selections.length; j++) {
+                            if (j !== i) {
+                                sub.selection.forEach((up) => {
+                                    selections[j] = applySelUp(selections[i], up);
+                                });
                             }
                         }
                     }
-                    continue;
                 }
-                const result = _applyUpdate({ top, sel }, update);
-                top = result.top;
-                selections[i] = result.sel;
+                continue;
             }
-            return recordHistory(state, { ...state, top, selections }, noJoin);
+            return recordHistory(state, { ...state, tops, selections }, noJoin);
+        }
     }
 };

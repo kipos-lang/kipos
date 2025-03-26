@@ -32,7 +32,7 @@ const examples = [
 type State = { state: TestState; running: boolean; at: number };
 
 const precompute = (text: string[], config: Config) => {
-    let state = init;
+    let state = init();
     text.forEach((grem) => {
         if (grem === '\r') {
             const path = state.sel.start.path;
@@ -40,10 +40,9 @@ const precompute = (text: string[], config: Config) => {
             state = applyNormalUpdate(state, {
                 nodes: {
                     [node.loc]: { type: 'list', kind: { type: 'plain' }, children: [state.top.nextLoc + ''], loc: node.loc },
-                    [state.top.nextLoc + '']: { type: 'text', loc: state.top.nextLoc + '', spans: [{ type: 'text', text: '', loc: '' }] },
+                    [state.top.nextLoc + '']: { type: 'text', loc: state.top.nextLoc(), spans: [{ type: 'text', text: '', loc: '' }] },
                 },
-                selection: { start: selStart(pathWithChildren(path, state.top.nextLoc + ''), { type: 'text', end: { index: 0, cursor: 0 } }) },
-                nextLoc: state.top.nextLoc + 1,
+                selection: { start: selStart(pathWithChildren(path, state.top.nextLoc()), { type: 'text', end: { index: 0, cursor: 0 } }) },
             });
             return;
         }
@@ -83,7 +82,7 @@ const Example = ({ text }: { text: string[] }) => {
             <span>{text.join('')}</span>
             <button
                 onClick={() =>
-                    setState((s) => ({ ...s, running: true, state: s.at === text.length ? init : s.state, at: s.at === text.length ? 0 : s.at }))
+                    setState((s) => ({ ...s, running: true, state: s.at === text.length ? init() : s.state, at: s.at === text.length ? 0 : s.at }))
                 }
                 style={{ marginLeft: 8 }}
             >

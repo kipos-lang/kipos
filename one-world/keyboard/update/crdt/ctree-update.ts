@@ -258,7 +258,7 @@ export const wrapUpdate = (top: CTop, path: Path, min: number, max: number, kind
     const lnode: Node = { type: 'list', kind, children: taken, loc };
     ops.push(...insert(lnode, top));
     const got = selectStart(pathWithChildren(path, loc, taken[0]), {
-        get nextLoc(): number {
+        nextLoc(): string {
             throw new Error(`cant get nextLoc`);
         },
         root: top.tree.root,

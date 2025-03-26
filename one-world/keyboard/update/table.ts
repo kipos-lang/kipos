@@ -49,7 +49,6 @@ export const joinTable = (top: Top, path: Path, node: Node, cursor: Cursor, at: 
 
     const up: Update = {
         nodes: result.nodes,
-        nextLoc: result.nextLoc,
         selection: {
             start: fixSelection(selStart(pathWithChildren(parentPath(path), ...selPath), ncursor), result.nodes, top),
         },
@@ -91,7 +90,7 @@ export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number 
 
     if (newRow.length === 1) {
         for (let i = 1; i < rows[row].length; i++) {
-            const nloc = result.nextLoc++ + '';
+            const nloc = top.nextLoc();
             newRow.push(nloc);
             result.nodes[nloc] = { type: 'id', text: '', loc: nloc };
         }
@@ -104,7 +103,6 @@ export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number 
 
     return {
         nodes: result.nodes,
-        nextLoc: result.nextLoc,
         selection: {
             start: selStart(pathWithChildren(parentPath(tablePath), ...selPath), two.selection.cursor),
         },
@@ -144,7 +142,6 @@ export const splitTableCol = (top: Top, path: Path, tablePath: Path, at: number 
 
     return {
         nodes: result.nodes,
-        nextLoc: result.nextLoc,
         selection: {
             start: selStart(pathWithChildren(parentPath(tablePath), ...selPath), two.selection.cursor),
         },
