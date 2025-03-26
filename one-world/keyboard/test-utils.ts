@@ -35,13 +35,16 @@ export type TestParser<T> = {
 
 export const nloc = () => {
     let id = 1;
-    return () => id++ + '';
+    return () => {
+        console.log(`we're ${id}`);
+        return id++ + '';
+    };
 };
 
 export const initTop = (): Top => {
-    let lid = 1;
+    // let lid = 1;
     return {
-        nextLoc: () => lid++ + '',
+        // nextLoc: () => lid++ + '',
         nodes: { [0]: { type: 'id', text: '', loc: '0' } },
         root: '0',
         // tmpText: {},
@@ -56,7 +59,7 @@ export const init = (): TestState => ({
     nextLoc: nloc(),
 });
 
-export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel: NodeID[]; sels: Record<number, NodeID[]> } => {
+export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel: NodeID[]; nextLoc(): string; sels: Record<number, NodeID[]> } => {
     const nodes: Nodes = {};
     let nextLoc = 0;
     let sel: NodeID[] = [];
@@ -70,12 +73,12 @@ export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel:
         }
         return loc;
     });
-    return { top: { nextLoc: () => nextLoc++ + '', nodes, root }, sel, sels };
+    return { nextLoc: () => nextLoc++ + '', top: { nodes, root }, sel, sels };
 };
 
 export type Sels = null | [number, Cursor] | [number, Cursor][];
 
-export const asTopAndLocs = (node: RecNodeT<number>): { top: Top; locs: Record<number, NodeID[]> } => {
+export const asTopAndLocs = (node: RecNodeT<number>): { top: Top; nextLoc(): string; locs: Record<number, NodeID[]> } => {
     const nodes: Nodes = {};
     let nextLoc = 0;
     let locs: Record<number, NodeID[]> = {};
@@ -87,10 +90,10 @@ export const asTopAndLocs = (node: RecNodeT<number>): { top: Top; locs: Record<n
         }
         return loc;
     });
-    return { top: { nextLoc: () => nextLoc++ + '', nodes, root: rootLoc }, locs };
+    return { nextLoc: () => nextLoc++ + '', top: { nodes, root: rootLoc }, locs };
 };
 
-export const asTopAndPaths = (node: RecNodeT<Sels>, root: Path['root']): { top: Top; sels: Record<number, NodeSelection> } => {
+export const asTopAndPaths = (node: RecNodeT<Sels>, root: Path['root']): { top: Top; nextLoc(): string; sels: Record<number, NodeSelection> } => {
     const nodes: Nodes = {};
     let nextLoc = 0;
     let sels: Record<number, NodeSelection> = {};
@@ -108,7 +111,7 @@ export const asTopAndPaths = (node: RecNodeT<Sels>, root: Path['root']): { top: 
         }
         return loc;
     });
-    return { top: { nextLoc: () => nextLoc++ + '', nodes, root: rootLoc }, sels };
+    return { nextLoc: () => nextLoc++ + '', top: { nodes, root: rootLoc }, sels };
 };
 
 // export { initial as asTop };
@@ -125,7 +128,7 @@ export const asTop = (node: RecNodeT<number | boolean>, cursor: Cursor, endCurso
  * if <boolean>, true = the start
  */
 export const _asTop = (node: RecNodeT<number | boolean>, cursor: Cursor, endCursor?: Cursor): TestState => {
-    const { top, sel, sels } = asTopAndPath(node);
+    const { top, sel, sels, nextLoc } = asTopAndPath(node);
     const start = selStart({ children: sel, root: { ids: [], top: '' } }, cursor);
     fixTextSel(start);
     return {
@@ -134,23 +137,17 @@ export const _asTop = (node: RecNodeT<number | boolean>, cursor: Cursor, endCurs
             start,
             end: endCursor ? selStart({ children: sels[2] ?? sel, root: { ids: [], top: '' } }, endCursor) : undefined,
         },
-        nextLoc: nloc(),
+        nextLoc,
     };
 };
 
 export const asMultiTop = (node: RecNodeT<number>, cursor: Cursor): TestState => {
-    const { top, locs } = asTopAndLocs(node);
+    const { top, locs, nextLoc } = asTopAndLocs(node);
     if (!locs[0] || !locs[1]) throw new Error(`need locs 0 and 1`);
     return {
         top,
-        sel: {
-            start: selStart({ children: locs[0], root: { ids: [], top: '' } }, cursor),
-            // multi: {
-            //     end: selEnd({ children: locs[1], root: { ids: [], top: '' } }),
-            //     aux: locs[2] ? selEnd({ children: locs[2], root: { ids: [], top: '' } }) : undefined,
-            // },
-        },
-        nextLoc: nloc(),
+        sel: { start: selStart({ children: locs[0], root: { ids: [], top: '' } }, cursor) },
+        nextLoc,
     };
 };
 

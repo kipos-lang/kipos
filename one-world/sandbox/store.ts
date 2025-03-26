@@ -135,10 +135,7 @@ const createStore = (): Store => {
         },
         update(action: Action) {
             const mod = modules[selected];
-            const tops: Record<string, Top> = {};
-            Object.entries(mod.toplevels).forEach(([key, top]) => {
-                tops[key] = { ...top, nextLoc: genId };
-            });
+            const tops: Record<string, Top> = { ...mod.toplevels };
             const state: AppState = {
                 tops,
                 history: mod.history,

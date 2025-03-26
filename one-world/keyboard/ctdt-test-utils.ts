@@ -68,9 +68,9 @@ export const initial = (
 
 const asTop = (ctop: CTop) => {
     const root = ctop.graph.getEdge('root', 'root');
-    let id = 0;
+    // let id = 0;
     const top: Top = {
-        nextLoc: () => id++ + '',
+        // nextLoc: () => id++ + '',
         nodes: {},
         root: root.edge.dest,
     };
