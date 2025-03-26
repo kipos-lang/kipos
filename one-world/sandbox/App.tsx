@@ -51,6 +51,7 @@ export const Top = ({ id }: { id: string }) => {
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
+            {/* {isSelected ? JSON.stringify(editor.module.selections) : null} */}
         </div>
     );
 };

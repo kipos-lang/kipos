@@ -9,7 +9,9 @@ I have an editor. like. right?
 - [x] now ... we do a little rendering I think
 - [x] thennn eedd a way to make new toplevels
 
-- [ ] gotta be able to click stufff
+- [x] gotta be able to click stufff
+- [ ] whyy am I not multiselecting?
+- [ ] click & drag would be good
 
 ## Basic multi-top setup
 

@@ -113,7 +113,7 @@ export const Editor = () => {
             >
                 Add Toplevel
             </button>
-            <Showsel />p
+            <Showsel />
         </div>
     );
 };

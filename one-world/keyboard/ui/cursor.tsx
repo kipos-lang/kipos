@@ -106,6 +106,8 @@ export const TextWithCursor = ({
                             position: 'absolute',
                             backgroundColor: rect.width === 1 ? cursorColor : lightColor,
                             opacity: 1, // rect.width === 1 ? 1 : 0.2,
+                            outline: `2px solid ${lightColor}`,
+                            borderRadius: 2,
                         }}
                     />
                 ))

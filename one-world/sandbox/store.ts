@@ -58,7 +58,7 @@ const newModule = (): Module => {
                 id: tid,
                 root: rid,
                 children: [],
-                nodes: { [rid]: { type: 'id', text: 'Hello', loc: rid } },
+                nodes: { [rid]: { type: 'id', text: '', loc: rid } },
             },
         },
     };
