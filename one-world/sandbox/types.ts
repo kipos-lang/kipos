@@ -1,6 +1,7 @@
-import { HistoryItem } from '../keyboard/ui/history';
 import { NodeSelection } from '../keyboard/utils';
 import { Nodes } from '../shared/cnodes';
+import { HistoryItem } from './history';
+import { HistoryChange } from './state';
 
 export type Module = {
     id: string;
@@ -10,7 +11,7 @@ export type Module = {
     toplevels: Record<string, Toplevel>;
     editorPlugins: Record<string, any>;
     roots: string[];
-    history: HistoryItem[];
+    history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];
 };
 

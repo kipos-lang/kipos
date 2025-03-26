@@ -191,54 +191,66 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
         case 'update':
-            const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
-            return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
+            throw new Error('noaa');
+        // const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
+        // return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
 
-        case 'paste':
+        case 'paste': {
             console.log('pasting', action.data);
-            if (action.data.type === 'json') {
-                const selections = state.selections.slice();
-                let top = state.top;
-
-                selections.forEach((sel, i) => {
-                    if (sel.end) {
-                        const result = _applyUpdate({ top, sel: state.selections[i] }, [{ type: 'multi-delete', start: sel.start, end: sel.end }]);
-                        top = result.top;
-                        selections[i] = result.sel;
-                    }
-                });
-
-                for (let i = 0; i < state.selections.length; i++) {
-                    const v = action.data.data.length === 1 ? action.data.data[0] : action.data.data[i];
-                    if (!v) break;
-                    const sel = state.selections[i];
-
-                    const result = _applyUpdate({ top, sel: state.selections[i] }, [
-                        {
-                            type: 'paste',
-                            path: sel.start.path,
-                            cursor: sel.start.cursor,
-                            values: v,
-                        },
-                    ]);
-                    selections[i] = result.sel;
-                    top = result.top;
-                }
-                return recordHistory(state, { ...state, top, selections }, noJoin);
+            if (action.data.type !== 'json') {
+                return state;
             }
-            return state;
-
-        case 'key':
             const selections = state.selections.slice();
-            let top = state.top;
+
+            selections.forEach((sel, i) => {
+                // let top = state.top;
+                if (sel.end) {
+                    throw new Error('need to multideleete');
+                    // const result = _applyUpdate({ top, sel: state.selections[i] }, [{ type: 'multi-delete', start: sel.start, end: sel.end }]);
+                    // top = result.top;
+                    // selections[i] = result.sel;
+                }
+            });
+
+            const tops = { ...state.tops };
+
+            for (let i = 0; i < state.selections.length; i++) {
+                const v = action.data.data.length === 1 ? action.data.data[0] : action.data.data[i];
+                if (!v) break;
+                const sel = state.selections[i];
+                const top = tops[sel.start.path.root.top];
+
+                const result = _applyUpdate({ top, sel: state.selections[i] }, [
+                    {
+                        type: 'paste',
+                        path: sel.start.path,
+                        cursor: sel.start.cursor,
+                        values: v,
+                    },
+                ]);
+                selections[i] = result.sel;
+                tops[sel.start.path.root.top] = result.top;
+            }
+
+            return recordHistory(state, { ...state, tops, selections }, noJoin);
+        }
+
+        case 'key': {
+            const selections = state.selections.slice();
+            const tops = { ...state.tops };
+            // let top = state.top;
             for (let i = 0; i < selections.length; i++) {
                 const sel = selections[i];
+                if (sel.end && sel.start.path.root.top !== sel.end.path.root.top) {
+                    throw new Error(`multi-toplevel, not doing`);
+                }
+                const top = tops[sel.start.path.root.top];
                 const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
                 if (Array.isArray(update)) {
                     for (let keyAction of update) {
                         const sub = keyActionToUpdate({ top, sel }, keyAction);
                         const result = applyNormalUpdate({ top, sel }, sub);
-                        top = result.top;
+                        tops[sel.start.path.root.top] = result.top;
                         selections[i] = result.sel;
                         if (sub && Array.isArray(sub.selection)) {
                             for (let j = 0; j < selections.length; j++) {
@@ -253,9 +265,10 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                     continue;
                 }
                 const result = _applyUpdate({ top, sel }, update);
-                top = result.top;
+                tops[sel.start.path.root.top] = result.top;
                 selections[i] = result.sel;
             }
-            return recordHistory(state, { ...state, top, selections }, noJoin);
+            return recordHistory(state, { ...state, tops, selections }, noJoin);
+        }
     }
 };

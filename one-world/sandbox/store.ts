@@ -4,7 +4,7 @@ import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
 import { genId } from '../keyboard/ui/genId';
-import { NodeSelection, selStart } from '../keyboard/utils';
+import { NodeSelection, selStart, Top } from '../keyboard/utils';
 import { loadLanguageConfigs, loadModules, saveModule } from './storage';
 
 export type ModuleTree = {
@@ -134,11 +134,15 @@ const createStore = (): Store => {
                     return modules[selected];
                 },
                 update(action: Action) {
-                    const top = '';
+                    // const top = '';
                     const mod = modules[selected];
-                    const tl = mod.toplevels[top];
+                    // const tl = mod.toplevels[top];
+                    const tops: Record<string, Top> = {};
+                    Object.entries(mod.toplevels).forEach(([key, top]) => {
+                        tops[key] = { ...top, nextLoc: genId };
+                    });
                     const state: AppState = {
-                        top: { ...tl, nextLoc: genId },
+                        tops,
                         history: mod.history,
                         selections: mod.selections,
                     };
@@ -146,16 +150,19 @@ const createStore = (): Store => {
                     mod.history = result.history;
                     const changed = diffIds(allIds(mod.selections), allIds(result.selections));
                     mod.selections = result.selections;
-                    Object.keys(result.top.nodes).forEach((k) => {
-                        if (tl.nodes[k] !== result.top.nodes[k]) {
-                            changed[k] = true;
+
+                    Object.entries(result.tops).forEach(([key, top]) => {
+                        Object.keys(top.nodes).forEach((k) => {
+                            if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
+                                changed[k] = true;
+                            }
+                        });
+                        mod.toplevels[key].nodes = top.nodes;
+                        if (mod.toplevels[key].root !== top.root) {
+                            mod.toplevels[key].root = top.root;
+                            shout(`top:${key}:root`);
                         }
                     });
-                    tl.nodes = result.top.nodes;
-                    if (tl.root !== result.top.root) {
-                        tl.root = result.top.root;
-                        shout(`top:${top}:root`);
-                    }
 
                     Object.keys(changed).forEach((k) => {
                         shout(`node:${k}`);
