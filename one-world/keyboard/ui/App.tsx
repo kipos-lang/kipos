@@ -93,6 +93,7 @@ const putOnWindow = (obj: any) => {
 export interface AppState {
     top: Top;
     selections: NodeSelection[];
+    nextLoc: () => string;
     parser?: TestParser<any>;
     history: HistoryItem[];
 }

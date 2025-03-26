@@ -187,7 +187,7 @@ export const leftJoin = (state: TestState, cursor: Cursor): KeyAction[] | void =
         // Delete from the prev node actually
         const start = selectEnd(pathWithChildren(parentPath(state.sel.start.path), prev.loc), state.top);
         if (!start) return;
-        const res = handleDelete({ top: state.top, sel: { start } });
+        const res = handleDelete({ top: state.top, sel: { start }, nextLoc: state.nextLoc });
         return res;
     }
 };

@@ -1,7 +1,7 @@
 import { CTop } from './keyActionToCRDTUpdate';
 import { Top, NodeSelection } from './utils';
 
-export type CTState = { ctop: CTop; top: Top; sel: NodeSelection };
+export type CTState = { ctop: CTop; top: Top; sel: NodeSelection; nextLoc(): string };
 
 export const ticker = () => {
     let i = 0;

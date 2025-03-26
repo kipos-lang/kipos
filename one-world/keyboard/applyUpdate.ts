@@ -100,7 +100,7 @@ export function applyUpdate<T extends TestState>(state: T, update: KeyAction[] |
 export function _applyUpdate<T extends TestState>(state: T, update: KeyAction[] | null | void): T {
     if (!update) return state;
     for (let sub of update) {
-        state = applyNormalUpdate(state, keyActionToUpdate(state, sub));
+        state = applyNormalUpdate(state, keyActionToUpdate(state, sub, state.nextLoc));
     }
     return state;
 }

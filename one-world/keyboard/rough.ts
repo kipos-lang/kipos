@@ -38,8 +38,8 @@ export const flatten = (node: Node, top: Top, remap: Nodes = {}, depth: number =
 // TODO I think forceMultiline here is making things way too complicated.
 // can't we just look at the parent (from findParent) in the handleId key?
 // I guess that wouldn't handle the other places where flat/rough get called...
-export const rough = (flat: Flat[], top: Top, sel: Node, outer?: NodeID) => {
-    const { sloc, other, nodes, forceMultiline } = unflat(top, flat, sel);
+export const rough = (flat: Flat[], top: Top, sel: Node, nextLoc: () => string, outer?: NodeID) => {
+    const { sloc, other, nodes, forceMultiline } = unflat(top, flat, sel, nextLoc);
 
     if (sloc == null) throw new Error(`sel node not encountered`);
 
@@ -184,7 +184,7 @@ export const collapseAdjacentIDs = (flat: Flat[], selection: { node: Node; curso
     return { items: res, selection };
 };
 
-export function unflat(top: Top, flat: Flat[], sel: Node) {
+export function unflat(top: Top, flat: Flat[], sel: Node, nextLoc: () => string) {
     const nodes: Update['nodes'] = {};
     let sloc: NodeID | null = null;
     let forceMultiline = undefined as undefined | boolean;
@@ -205,7 +205,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
                 if (flat[i].type === 'smoosh') continue;
                 const node = flat[i] as Node;
                 if (node.loc === '-1') {
-                    let nloc = top.nextLoc();
+                    let nloc = nextLoc();
                     nodes[nloc] = { ...node, loc: nloc };
                     schildren.push(nloc);
                     if (node === sel) {
@@ -224,7 +224,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
                 children.push(schildren[0]);
             } else {
                 if (loc === '-1') {
-                    loc = top.nextLoc();
+                    loc = nextLoc();
                     nodes[loc] = { type: 'list', kind: 'smooshed', loc, children: schildren };
                 } else {
                     const parent = top.nodes[loc];
@@ -251,7 +251,7 @@ export function unflat(top: Top, flat: Flat[], sel: Node) {
             other.push(children[0]);
         } else {
             if (ploc === '-1') {
-                const loc = top.nextLoc();
+                const loc = nextLoc();
                 nodes[loc] = { type: 'list', kind: 'spaced', loc, children };
                 other.push(loc);
             } else {
@@ -273,11 +273,12 @@ export function flatToUpdateNew(
     parent: { isParent: boolean; node: Node; path: Path },
     nodes: Update['nodes'],
     top: Top,
+    nextLoc: () => string,
 ) {
     const one = pruneEmptyIds(flat, selection);
     const two = collapseAdjacentIDs(one.items, one.selection);
 
-    const r = rough(two.items, top, two.selection.node, parent.isParent ? parent.node.loc : undefined);
+    const r = rough(two.items, top, two.selection.node, nextLoc, parent.isParent ? parent.node.loc : undefined);
     Object.keys(nodes).forEach((key) => {
         if (r.nodes[+key] === undefined) {
             r.nodes[+key] = nodes[+key]!;

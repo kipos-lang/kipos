@@ -25,12 +25,12 @@ import {
 
 export { selUpdate };
 
-export const replaceSelf = (top: Top, path: Path, node: RecNodeT<boolean>, cursor: Cursor) => {
+export const replaceSelf = (top: Top, path: Path, node: RecNodeT<boolean>, cursor: Cursor, nextLoc: () => string) => {
     const nodes: Nodes = {};
     let selPath: NodeID[] = [];
 
     const root = fromRec(node, nodes, (loc, __, path) => {
-        const nl = top.nextLoc();
+        const nl = nextLoc();
         if (loc === true) {
             selPath = path.concat([nl]);
         }
@@ -45,7 +45,7 @@ export const replaceSelf = (top: Top, path: Path, node: RecNodeT<boolean>, curso
     return up;
 };
 
-export const removeSelf = (top: Top, current: { path: Path; node: Node }): Update | void => {
+export const removeSelf = (top: Top, current: { path: Path; node: Node }, nextLoc: () => string): Update | void => {
     const pnode = top.nodes[parentLoc(current.path)];
     if (pnode && pnode.type === 'list' && pnode.kind === 'smooshed') {
         // removing an item from a smooshed, got to reevaulate it
@@ -72,6 +72,7 @@ export const removeSelf = (top: Top, current: { path: Path; node: Node }): Updat
             { isParent: true, node: pnode, path: parentPath(current.path) },
             { [current.node.loc]: null },
             top,
+            nextLoc,
         );
     }
 
@@ -98,7 +99,7 @@ export const removeSelf = (top: Top, current: { path: Path; node: Node }): Updat
     if (pnode?.type === 'list' && isRich(pnode.kind)) {
         if (current.node.type === 'text') {
             if (pnode.children.length === 1) {
-                return removeSelf(top, { path: parentPath(current.path), node: pnode });
+                return removeSelf(top, { path: parentPath(current.path), node: pnode }, nextLoc);
             }
             const children = pnode.children.slice();
             const at = children.indexOf(current.node.loc);
@@ -111,7 +112,7 @@ export const removeSelf = (top: Top, current: { path: Path; node: Node }): Updat
 
     const inRich = pnode?.type === 'list' && isRich(pnode.kind);
 
-    const loc = top.nextLoc();
+    const loc = nextLoc();
     const up = replaceAt(parentPath(current.path).children, top, current.node.loc, loc);
     up.nodes[loc] = inRich ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc } : { type: 'id', loc, text: '' };
     up.selection = {
@@ -156,7 +157,7 @@ export const controlToggle = (top: Top, path: Path, index: TextIndex): void | Up
     }
 };
 
-export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], cursor: Cursor): void | Update => {
+export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], cursor: Cursor, nextLoc: () => string): void | Update => {
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'list' && node.type !== 'table') return;
 
@@ -164,7 +165,7 @@ export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], c
     let selPath: NodeID[] = [];
     const roots = children.map((child) =>
         fromRec(child, nodes, (loc, __, path) => {
-            const nl = top.nextLoc();
+            const nl = nextLoc();
             if (loc === true) {
                 selPath = path.concat([nl]);
             }
@@ -185,7 +186,7 @@ export const addInside = (top: Top, path: Path, children: RecNodeT<boolean>[], c
         selection: { start: selStart(pathWithChildren(path, ...selPath), cursor) },
     };
 };
-export const handleInsertText = (top: Top, path: Path, pos: 'before' | 'after' | number, what: KeyWhat) => {
+export const handleInsertText = (top: Top, path: Path, pos: 'before' | 'after' | number, what: KeyWhat, nextLoc: () => string) => {
     const node = top.nodes[lastChild(path)];
     const kind = what.type === 'text' ? what.ccls : what.type;
 
@@ -204,6 +205,7 @@ export const handleInsertText = (top: Top, path: Path, pos: 'before' | 'after' |
             { isParent: parent != null, node: parent?.node ?? node, path: parent?.path ?? path },
             nodes,
             top,
+            nextLoc,
         );
     } else {
         const pnode = top.nodes[parentLoc(path)];
@@ -228,6 +230,7 @@ export const handleInsertText = (top: Top, path: Path, pos: 'before' | 'after' |
             { isParent: parent != null, node: parent?.node ?? node, path: parent?.path ?? path },
             nodes,
             top,
+            nextLoc,
         );
     }
 };

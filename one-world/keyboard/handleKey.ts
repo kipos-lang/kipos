@@ -12,7 +12,7 @@ export const handleKey = (state: TestState, key: string, config: Config, mods?: 
     const current = getCurrent(state.sel, state.top);
     switch (current.type) {
         case 'id':
-            return handleIdKey(config, state.top, current, key);
+            return handleIdKey(config, state.top, current, key, state.nextLoc);
         case 'list':
             return handleListKey(config, state.top, state.sel.start.path, current.cursor, key);
         case 'text':

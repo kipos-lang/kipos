@@ -5,6 +5,7 @@ import { isTag } from './handleNav';
 import { SelStart } from './handleShiftNav';
 import { CTop, CUpdate, insertNode, justOps, justUps, keyActionToUpdate, replaceEdges } from './keyActionToCRDTUpdate';
 import { KeyAction } from './keyActionToUpdate';
+import { nloc } from './test-utils';
 import { CGraph, checkConflicts, rootEdge } from './update/crdt/cgraph';
 import { MOp, MId, MList, MCons, MListKind, MListTag, isMain, insertText, insertTextSpan } from './update/crdt/crdtnodes';
 import { graphToXMLs, showXMLs } from './update/crdt/show-graph';
@@ -62,7 +63,7 @@ export const initial = (
 
     ctop.graph = ctop.graph.merge_ops([...ops, replaceEdges([], rootEdge(ts(), root.loc))]);
 
-    return { ctop, top: asTop(ctop), sel };
+    return { ctop, top: asTop(ctop), sel, nextLoc: nloc() };
 };
 
 const asTop = (ctop: CTop) => {

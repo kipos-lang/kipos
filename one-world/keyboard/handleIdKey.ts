@@ -11,7 +11,13 @@ import { collapseAdjacentIDs, flatten, pruneEmptyIds, unflat } from './rough';
 import { Config } from './test-utils';
 import { Current, Cursor, IdCursor, Path, Top, UNodes, lastChild, parentLoc, parentPath, pathWithChildren, selStart } from './utils';
 
-export const handleIdKey = (config: Config, top: Top, current: Extract<Current, { type: 'id' }>, grem: string): KeyAction[] | void => {
+export const handleIdKey = (
+    config: Config,
+    top: Top,
+    current: Extract<Current, { type: 'id' }>,
+    grem: string,
+    nextLoc: () => string,
+): KeyAction[] | void => {
     // let node = top.nodes[lastChild(current.path)];
     // if (node.type !== 'id') throw new Error('not id');
     const kind = textKind(grem, config);
@@ -153,7 +159,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
     if (kind === 'space') {
         // check to see if we should just move to an adjacent space
         if (parent?.node.kind === 'spaced') {
-            const right = handleNav('ArrowRight', { top, sel: { start: selStart(current.path, current.cursor) } });
+            const right = handleNav('ArrowRight', { top, sel: { start: selStart(current.path, current.cursor) }, nextLoc });
             if (right) {
                 const rn = top.nodes[lastChild(right.path)];
                 const rp = top.nodes[parentLoc(right.path)];
@@ -260,14 +266,14 @@ export type SplitRes = {
 
 export const splitIdCell =
     (current: Extract<Current, { type: 'id' }>) =>
-    (cell: Node, top: Top, loc: NodeID): SplitRes => {
+    (cell: Node, top: Top, loc: NodeID, nextLoc: () => string): SplitRes => {
         const flat = flatten(cell, top, undefined, 1);
         const nodes: UNodes = {};
         const neighbor: Flat = { type: 'sep', loc };
         const { sel, ncursor } = addIdNeighbor({ neighbor, current, flat, nodes, top });
         const one = pruneEmptyIds(flat, { node: sel, cursor: ncursor });
         const two = collapseAdjacentIDs(one.items, one.selection);
-        const result = unflat(top, two.items, two.selection.node);
+        const result = unflat(top, two.items, two.selection.node, nextLoc);
         Object.assign(result.nodes, nodes);
         return { result, two };
     };

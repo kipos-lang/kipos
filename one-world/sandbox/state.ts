@@ -104,6 +104,7 @@ export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual; config: Config }
+    | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'paste'; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
     | { type: 'undo' }
     | { type: 'redo' };
@@ -180,7 +181,7 @@ const wrap = (state: AppState): MyState => {
     };
 };
 
-export const reduce = (state: AppState, action: Action, noJoin: boolean): AppState => {
+export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc: () => string): AppState => {
     switch (action.type) {
         case 'undo': {
             return undo(wrap(state)).state;
@@ -194,6 +195,11 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
             throw new Error('noaa');
         // const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
         // return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
+
+        case 'new-tl': {
+            // if (action.parent == null)
+            return state;
+        }
 
         case 'paste': {
             console.log('pasting', action.data);
@@ -220,7 +226,7 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                 const sel = state.selections[i];
                 const top = tops[sel.start.path.root.top];
 
-                const result = _applyUpdate({ top, sel: state.selections[i] }, [
+                const result = _applyUpdate({ top, sel: state.selections[i], nextLoc }, [
                     {
                         type: 'paste',
                         path: sel.start.path,
@@ -245,12 +251,12 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                     throw new Error(`multi-toplevel, not doing`);
                 }
                 const top = tops[sel.start.path.root.top];
-                const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
+                const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, action.config);
                 if (!update) continue;
                 for (let keyAction of update) {
-                    const sub = keyActionToUpdate({ top, sel }, keyAction);
+                    const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction, nextLoc);
                     // console.log('sub', sub);
-                    const result = applyNormalUpdate({ top, sel }, sub);
+                    const result = applyNormalUpdate({ top, sel, nextLoc }, sub);
                     tops[sel.start.path.root.top] = result.top;
                     selections[i] = result.sel;
                     if (sub && Array.isArray(sub.selection)) {
@@ -268,4 +274,5 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
             return recordHistory(state, { ...state, tops, selections }, noJoin);
         }
     }
+    throw new Error(`not handled action ${(action as any).type}`);
 };

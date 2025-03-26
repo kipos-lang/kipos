@@ -24,6 +24,7 @@ interface Store {
 
 interface EditorStore {
     get module(): Module;
+    useSelection(): NodeSelection[];
     useTop(id: string): TopStore;
     update(action: Action): void;
 }
@@ -81,7 +82,7 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-type Evt = 'selected' | `top:${string}` | `node:${string}`;
+type Evt = 'selected' | 'selection' | `top:${string}` | `node:${string}`;
 
 const createStore = (): Store => {
     const modules = loadModules();
@@ -127,6 +128,11 @@ const createStore = (): Store => {
         get module() {
             return modules[selected];
         },
+        useSelection() {
+            useTick(`selection`);
+            useTick(`selected`);
+            return modules[selected].selections;
+        },
         update(action: Action) {
             const mod = modules[selected];
             const tops: Record<string, Top> = {};
@@ -138,13 +144,18 @@ const createStore = (): Store => {
                 history: mod.history,
                 selections: mod.selections,
             };
-            const result = reduce(state, action, false);
+            const result = reduce(state, action, false, genId);
             mod.history = result.history;
             const changed = allIds(result.selections);
             Object.assign(changed, allIds(mod.selections));
-            mod.selections = result.selections;
+            if (mod.selections !== result.selections) {
+                mod.selections = result.selections;
+                shout('selection');
+            }
 
+            const old = selectionStatuses;
             selectionStatuses = recalcSelectionStatuses(mod);
+            Object.keys(old).forEach((k) => {});
 
             Object.entries(result.tops).forEach(([key, top]) => {
                 Object.keys(top.nodes).forEach((k) => {

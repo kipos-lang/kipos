@@ -2,7 +2,7 @@
 
 import { ListKind, Node, NodeID, RecNodeT } from '../shared/cnodes';
 import { rough, flatten, collapseAdjacentIDs, NodeAndCursor, pruneEmptyIds, updateNodes } from './rough';
-import { asTop, atPath, id, idc, round, selPath, smoosh, spaced } from './test-utils';
+import { asTop, atPath, id, idc, nloc, round, selPath, smoosh, spaced } from './test-utils';
 import { root } from './root';
 import { lastChild } from './utils';
 import { shape } from '../shared/shape';
@@ -42,7 +42,7 @@ const hobbit = (node: RecNodeT<boolean>) => {
     const { top, sel } = asTop(node, idc(0));
     const n = top.nodes;
     const fl = flatten(n[top.root], top);
-    const r = rough(fl, top, top.nodes[lastChild(sel.start.path)], top.root);
+    const r = rough(fl, top, top.nodes[lastChild(sel.start.path)], nloc(), top.root);
     expect(root({ top: { ...top, nodes: updateNodes(top.nodes, r.nodes) }, sel })).toEqual(root({ top, sel }));
 };
 
@@ -50,7 +50,7 @@ const check = (node: RecNodeT<boolean>, exp: RecNodeT<boolean>) => {
     const { top, sel } = asTop(node, idc(0));
     const n = top.nodes;
     const fl = flatten(n[top.root], top);
-    const r = rough(fl, top, top.nodes[lastChild(sel.start.path)], top.root);
+    const r = rough(fl, top, top.nodes[lastChild(sel.start.path)], nloc(), top.root);
 
     const two = asTop(exp, idc(0));
     expect(shape(root({ top: { ...top, nodes: updateNodes(top.nodes, r.nodes), root: r.root }, sel }))).toEqual(shape(root(two)));

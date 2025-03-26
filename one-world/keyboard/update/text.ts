@@ -114,6 +114,7 @@ export const addSpan = (
     recSpan: TextSpan<RecNodeT<boolean>>,
     index: TextIndex,
     cursor: number | Cursor,
+    nextLoc: () => string,
     within?: number,
 ): void | Update => {
     const node = top.nodes[lastChild(path)];
@@ -129,7 +130,7 @@ export const addSpan = (
     if (recSpan.type === 'embed') {
         let selPath: NodeID[] = [];
         const root = fromRec(recSpan.item, nodes, (loc, __, path) => {
-            const nl = top.nextLoc();
+            const nl = nextLoc();
             if (loc === true) {
                 selPath = path.concat([nl]);
             }
@@ -199,12 +200,13 @@ export const handleTextFormat = (
     format: Partial<Style>,
     left: Spat,
     right: Spat,
+    nextLoc: () => string,
     select?: 'before' | 'after' | 'cover',
 ): Update | undefined => {
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'text') return;
 
-    const res = specialTextMod(node, left, right, (style) => toggleFormat(style, format), top.nextLoc);
+    const res = specialTextMod(node, left, right, (style) => toggleFormat(style, format), nextLoc);
     if (!res) return;
     // console.log('mod', res, left, right);
     return {

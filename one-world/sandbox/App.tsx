@@ -166,17 +166,45 @@ const Editor = () => {
                 config: js, // parser.config,
             });
         };
+
         window.addEventListener('keydown', fn);
         return () => window.removeEventListener('keydown', fn);
     }, [editor]);
 
     return (
-        <div style={{ flex: 1, background: zedlight.background }}>
+        <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
             Editor here
             {editor.module.roots.map((id) => (
                 <Top id={id} key={id} />
             ))}
+            <button
+                onClick={() => {
+                    editor.update({ type: 'new-tl', after: editor.module.roots[editor.module.roots.length - 1] });
+                }}
+            >
+                Add Toplevel
+            </button>
+            <Showsel />p
         </div>
+    );
+};
+
+const Showsel = () => {
+    const store = useStore();
+    const editor = store.useEditor();
+    const sel = editor.useSelection();
+
+    return (
+        <>
+            {sel.map((sel, i) => (
+                <div key={i}>
+                    <div>{sel.start.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.start.cursor)}
+                    <div>{sel.end?.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.end?.cursor)}
+                </div>
+            ))}
+        </>
     );
 };
 

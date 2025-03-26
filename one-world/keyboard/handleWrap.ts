@@ -37,15 +37,21 @@ export const closerKind = (key: string): ListKind<NodeID> | void => {
     }
 };
 
-export const handleInsertList = (top: Top, path: Path, pos: 'before' | 'after' | number, kind: ListKind<any>): Update | void => {
+export const handleInsertList = (
+    top: Top,
+    path: Path,
+    pos: 'before' | 'after' | number,
+    kind: ListKind<any>,
+    nextLoc: () => string,
+): Update | void => {
     const node = top.nodes[lastChild(path)];
     if (typeof pos === 'number') {
         if (node.type === 'id') {
-            return handleIdWrap(top, path, pos, pos, kind);
+            return handleIdWrap(top, path, pos, pos, kind, nextLoc);
         }
         // 'inside'
         if (node.type === 'list' || node.type === 'table') {
-            const id = top.nextLoc();
+            const id = nextLoc();
             return {
                 nodes: {
                     [id]: { type: 'list', kind, children: [], loc: id },
@@ -56,7 +62,7 @@ export const handleInsertList = (top: Top, path: Path, pos: 'before' | 'after' |
         }
     }
 
-    const loc = top.nextLoc();
+    const loc = nextLoc();
     const parent = findParent(0, parentPath(path), top);
     const flat = parent ? flatten(parent.node, top) : [node];
     const nlist: List<NodeID> = { type: 'list', children: [], kind, loc };
@@ -74,16 +80,17 @@ export const handleInsertList = (top: Top, path: Path, pos: 'before' | 'after' |
         { isParent: parent != null, node: parent?.node ?? node, path: parent?.path ?? path },
         nodes,
         top,
+        nextLoc,
     );
 };
 
-export const handleIdWrap = (top: Top, path: Path, left: number, right: number, kind: ListKind<NodeID>): Update | void => {
+export const handleIdWrap = (top: Top, path: Path, left: number, right: number, kind: ListKind<NodeID>, nextLoc: () => string): Update | void => {
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'id') return;
     const text = splitGraphemes(node.text);
     // Wrap the whole thing
     if (left === 0 && right === text.length) {
-        return wrapNode(top, path, node, kind);
+        return wrapNode(top, path, node, kind, nextLoc);
     }
 
     const first = text.slice(0, left);
@@ -91,7 +98,7 @@ export const handleIdWrap = (top: Top, path: Path, left: number, right: number, 
     const end = text.slice(right);
 
     // in the middle or the end
-    const loc = top.nextLoc();
+    const loc = nextLoc();
     const parent = findParent(0, parentPath(path), top);
     const flat = parent ? flatten(parent.node, top) : [node];
     const nlist: List<NodeID> = { type: 'list', children: [], kind, loc };
@@ -100,7 +107,7 @@ export const handleIdWrap = (top: Top, path: Path, left: number, right: number, 
     let ncursor: Cursor = { type: 'list', where: 'inside' };
     if (mid.length) {
         if (left > 0) {
-            const rid = top.nextLoc();
+            const rid = nextLoc();
             nodes[rid] = { type: 'id', text: mid.join(''), loc: rid, ccls: node.ccls };
             nlist.children.push(rid);
         } else {
@@ -120,7 +127,7 @@ export const handleIdWrap = (top: Top, path: Path, left: number, right: number, 
     flat.splice(at + 1, 0, nlist);
 
     if (end.length) {
-        const eid = top.nextLoc();
+        const eid = nextLoc();
         nodes[eid] = { type: 'id', text: end.join(''), loc: eid, ccls: node.ccls };
         flat.splice(at + 2, 0, nodes[eid]);
     }
@@ -135,6 +142,7 @@ export const handleIdWrap = (top: Top, path: Path, left: number, right: number, 
         { isParent: parent != null, node: parent?.node ?? node, path: parent?.path ?? path },
         nodes,
         top,
+        nextLoc,
     );
 };
 
@@ -209,19 +217,19 @@ const wrapParent = (one: SelStart, two: SelStart, top: Top): void | { path: Path
     return { path: outer.path, min: left ? 0 : at, max: left ? at : node.children.length - 1 };
 };
 
-export const wrapUpdate = (top: Top, path: Path, min: number, max: number, kind: ListKind<any>): Update | void => {
+export const wrapUpdate = (top: Top, path: Path, min: number, max: number, kind: ListKind<any>, nextLoc: () => string): Update | void => {
     const nodes: Nodes = {};
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'list') return;
     const children = node.children.slice();
-    const loc = top.nextLoc();
+    const loc = nextLoc();
 
     const taken = children.splice(min, max - min + 1, loc);
     nodes[node.loc] = { ...node, children };
 
     let start: SelStart;
     if (node.kind === 'spaced' || node.kind === 'smooshed') {
-        const inner = top.nextLoc();
+        const inner = nextLoc();
         nodes[loc] = { type: 'list', kind, children: [inner], loc };
         nodes[inner] = { type: 'list', kind: node.kind, children: taken, loc: inner };
         const got = selectStart(pathWithChildren(path, loc, inner, taken[0]), top);
@@ -250,7 +258,7 @@ export const handleWraps = (state: TestState, kind: ListKind<any>): KeyAction[] 
 //     neighbors.push({ path: right.path, hl: { type: 'full' } });
 //     const sorted = partitionNeighbors(neighbors, state.top);
 
-//     let nextLoc = state.top.nextLoc;
+//     let nextLoc = state.nextLoc;
 //     let sel: SelStart | null = null;
 //     const nodes: Nodes = {};
 //     sorted.forEach(({ path, children: selected }) => {
@@ -316,8 +324,8 @@ export const handleWrap = (state: TestState, key: string): KeyAction[] | void =>
     }
 };
 
-export function wrapNode(top: Top, path: Path, node: Node, kind: ListKind<NodeID>) {
-    const loc = top.nextLoc();
+export function wrapNode(top: Top, path: Path, node: Node, kind: ListKind<NodeID>, nextLoc: () => string) {
+    const loc = nextLoc();
     const up = replaceAt(path.children.slice(0, -1), top, node.loc, loc);
     up.nodes[loc] = { type: 'list', kind, children: [node.loc], loc };
     up.selection = { start: selStart(pathWithChildren(parentPath(path), loc, node.loc), { type: 'id', end: 0 }) };

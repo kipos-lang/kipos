@@ -6,14 +6,14 @@ import { fixTextSel, pathWith, withLocs } from '../../ctdt-test-utils';
 import { isTag } from '../../handleNav';
 import { KeyAction } from '../../keyActionToUpdate';
 import { root } from '../../root';
-import { id, idc, round } from '../../test-utils';
+import { id, idc, nloc, round } from '../../test-utils';
 import { keyUpdate } from '../../ui/keyUpdate';
 import { Cursor, NodeSelection, selStart, Top } from '../../utils';
 import { LRW } from './crdt';
 import { CId, CList, CNode, CTree, insert, insertArray, isMain, Op, ParentOp, showOp } from './ctree';
 import { collapseSmooshes, CTop, ctreeUpdate, justOps } from './ctree-update';
 
-export type CTState = { ctop: CTop; top: Top; sel: NodeSelection };
+export type CTState = { ctop: CTop; top: Top; sel: NodeSelection; nextLoc: () => string };
 
 const asTop = (ctop: CTop) => {
     const roots = ctop.tree.children('root', 'root');
@@ -157,7 +157,7 @@ export const initial = (iroot: RecNodeT<boolean | number | null>, cursor: Cursor
 
     // debugCtree(ctop.tree);
 
-    return { ctop, top: asTop(ctop), sel };
+    return { ctop, top: asTop(ctop), sel, nextLoc: nloc() };
 };
 
 // test('initial set up', () => {

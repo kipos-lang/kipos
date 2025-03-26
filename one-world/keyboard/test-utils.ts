@@ -25,11 +25,17 @@ import { CollectionCursor, Cursor, IdCursor, ListWhere, NodeSelection, Path, sel
 export type TestState = {
     top: Top;
     sel: NodeSelection;
+    nextLoc: () => string;
 };
 export type TestParser<T> = {
     config: Config;
     parse(node: RecNode, cursor?: NodeID): ParseResult<T>;
     spans(ast: any): Src[];
+};
+
+export const nloc = () => {
+    let id = 0;
+    return () => id++ + '';
 };
 
 export const initTop = (): Top => {
@@ -47,6 +53,7 @@ export const init = (): TestState => ({
     sel: {
         start: selStart({ root: { ids: [], top: '' }, children: ['0'] }, { type: 'id', end: 0 }),
     },
+    nextLoc: nloc(),
 });
 
 export const asTopAndPath = (node: RecNodeT<boolean | number>): { top: Top; sel: NodeID[]; sels: Record<number, NodeID[]> } => {
@@ -127,6 +134,7 @@ export const _asTop = (node: RecNodeT<number | boolean>, cursor: Cursor, endCurs
             start,
             end: endCursor ? selStart({ children: sels[2] ?? sel, root: { ids: [], top: '' } }, endCursor) : undefined,
         },
+        nextLoc: nloc(),
     };
 };
 
@@ -142,6 +150,7 @@ export const asMultiTop = (node: RecNodeT<number>, cursor: Cursor): TestState =>
             //     aux: locs[2] ? selEnd({ children: locs[2], root: { ids: [], top: '' } }) : undefined,
             // },
         },
+        nextLoc: nloc(),
     };
 };
 

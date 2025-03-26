@@ -31,18 +31,19 @@ const examples = [
 
 type State = { state: TestState; running: boolean; at: number };
 
-const precompute = (text: string[], config: Config) => {
+const precompute = (text: string[], config: Config, nextLoc: () => string) => {
     let state = init();
     text.forEach((grem) => {
         if (grem === '\r') {
             const path = state.sel.start.path;
             const node = state.top.nodes[lastChild(path)];
+            const loc = nextLoc();
             state = applyNormalUpdate(state, {
                 nodes: {
-                    [node.loc]: { type: 'list', kind: { type: 'plain' }, children: [state.top.nextLoc + ''], loc: node.loc },
-                    [state.top.nextLoc + '']: { type: 'text', loc: state.top.nextLoc(), spans: [{ type: 'text', text: '', loc: '' }] },
+                    [node.loc]: { type: 'list', kind: { type: 'plain' }, children: [loc], loc: node.loc },
+                    [loc]: { type: 'text', loc: nextLoc(), spans: [{ type: 'text', text: '', loc: '' }] },
                 },
-                selection: { start: selStart(pathWithChildren(path, state.top.nextLoc()), { type: 'text', end: { index: 0, cursor: 0 } }) },
+                selection: { start: selStart(pathWithChildren(path, nextLoc()), { type: 'text', end: { index: 0, cursor: 0 } }) },
             });
             return;
         }
@@ -62,7 +63,11 @@ const precompute = (text: string[], config: Config) => {
 };
 
 const Example = ({ text }: { text: string[] }) => {
-    const [state, setState] = useState(precompute(text, js));
+    const nextLoc = useMemo(() => {
+        let id = 0;
+        return () => id++ + '';
+    }, []);
+    const [state, setState] = useState(precompute(text, js, nextLoc));
     useEffect(() => {
         if (!state.running) return;
         const v = setInterval(() => {
@@ -181,8 +186,12 @@ const coolEx: [string, string][] = [
 ];
 
 const ExTable = ({ examples, config, dconfig }: { examples: [string, string][]; config: Config; dconfig: DisplayConfig }) => {
+    const nextLoc = useMemo(() => {
+        let id = 0;
+        return () => id++ + '';
+    }, []);
     const states = useMemo(() => {
-        return examples.map((ex) => precompute(splitGraphemes(ex[1]), config));
+        return examples.map((ex) => precompute(splitGraphemes(ex[1]), config, nextLoc));
     }, [examples]);
 
     const xmls = useMemo(() => states.map((state, i) => nodeToXML(root(state.state, (idx) => [{ id: '', idx }]))), [states]);
