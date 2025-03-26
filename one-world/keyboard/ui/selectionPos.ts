@@ -24,13 +24,13 @@ const deb = (at: { left: number; top: number; height: number }, color: string) =
     document.body.append(node);
 };
 
-export const posUp = (sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>) => {
+export const posUp = (sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, nextLoc: () => string) => {
     const current = selectionPos(sel.start, refs, top);
     if (!current) return;
     if (sel.start.returnToHoriz != null) {
         current.left = sel.start.returnToHoriz;
     }
-    const options = above(sel, top, refs, current);
+    const options = above(sel, top, refs, current, nextLoc);
     if (!options.length) return;
     options.sort((a, b) => a.dx - b.dx);
     if (Math.abs(options[0].at.left - current.left) > CLOSE) {
@@ -39,13 +39,13 @@ export const posUp = (sel: NodeSelection, top: Top, refs: Record<number, HTMLEle
     return options[0].next;
 };
 
-export const posDown = (sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>) => {
+export const posDown = (sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, nextLoc: () => string) => {
     const current = selectionPos(sel.start, refs, top);
     if (!current) return;
     if (sel.start.returnToHoriz != null) {
         current.left = sel.start.returnToHoriz;
     }
-    const options = below(sel, top, refs, current);
+    const options = below(sel, top, refs, current, nextLoc);
     if (!options.length) return;
     options.sort((a, b) => a.dx - b.dx);
     if (Math.abs(options[0].at.left - current.left) > CLOSE) {
@@ -263,12 +263,12 @@ export const posInList = (path: Path, pos: { x: number; y: number }, refs: Recor
     return best ? best[1] : null;
 };
 
-function above(sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, current: CPos) {
+function above(sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, current: CPos, nextLoc: () => string) {
     const options = [];
     let start = sel.start;
     while (true) {
         // const next = goLeft(sel.start.path, top);
-        const next = handleNav('ArrowLeft', { top, sel: { start } });
+        const next = handleNav('ArrowLeft', { top, sel: { start }, nextLoc });
         if (!next) break;
         start = next;
 
@@ -289,11 +289,11 @@ function above(sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, 
     return options;
 }
 
-function below(sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, current: CPos) {
+function below(sel: NodeSelection, top: Top, refs: Record<number, HTMLElement>, current: CPos, nextLoc: () => string) {
     const options = [];
     let start = sel.start;
     while (true) {
-        const next = handleNav('ArrowRight', { top, sel: { start } });
+        const next = handleNav('ArrowRight', { top, sel: { start }, nextLoc });
         if (!next) {
             break;
         }

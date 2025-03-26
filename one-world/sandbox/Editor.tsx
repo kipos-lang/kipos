@@ -85,6 +85,10 @@ export const Editor = () => {
 
     useEffect(() => {
         const fn = (evt: KeyboardEvent) => {
+            if (evt.key === 'z' && evt.metaKey) {
+                editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
+                return;
+            }
             editor.update({
                 type: 'key',
                 key: evt.key,

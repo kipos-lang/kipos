@@ -27,10 +27,10 @@ export const useKeyFns = (
 
     const visual: Visual = {
         up(sel) {
-            return posUp(sel, cstate.current.top, refs);
+            return posUp(sel, cstate.current.top, refs, state.nextLoc);
         },
         down(sel) {
-            return posDown(sel, cstate.current.top, refs);
+            return posDown(sel, cstate.current.top, refs, state.nextLoc);
         },
         spans: cspans.current,
     };

@@ -54,7 +54,7 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
             return;
         }
         case 'set-id-text':
-            return setIdText(state.top, action.path, action.text, action.end, action.ccls);
+            return setIdText(state.top, action.path, action.text, action.end, state.nextLoc, action.ccls);
         case 'set-text-text': {
             return setTextText(state.top, action.path, action.text, action.index, action.end);
         }

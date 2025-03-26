@@ -10,8 +10,10 @@ I have an editor. like. right?
 - [x] thennn eedd a way to make new toplevels
 
 - [x] gotta be able to click stufff
-- [ ] whyy am I not multiselecting?
+- [x] whyy am I not multiselecting?
 - [ ] click & drag would be good
+- [ ] wait undo isn't really workingat all
+- [ ] ok gotta write some tests y'all
 
 ## Basic multi-top setup
 
