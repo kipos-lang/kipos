@@ -29,6 +29,7 @@ interface EditorStore {
 
 interface TopStore {
     top: Toplevel;
+    useRoot(): string;
     useNode(id: string): Node;
 }
 
@@ -113,6 +114,68 @@ const createStore = (): Store => {
         }, [evt]);
     };
 
+    const makeEditor = (selected: string) => ({
+        selected,
+        get module() {
+            return modules[selected];
+        },
+        update(action: Action) {
+            console.log('update', action);
+            // const top = '';
+            const mod = modules[selected];
+            // const tl = mod.toplevels[top];
+            const tops: Record<string, Top> = {};
+            Object.entries(mod.toplevels).forEach(([key, top]) => {
+                tops[key] = { ...top, nextLoc: genId };
+            });
+            const state: AppState = {
+                tops,
+                history: mod.history,
+                selections: mod.selections,
+            };
+            const result = reduce(state, action, false);
+            mod.history = result.history;
+            const changed = diffIds(allIds(mod.selections), allIds(result.selections));
+            mod.selections = result.selections;
+
+            Object.entries(result.tops).forEach(([key, top]) => {
+                Object.keys(top.nodes).forEach((k) => {
+                    if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
+                        changed[k] = true;
+                    }
+                });
+                mod.toplevels[key].nodes = top.nodes;
+                if (mod.toplevels[key].root !== top.root) {
+                    mod.toplevels[key].root = top.root;
+                    shout(`top:${key}:root`);
+                }
+            });
+
+            Object.keys(changed).forEach((k) => {
+                shout(`node:${k}`);
+            });
+            saveModule(mod);
+        },
+        useTop(top: string) {
+            useTick(`top:${top}`);
+            return {
+                useNode(id: string) {
+                    useTick(`node:${id}`);
+                    return modules[selected].toplevels[top].nodes[id];
+                },
+                useRoot() {
+                    useTick(`top:${top}:root`);
+                    return modules[selected].toplevels[top].root;
+                },
+                get top() {
+                    return modules[selected].toplevels[top];
+                },
+            };
+        },
+    });
+
+    let editor = makeEditor(selected);
+
     return {
         module(id: string) {
             return modules[id];
@@ -129,59 +192,10 @@ const createStore = (): Store => {
         },
         useEditor() {
             useTick(`selected`);
-            return {
-                get module() {
-                    return modules[selected];
-                },
-                update(action: Action) {
-                    // const top = '';
-                    const mod = modules[selected];
-                    // const tl = mod.toplevels[top];
-                    const tops: Record<string, Top> = {};
-                    Object.entries(mod.toplevels).forEach(([key, top]) => {
-                        tops[key] = { ...top, nextLoc: genId };
-                    });
-                    const state: AppState = {
-                        tops,
-                        history: mod.history,
-                        selections: mod.selections,
-                    };
-                    const result = reduce(state, action, false);
-                    mod.history = result.history;
-                    const changed = diffIds(allIds(mod.selections), allIds(result.selections));
-                    mod.selections = result.selections;
-
-                    Object.entries(result.tops).forEach(([key, top]) => {
-                        Object.keys(top.nodes).forEach((k) => {
-                            if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
-                                changed[k] = true;
-                            }
-                        });
-                        mod.toplevels[key].nodes = top.nodes;
-                        if (mod.toplevels[key].root !== top.root) {
-                            mod.toplevels[key].root = top.root;
-                            shout(`top:${key}:root`);
-                        }
-                    });
-
-                    Object.keys(changed).forEach((k) => {
-                        shout(`node:${k}`);
-                    });
-                    saveModule(mod);
-                },
-                useTop(top: string) {
-                    useTick(`top:${top}`);
-                    return {
-                        useNode(id: string) {
-                            useTick(`node:${id}`);
-                            return modules[selected].toplevels[top].nodes[id];
-                        },
-                        get top() {
-                            return modules[selected].toplevels[top];
-                        },
-                    };
-                },
-            };
+            if (editor.selected !== selected) {
+                editor = makeEditor(selected);
+            }
+            return editor;
         },
     };
 };

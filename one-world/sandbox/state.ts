@@ -246,27 +246,24 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                 }
                 const top = tops[sel.start.path.root.top];
                 const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
-                if (Array.isArray(update)) {
-                    for (let keyAction of update) {
-                        const sub = keyActionToUpdate({ top, sel }, keyAction);
-                        const result = applyNormalUpdate({ top, sel }, sub);
-                        tops[sel.start.path.root.top] = result.top;
-                        selections[i] = result.sel;
-                        if (sub && Array.isArray(sub.selection)) {
-                            for (let j = 0; j < selections.length; j++) {
-                                if (j !== i) {
-                                    sub.selection.forEach((up) => {
-                                        selections[j] = applySelUp(selections[i], up);
-                                    });
-                                }
+                if (!update) continue;
+                for (let keyAction of update) {
+                    const sub = keyActionToUpdate({ top, sel }, keyAction);
+                    // console.log('sub', sub);
+                    const result = applyNormalUpdate({ top, sel }, sub);
+                    tops[sel.start.path.root.top] = result.top;
+                    selections[i] = result.sel;
+                    if (sub && Array.isArray(sub.selection)) {
+                        for (let j = 0; j < selections.length; j++) {
+                            if (j !== i) {
+                                sub.selection.forEach((up) => {
+                                    selections[j] = applySelUp(selections[i], up);
+                                });
                             }
                         }
                     }
-                    continue;
                 }
-                const result = _applyUpdate({ top, sel }, update);
-                tops[sel.start.path.root.top] = result.top;
-                selections[i] = result.sel;
+                continue;
             }
             return recordHistory(state, { ...state, tops, selections }, noJoin);
         }
