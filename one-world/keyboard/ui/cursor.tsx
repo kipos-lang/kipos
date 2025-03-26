@@ -1,6 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { lightColor } from './colors';
 
+// const cursorColor = 'red'
+const cursorColor = 'blue';
+
 export const Cursor = ({ innerRef, rich }: { rich?: boolean; innerRef?: (node: HTMLSpanElement | null) => void }) => (
     <span
         ref={innerRef}
@@ -9,7 +12,7 @@ export const Cursor = ({ innerRef, rich }: { rich?: boolean; innerRef?: (node: H
             width: 1,
             marginRight: 0,
             marginLeft: -1,
-            backgroundColor: 'red',
+            backgroundColor: cursorColor,
             position: 'relative',
             pointerEvents: 'none',
         }}
@@ -59,8 +62,8 @@ export const TextWithCursor = ({
     // left: number;
     // right: number;
     rich?: boolean;
-    onMouseDown: React.ComponentProps<'span'>['onMouseDown'];
-    onMouseMove: React.ComponentProps<'span'>['onMouseMove'];
+    onMouseDown?: React.ComponentProps<'span'>['onMouseDown'];
+    onMouseMove?: React.ComponentProps<'span'>['onMouseMove'];
 }) => {
     const ref = useRef<HTMLSpanElement>(null);
 
@@ -87,7 +90,7 @@ export const TextWithCursor = ({
                     style={{
                         ...rects[0],
                         position: 'absolute',
-                        backgroundColor: rich ? 'teal' : 'red',
+                        backgroundColor: rich ? 'teal' : cursorColor,
                         opacity: 1,
                     }}
                 >
@@ -101,7 +104,7 @@ export const TextWithCursor = ({
                         style={{
                             ...rect,
                             position: 'absolute',
-                            backgroundColor: rect.width === 1 ? 'red' : lightColor,
+                            backgroundColor: rect.width === 1 ? cursorColor : lightColor,
                             opacity: 1, // rect.width === 1 ? 1 : 0.2,
                         }}
                     />

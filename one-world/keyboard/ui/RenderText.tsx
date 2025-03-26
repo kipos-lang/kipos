@@ -25,11 +25,10 @@ export const RenderText = (
     const children = node.spans.map((span, i) => {
         if (span.type === 'text') {
             const style = inRich ? asStyle(span.style) : { color: textColor, ...asStyle(span.style) };
-            const cursorText = null; // top.tmpText[`${node.loc}:${i}`];
             const sc = status?.cursors.filter((c) => c.type === 'text' && c.end.index === i);
             if (sc?.length) {
                 // (sc.find((c) => c.type === 'text' && c.end.index === i && c.end.text) as TextCursor)?.end.text;
-                const text = cursorText ?? splitGraphemes(span.text);
+                const text = splitGraphemes(span.text);
                 // const text = sides.text?.index === i ? sides.text.grems : splitGraphemes(span.text);
                 // const left = i === sides.left.index ? sides.left.cursor : 0;
                 // const right = i === sides.right.index ? sides.right.cursor : text.length;
@@ -71,7 +70,6 @@ export const RenderText = (
                     </span>
                 );
             }
-            // const text = cursorText?.join('') ?? span.text;
             const text = span.text;
             const hl = status?.highlight?.type === 'text' ? status.highlight.spans[i] : undefined;
             // TODO show cursor here

@@ -1,14 +1,13 @@
 import React, { useCallback, useContext, useEffect, useMemo } from 'react';
+import { interleaveF } from '../keyboard/interleave';
+import { js } from '../keyboard/test-utils';
+import { Cursor, TextWithCursor } from '../keyboard/ui/cursor';
+import { closer, opener } from '../keyboard/ui/RenderNode';
+import { IdCursor, ListWhere, Path, pathWithChildren } from '../keyboard/utils';
+import { Node } from '../shared/cnodes';
+import { splitGraphemes } from '../splitGraphemes';
 import { ModuleTree, SelStatus, useStore } from './store';
 import { zedlight } from './zedcolors';
-import { js } from '../keyboard/test-utils';
-import { Node } from '../shared/cnodes';
-import { closer, opener } from '../keyboard/ui/RenderNode';
-import { interleave, interleaveF } from '../keyboard/interleave';
-import { TextWithCursor } from '../keyboard/ui/cursor';
-import { splitGraphemes } from '../splitGraphemes';
-import { Cursor, Highlight, IdCursor, Path, pathWithChildren } from '../keyboard/utils';
-import { pathKey } from '../../../../exploration/j3/one-world/keyboard/utils';
 
 export const App = () => {
     const store = useStore();
@@ -57,6 +56,7 @@ const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStat
 });
 
 const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => {
+    const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
     switch (node.type) {
         case 'id':
             if (!sel) return <span>{node.text}</span>;
@@ -66,6 +66,22 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
                     highlight={sel.highlight?.type === 'id' ? sel.highlight.spans : undefined}
                     cursors={(sel.cursors.filter((c) => c.type === 'id') as IdCursor[]).map((c) => c.end)}
                 />
+            );
+        case 'text':
+            return (
+                <span>
+                    {has('before') ? <Cursor /> : null}"{has('inside') ? <Cursor /> : null}
+                    {node.spans.map((span) => {
+                        if (span.type === 'text') {
+                            return span.text;
+                        }
+                        if (span.type === 'embed') {
+                            return <RenderNode parent={self} id={span.item} />;
+                        }
+                        return 'SPAN' + span.type;
+                    })}
+                    "{has('after') ? <Cursor /> : null}
+                </span>
             );
         // return <span>{node.text}</span>;
         case 'list':
@@ -85,11 +101,14 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
             }
             return (
                 <span>
+                    {has('before') ? <Cursor /> : null}
                     {opener[node.kind]}
+                    {has('inside') ? <Cursor /> : null}
                     {interleaveF(children, (k) => (
                         <span key={k}>, </span>
                     ))}
                     {closer[node.kind]}
+                    {has('after') ? <Cursor /> : null}
                 </span>
             );
     }
