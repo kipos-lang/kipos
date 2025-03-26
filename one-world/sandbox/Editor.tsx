@@ -60,11 +60,7 @@ export const useMakeDrag = (): DragCtxT => {
                     // [undefined, { nodes: [], selection: { start: sel } }]
                 } else {
                     drag.dragging = true;
-                    console.log(
-                        'uppp',
-                        sel.path.children.map((p) => p.slice(-5)),
-                    );
-                    editor.update({ type: 'update', update: moveA(sel) });
+                    editor.update({ type: 'selections', selections: [{ start: sel }] });
                     document.addEventListener('mouseup', up);
                 }
             },

@@ -47,6 +47,7 @@ export const Top = ({ id }: { id: string }) => {
             >
                 &times;
             </button>
+            {/* <span style={{ fontSize: '50%', border: '1px solid red' }}>{id.slice(-5)}</span> */}
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>

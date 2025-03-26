@@ -107,6 +107,7 @@ export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual; config: Config }
+    | { type: 'selections'; selections: NodeSelection[] }
     | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'rm-tl'; id: string }
     | { type: 'paste'; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
@@ -196,14 +197,19 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
 
+        case 'selections':
+            return { ...state, selections: action.selections };
+
         case 'update': {
-            const sel = state.selections[0];
-            const top = state.tops[sel.start.path.root.top];
-            console.log('update', action.update);
-            console.log('the top', top);
-            const result = _applyUpdate({ top, sel, nextLoc: genId }, action.update);
-            console.log('result', result);
-            return recordHistory(state, { ...state, tops: { ...state.tops, [top.id]: result.top }, selections: [result.sel] }, noJoin);
+            // const sel = action.update
+            // const sel = state.selections[0];
+            // const top = state.tops[sel.start.path.root.top];
+            // console.log('update', action.update);
+            // console.log('the top', top);
+            // const result = _applyUpdate({ top, sel, nextLoc: genId }, action.update);
+            // console.log('result', result);
+            // return recordHistory(state, { ...state, tops: { ...state.tops, [top.id]: result.top }, selections: [result.sel] }, noJoin);
+            throw new Error('updateeee');
         }
 
         case 'rm-tl': {
