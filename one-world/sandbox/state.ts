@@ -10,6 +10,7 @@ import { CopiedValues } from '../keyboard/update/multi-change';
 import { NodeSelection, selStart, Top } from '../keyboard/utils';
 import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
 import { Toplevel } from './types';
+import { selectStart } from '../keyboard/handleNav';
 
 export type AppState = {
     roots: string[];
@@ -107,6 +108,7 @@ export type Action =
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual; config: Config }
     | { type: 'new-tl'; after: string; parent?: string }
+    | { type: 'rm-tl'; id: string }
     | { type: 'paste'; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
     | { type: 'undo' }
     | { type: 'redo' };
@@ -193,8 +195,30 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
-        case 'update':
-            throw new Error('noaa');
+
+        case 'update': {
+            const sel = state.selections[0];
+            const top = state.tops[sel.start.path.root.top];
+            console.log('update', action.update);
+            console.log('the top', top);
+            const result = _applyUpdate({ top, sel, nextLoc: genId }, action.update);
+            console.log('result', result);
+            return recordHistory(state, { ...state, tops: { ...state.tops, [top.id]: result.top }, selections: [result.sel] }, noJoin);
+        }
+
+        case 'rm-tl': {
+            const roots = state.roots.slice();
+            const at = roots.indexOf(action.id);
+            roots.splice(at, 1);
+            let next = at < roots.length ? roots[at] : roots[at - 1];
+            if (next == null) return state;
+            const top = state.tops[next];
+            const sel = selectStart({ root: { top: top.id, ids: [] }, children: [top.root] }, top);
+            if (!sel) return state;
+            const tops = { ...state.tops };
+            delete tops[action.id];
+            return { ...state, roots, tops, selections: [{ start: sel }] };
+        }
 
         case 'new-tl': {
             if (action.parent == null) {

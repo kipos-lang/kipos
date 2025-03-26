@@ -1,13 +1,9 @@
-import React, { useCallback, useContext, useEffect, useMemo } from 'react';
-import { interleaveF } from '../keyboard/interleave';
-import { js } from '../keyboard/test-utils';
-import { Cursor, TextWithCursor } from '../keyboard/ui/cursor';
-import { closer, opener } from '../keyboard/ui/RenderNode';
-import { IdCursor, ListWhere, Path, pathWithChildren } from '../keyboard/utils';
+import React, { useCallback, useMemo } from 'react';
+import { Path, selStart } from '../keyboard/utils';
 import { Node } from '../shared/cnodes';
-import { splitGraphemes } from '../splitGraphemes';
 import { ModuleTree, SelStatus, useStore } from './store';
-import { zedlight } from './zedcolors';
+import { RenderNode } from './RenderNode';
+import { Editor } from './Editor';
 
 export const App = () => {
     const store = useStore();
@@ -26,7 +22,7 @@ export const App = () => {
     );
 };
 
-const Top = ({ id }: { id: string }) => {
+export const Top = ({ id }: { id: string }) => {
     const store = useStore();
     const editor = store.useEditor();
     const top = editor.useTop(id);
@@ -44,6 +40,13 @@ const Top = ({ id }: { id: string }) => {
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
         <div>
+            <button
+                onClick={() => {
+                    editor.update({ type: 'rm-tl', id });
+                }}
+            >
+                &times;
+            </button>
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
@@ -51,145 +54,26 @@ const Top = ({ id }: { id: string }) => {
     );
 };
 
-const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
+export const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
     throw new Error('n');
 });
 
-const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => {
-    const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
-    switch (node.type) {
-        case 'id':
-            if (!sel) return <span>{node.text}</span>;
-            return (
-                <TextWithCursor
-                    text={splitGraphemes(node.text)}
-                    highlight={sel.highlight?.type === 'id' ? sel.highlight.spans : undefined}
-                    cursors={(sel.cursors.filter((c) => c.type === 'id') as IdCursor[]).map((c) => c.end)}
-                />
-            );
-        case 'text':
-            return (
-                <span>
-                    {has('before') ? <Cursor /> : null}"{has('inside') ? <Cursor /> : null}
-                    {node.spans.map((span, i) => {
-                        const sc = sel?.cursors.filter((c) => c.type === 'text' && c.end.index === i);
-                        if (span.type === 'text') {
-                            if (sc?.length) {
-                                const hl = sel?.highlight?.type === 'text' ? sel.highlight.spans[i] : undefined;
-                                return (
-                                    <TextWithCursor
-                                        key={i}
-                                        text={splitGraphemes(span.text)}
-                                        highlight={hl}
-                                        cursors={sc.map((s) => (s.type === 'text' ? s.end.cursor : 0))}
-                                    />
-                                );
-                            }
-                            return span.text;
-                        }
-                        if (span.type === 'embed') {
-                            return <RenderNode key={i} parent={self} id={span.item} />;
-                        }
-                        return 'SPAN' + span.type;
-                    })}
-                    "{has('after') ? <Cursor /> : null}
-                </span>
-            );
-        // return <span>{node.text}</span>;
-        case 'list':
-            if (typeof node.kind !== 'string') return 'UK';
-            const children = node.children.map((id) =>
-                node.forceMultiline ? (
-                    <span
-                        style={{
-                            display: 'block',
-                            paddingLeft: 32,
-                        }}
-                        key={id}
-                    >
-                        <RenderNode parent={self} id={id} key={id} />
-                        {node.kind === 'smooshed' || node.kind === 'spaced' ? null : ', '}
-                    </span>
-                ) : (
-                    <RenderNode parent={self} id={id} key={id} />
-                ),
-            );
-            if (node.kind === 'smooshed') {
-                return <span>{children}</span>;
-            }
-            if (node.kind === 'spaced') {
-                return (
-                    <span>
-                        {interleaveF(children, (k) => (
-                            <span key={k}>&nbsp;</span>
-                        ))}
-                    </span>
-                );
-            }
-            return (
-                <span>
-                    {has('before') ? <Cursor /> : null}
-                    {opener[node.kind]}
-                    {has('inside') ? <Cursor /> : null}
-                    {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>, </span>)}
-                    {closer[node.kind]}
-                    {has('after') ? <Cursor /> : null}
-                </span>
-            );
+export const cursorPositionInSpanForEvt = (evt: React.MouseEvent, target: HTMLSpanElement, text: string[]) => {
+    const range = new Range();
+    let best = null as null | [number, number];
+    for (let i = 0; i <= text.length; i++) {
+        const at = text.slice(0, i).join('').length;
+        range.setStart(target.firstChild!, at);
+        range.setEnd(target.firstChild!, at);
+        const box = range.getBoundingClientRect();
+        if (evt.clientY < box.top || evt.clientY > box.bottom) continue;
+        const dst = Math.abs(box.left - evt.clientX);
+        if (!best || dst < best[0]) best = [dst, i];
     }
+    return best ? best[1] : null;
 };
 
-const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
-    const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
-    const { node, sel } = useContext(UseNodeCtx)(self);
-
-    return (
-        <>
-            {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>
-            {JSON.stringify(sel)} */}
-            <R node={node} self={self} sel={sel} />
-        </>
-    );
-};
-
-const Editor = () => {
-    const store = useStore();
-    const editor = store.useEditor();
-
-    useEffect(() => {
-        const fn = (evt: KeyboardEvent) => {
-            editor.update({
-                type: 'key',
-                key: evt.key,
-                mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
-                // visual,
-                config: js, // parser.config,
-            });
-        };
-
-        window.addEventListener('keydown', fn);
-        return () => window.removeEventListener('keydown', fn);
-    }, [editor]);
-
-    return (
-        <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
-            Editor here
-            {editor.module.roots.map((id) => (
-                <Top id={id} key={id} />
-            ))}
-            <button
-                onClick={() => {
-                    editor.update({ type: 'new-tl', after: editor.module.roots[editor.module.roots.length - 1] });
-                }}
-            >
-                Add Toplevel
-            </button>
-            <Showsel />p
-        </div>
-    );
-};
-
-const Showsel = () => {
+export const Showsel = () => {
     const store = useStore();
     const editor = store.useEditor();
     const sel = editor.useSelection();

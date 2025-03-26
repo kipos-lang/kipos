@@ -6,8 +6,10 @@ I have an editor. like. right?
 - [x] longish refactoring of the history stuff to make it easier to think about
 - [x] tmpText is gone
 - [x] nextLoc is a function now
-- [ ] now ... we do a little rendering I think
-- [ ] thennn eedd a way to make new toplevels
+- [x] now ... we do a little rendering I think
+- [x] thennn eedd a way to make new toplevels
+
+- [ ] gotta be able to click stufff
 
 ## Basic multi-top setup
 
