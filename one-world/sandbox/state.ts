@@ -254,7 +254,7 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
                 const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, action.config);
                 if (!update) continue;
                 for (let keyAction of update) {
-                    const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction, nextLoc);
+                    const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction);
                     // console.log('sub', sub);
                     const result = applyNormalUpdate({ top, sel, nextLoc }, sub);
                     tops[sel.start.path.root.top] = result.top;

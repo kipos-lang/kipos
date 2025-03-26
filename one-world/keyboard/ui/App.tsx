@@ -20,6 +20,7 @@ import { RenderNode } from './RenderNode';
 import { ShowXML } from './XML';
 import { useKeyFns } from './useKeyFns';
 import { useBackslashMenu } from './useBackslashMenu';
+import { genId } from './genId';
 
 const styleKinds: Record<string, Style> = {
     comment: { color: { r: 200, g: 200, b: 200 } },
@@ -64,6 +65,7 @@ export type Action =
 
 const getInitialState = (id: string): AppState => {
     const data: AppState = localStorage[id] ? JSON.parse(localStorage[id]) : initialAppState;
+    data.nextLoc = genId;
     // if (!data.top.tmpText) data.top.tmpText = {};
     // @ts-ignore
     if (data.sel) {
@@ -79,9 +81,7 @@ const getInitialState = (id: string): AppState => {
 const useAppState = (id: string) => {
     const [state, dispatch] = useReducer(reducer, id, getInitialState);
     useEffect(() => {
-        if (state != null && state !== initialAppState) {
-            localStorage[id] = JSON.stringify(state);
-        }
+        localStorage[id] = JSON.stringify(state);
     }, [state, id]);
     return [state, dispatch] as const;
 };

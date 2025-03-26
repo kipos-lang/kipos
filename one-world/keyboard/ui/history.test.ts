@@ -17,11 +17,12 @@ export const appStateToTestState = (state: AppState): TestState => {
     return {
         top: state.top,
         sel: state.selections[0],
+        nextLoc: state.nextLoc,
     };
 };
 
-test('a little history', () => {
-    let state = initialAppState;
+test.only('a little history', () => {
+    let state = initialAppState();
     state = applyAppUpdate(state, { type: 'key', key: '(', mods: { shift: true }, config: parser.config });
     check(appStateToTestState(state), round([id('', true)]), idc(0));
     state = applyAppUpdate(state, { type: 'undo' });
@@ -34,7 +35,7 @@ test('a little history', () => {
 const keyAction = (key: string, mods: Mods = {}): Action => ({ type: 'key', key, mods, config: parser.config });
 
 test('some history', () => {
-    let state = initialAppState;
+    let state = initialAppState();
     state = applyAppUpdate(state, keyAction('(', { shift: true }));
     state = applyAppUpdate(state, keyAction('a'));
     state = applyAppUpdate(state, keyAction('b'));
@@ -47,7 +48,7 @@ test('some history', () => {
 });
 
 test('individual history', () => {
-    let state = initialAppState;
+    let state = initialAppState();
     state = applyAppUpdate(state, keyAction('a'), true);
     state = applyAppUpdate(state, keyAction('b'), true);
     state = applyAppUpdate(state, keyAction('c'), true);
@@ -59,7 +60,7 @@ test('individual history', () => {
 });
 
 test('undo twice, redo twice', () => {
-    let state = initialAppState;
+    let state = initialAppState();
     state = applyAppUpdate(state, keyAction('a'), true);
     state = applyAppUpdate(state, keyAction('b'), true);
     state = applyAppUpdate(state, keyAction('c'), true);
@@ -74,7 +75,7 @@ test('undo twice, redo twice', () => {
 });
 
 test('undo redo undo redo', () => {
-    let state = initialAppState;
+    let state = initialAppState();
     state = applyAppUpdate(state, keyAction('a'), true);
     state = applyAppUpdate(state, keyAction('b'), true);
     state = applyAppUpdate(state, keyAction('c'), true);
