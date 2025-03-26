@@ -71,12 +71,24 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
             return (
                 <span>
                     {has('before') ? <Cursor /> : null}"{has('inside') ? <Cursor /> : null}
-                    {node.spans.map((span) => {
+                    {node.spans.map((span, i) => {
+                        const sc = sel?.cursors.filter((c) => c.type === 'text' && c.end.index === i);
                         if (span.type === 'text') {
+                            if (sc?.length) {
+                                const hl = sel?.highlight?.type === 'text' ? sel.highlight.spans[i] : undefined;
+                                return (
+                                    <TextWithCursor
+                                        key={i}
+                                        text={splitGraphemes(span.text)}
+                                        highlight={hl}
+                                        cursors={sc.map((s) => (s.type === 'text' ? s.end.cursor : 0))}
+                                    />
+                                );
+                            }
                             return span.text;
                         }
                         if (span.type === 'embed') {
-                            return <RenderNode parent={self} id={span.item} />;
+                            return <RenderNode key={i} parent={self} id={span.item} />;
                         }
                         return 'SPAN' + span.type;
                     })}
@@ -86,7 +98,22 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
         // return <span>{node.text}</span>;
         case 'list':
             if (typeof node.kind !== 'string') return 'UK';
-            const children = node.children.map((id) => <RenderNode parent={self} id={id} key={id} />);
+            const children = node.children.map((id) =>
+                node.forceMultiline ? (
+                    <span
+                        style={{
+                            display: 'block',
+                            paddingLeft: 32,
+                        }}
+                        key={id}
+                    >
+                        <RenderNode parent={self} id={id} key={id} />
+                        {node.kind === 'smooshed' || node.kind === 'spaced' ? null : ', '}
+                    </span>
+                ) : (
+                    <RenderNode parent={self} id={id} key={id} />
+                ),
+            );
             if (node.kind === 'smooshed') {
                 return <span>{children}</span>;
             }
@@ -104,9 +131,7 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
                     {has('before') ? <Cursor /> : null}
                     {opener[node.kind]}
                     {has('inside') ? <Cursor /> : null}
-                    {interleaveF(children, (k) => (
-                        <span key={k}>, </span>
-                    ))}
+                    {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>, </span>)}
                     {closer[node.kind]}
                     {has('after') ? <Cursor /> : null}
                 </span>
