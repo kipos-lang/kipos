@@ -110,7 +110,7 @@ export type TmpText = undefined | never; // Record<string, string[]>;
 export type Top = {
     nodes: Nodes;
     root: NodeID;
-    // nextLoc(): string;
+    nextLoc?(): string;
 };
 
 export const getNode = (path: Path, top: Top) => top.nodes[path.children[path.children.length - 1]];
