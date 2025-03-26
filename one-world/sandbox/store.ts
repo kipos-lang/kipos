@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Action, AppState, reduce } from './state';
 import { Node } from '../shared/cnodes';
 import { useHash } from '../useHash';
 import { LanguageConfiguration, Module, Toplevel } from './types';
 import { genId } from '../keyboard/ui/genId';
 import { NodeSelection, selStart } from '../keyboard/utils';
-import { loadLanguageConfigs, loadModules } from './storage';
+import { loadLanguageConfigs, loadModules, saveModule } from './storage';
 
-type ModuleTree = {
+export type ModuleTree = {
     node?: Module;
     children: ModuleTree[];
 };
@@ -24,11 +24,11 @@ interface Store {
 interface EditorStore {
     get module(): Module;
     useTop(id: string): TopStore;
+    update(action: Action): void;
 }
 
 interface TopStore {
     top: Toplevel;
-    update(action: Action): void;
     useNode(id: string): Node;
 }
 
@@ -76,109 +76,115 @@ export const defaultLanguageConfig = 'default';
 
 type Evt = 'selected' | `top:${string}` | `node:${string}`;
 
-export const useStore = (): Store => {
-    return useMemo((): Store => {
-        const modules = loadModules();
-        const configs = loadLanguageConfigs();
+const createStore = (): Store => {
+    const modules = loadModules();
+    const configs = loadLanguageConfigs();
 
-        let treeCache = makeModuleTree(modules);
-        let selected = location.hash.slice(1);
-        if (!selected) {
-            if (treeCache.children.length && treeCache.children[0].node) {
-                selected = treeCache.children[0].node!.id;
-            }
+    let treeCache = makeModuleTree(modules);
+    let selected = location.hash.slice(1);
+    if (!selected) {
+        if (treeCache.children.length && treeCache.children[0].node) {
+            selected = treeCache.children[0].node!.id;
         }
-        if (!selected) {
-            const module = newModule();
-            modules[module.id] = module;
-            selected = module.id;
-            treeCache.children.push({ node: module, children: [] });
-        }
+    }
+    if (!selected) {
+        const module = newModule();
+        modules[module.id] = module;
+        selected = module.id;
+        treeCache.children.push({ node: module, children: [] });
+    }
 
-        const listeners: Partial<Record<Evt, (() => void)[]>> = {};
-        const listen = (evt: Evt, fn: () => void) => {
-            if (!listeners[evt]) listeners[evt] = [fn];
-            else listeners[evt].push(fn);
-            return () => {
-                if (!listeners[evt]) return;
-                const at = listeners[evt].indexOf(fn);
-                if (at !== -1) listeners[evt].splice(at, 1);
+    const listeners: Partial<Record<Evt, (() => void)[]>> = {};
+    const listen = (evt: Evt, fn: () => void) => {
+        if (!listeners[evt]) listeners[evt] = [fn];
+        else listeners[evt].push(fn);
+        return () => {
+            if (!listeners[evt]) return;
+            const at = listeners[evt].indexOf(fn);
+            if (at !== -1) listeners[evt].splice(at, 1);
+        };
+    };
+    const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
+
+    const useTick = (evt: Evt) => {
+        const [_, setTick] = useState(0);
+        useEffect(() => {
+            return listen(evt, () => setTick((t) => t + 1));
+        }, [evt]);
+    };
+
+    return {
+        module(id: string) {
+            return modules[id];
+        },
+        get languageConfigs() {
+            return configs;
+        },
+        get moduleTree() {
+            return treeCache;
+        },
+        useSelected() {
+            useTick('selected');
+            return selected;
+        },
+        useEditor() {
+            useTick(`selected`);
+            return {
+                get module() {
+                    return modules[selected];
+                },
+                update(action: Action) {
+                    const top = '';
+                    const mod = modules[selected];
+                    const tl = mod.toplevels[top];
+                    const state: AppState = {
+                        top: { ...tl, nextLoc: genId },
+                        history: mod.history,
+                        selections: mod.selections,
+                    };
+                    const result = reduce(state, action, false);
+                    mod.history = result.history;
+                    const changed = diffIds(allIds(mod.selections), allIds(result.selections));
+                    mod.selections = result.selections;
+                    Object.keys(result.top.nodes).forEach((k) => {
+                        if (tl.nodes[k] !== result.top.nodes[k]) {
+                            changed[k] = true;
+                        }
+                    });
+                    tl.nodes = result.top.nodes;
+                    if (tl.root !== result.top.root) {
+                        tl.root = result.top.root;
+                        shout(`top:${top}:root`);
+                    }
+
+                    Object.keys(changed).forEach((k) => {
+                        shout(`node:${k}`);
+                    });
+                    saveModule(mod);
+                },
+                useTop(top: string) {
+                    useTick(`top:${top}`);
+                    return {
+                        useNode(id: string) {
+                            useTick(`node:${id}`);
+                            return modules[selected].toplevels[top].nodes[id];
+                        },
+                        get top() {
+                            return modules[selected].toplevels[top];
+                        },
+                    };
+                },
             };
-        };
-        const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
+        },
+    };
+};
 
-        const useTick = (evt: Evt) => {
-            const [_, setTick] = useState(0);
-            useEffect(() => {
-                return listen(evt, () => setTick((t) => t + 1));
-            }, [evt]);
-        };
+const StoreCtx = createContext({ store: null } as { store: null | Store });
 
-        return {
-            module(id: string) {
-                return modules[id];
-            },
-            get languageConfigs() {
-                return configs;
-            },
-            get moduleTree() {
-                return treeCache;
-            },
-            useSelected() {
-                useTick('selected');
-                return selected;
-            },
-            useEditor() {
-                useTick(`selected`);
-                return {
-                    get module() {
-                        return modules[selected];
-                    },
-                    useTop(top: string) {
-                        useTick(`top:${top}`);
-                        return {
-                            update(action: Action) {
-                                const mod = modules[selected];
-                                const state: AppState = {
-                                    top: {
-                                        ...mod.toplevels[top],
-                                        nextLoc: genId,
-                                    },
-                                    history: mod.history,
-                                    selections: mod.selections,
-                                };
-                                const result = reduce(state, action, false);
-                                mod.history = result.history;
-                                const changed = diffIds(allIds(mod.selections), allIds(result.selections));
-                                mod.selections = result.selections;
-                                Object.keys(result.top.nodes).forEach((k) => {
-                                    if (mod.toplevels[top].nodes[k] !== result.top.nodes[k]) {
-                                        changed[k] = true;
-                                    }
-                                });
-                                mod.toplevels[top].nodes = result.top.nodes;
-                                if (mod.toplevels[top].root !== mod.toplevels[top].root) {
-                                    mod.toplevels[top].root = mod.toplevels[top].root;
-                                    shout(`top:${top}:root`);
-                                }
-                                // const evts: Evt[] = [];
-                                Object.keys(changed).forEach((k) => {
-                                    shout(`node:${k}`);
-                                });
-                            },
-                            useNode(id: string) {
-                                useTick(`node:${id}`);
-                                return modules[selected].toplevels[top].nodes[id];
-                            },
-                            get top() {
-                                return modules[selected].toplevels[top];
-                            },
-                        };
-                    },
-                };
-            },
-        };
-    }, []);
+export const useStore = (): Store => {
+    const v = useContext(StoreCtx);
+    if (!v.store) v.store = createStore();
+    return v.store;
 };
 
 const allIds = (sels: NodeSelection[]) => {
