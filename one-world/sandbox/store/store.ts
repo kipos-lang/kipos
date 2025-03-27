@@ -260,6 +260,16 @@ const StoreCtx = createContext({ store: null } as { store: null | Store });
 export const useStore = (): Store => {
     const v = useContext(StoreCtx);
     if (!v.store) v.store = createStore();
+
+    useEffect(() => {
+        const f = () => {
+            const id = location.hash.slice(1);
+            v.store!.select(id);
+        };
+        window.addEventListener('hashchange', f);
+        return () => window.removeEventListener('hashchange', f);
+    }, []);
+
     return v.store;
 };
 

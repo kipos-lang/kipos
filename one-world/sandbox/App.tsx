@@ -1,10 +1,13 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Path, selStart } from '../keyboard/utils';
 import { Node } from '../shared/cnodes';
 import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
 import { RenderNode } from './render/RenderNode';
 import { Editor } from './Editor';
 import { genId } from '../keyboard/ui/genId';
+import { lightColor, lightColorA } from '../keyboard/ui/colors';
+import { EditIcon } from './icons';
+import { css } from 'goober';
 
 export const App = () => {
     return (
@@ -44,6 +47,16 @@ export const Top = ({ id }: { id: string }) => {
                 onClick={() => {
                     editor.update({ type: 'rm-tl', id });
                 }}
+                className={css({
+                    background: 'transparent',
+                    '&:hover': {
+                        color: 'red',
+                    },
+                    lineHeight: '18px',
+                    border: 'none',
+                    color: 'black',
+                    cursor: 'pointer',
+                })}
             >
                 &times;
             </button>
@@ -99,25 +112,39 @@ const DebugSidebar = () => {
     return <div>Debug sidebarrr</div>;
 };
 
-const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
+const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {
     const store = useStore();
+    const [editing, setEditing] = useState(false);
     return (
         <div>
             {tree.node ? (
                 <div
-                    style={{
+                    className={css({
                         cursor: 'pointer',
-                        padding: 8,
+                        padding: '8px',
+                        background: selected === tree.node.id ? lightColor : undefined,
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        '&:hover': {
+                            background: lightColorA(0.5),
+                        },
+                    })}
+                    onClick={() => {
+                        location.hash = '#' + tree.node!.id;
+                        // store.select(tree.node!.id)
                     }}
-                    onClick={() => store.select(tree.node!.id)}
                 >
                     {tree.node.name}
+                    <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
+                    <EditIcon />
                 </div>
             ) : null}
             {tree.children.length ? (
                 <div style={{ marginLeft: 16 }}>
                     {tree.children.map((child, i) => (
-                        <ShowModuleTree key={child.node?.id ?? i} tree={child} />
+                        <ShowModuleTree key={child.node?.id ?? i} selected={selected} tree={child} />
                     ))}
                     <button
                         onClick={() => {
@@ -135,11 +162,12 @@ const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
 
 export const ModuleSidebar = () => {
     const store = useStore();
+    const selected = store.useSelected();
     const tree = store.moduleTree;
     return (
         <div style={{ padding: 8 }}>
             <div>Modules</div>
-            <ShowModuleTree tree={tree} />
+            <ShowModuleTree selected={selected} tree={tree} />
         </div>
     );
 };

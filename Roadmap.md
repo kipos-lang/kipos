@@ -18,6 +18,7 @@ I have an editor. like. right?
 - [x] TABELS
 - [x] ; table split in the /after/ of a string, gotta handle that
 
+- [x] better key handling, prepare for copy/paste
 - [ ] let's make up/down work
 - [ ] clicking non-ids plsss
 - [ ] click & drag would be good
