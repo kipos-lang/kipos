@@ -280,8 +280,8 @@ export function flatToUpdateNew(
 
     const r = rough(two.items, top, two.selection.node, nextLoc, parent.isParent ? parent.node.loc : undefined);
     Object.keys(nodes).forEach((key) => {
-        if (r.nodes[+key] === undefined) {
-            r.nodes[+key] = nodes[+key]!;
+        if (r.nodes[key] === undefined) {
+            r.nodes[key] = nodes[key]!;
         }
     });
     // Object.assign(r.nodes, nodes);

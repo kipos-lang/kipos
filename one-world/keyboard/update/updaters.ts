@@ -126,7 +126,7 @@ export const removeSelf = (top: Top, current: { path: Path; node: Node }, nextLo
 
 export const findParent = (nodes: Update['nodes'], loc: NodeID): NodeID | null => {
     for (let key of Object.keys(nodes)) {
-        const node = nodes[+key];
+        const node = nodes[key];
         if (node) {
             const children = childLocs(node);
             if (children.includes(loc)) {

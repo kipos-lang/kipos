@@ -35,10 +35,7 @@ export type TestParser<T> = {
 
 export const nloc = () => {
     let id = 1;
-    return () => {
-        console.log(`we're ${id}`);
-        return id++ + '';
-    };
+    return () => id++ + '';
 };
 
 export const initTop = (): Top => {

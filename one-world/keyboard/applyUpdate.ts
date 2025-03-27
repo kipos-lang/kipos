@@ -68,10 +68,10 @@ export const applyNormalUpdate = <T extends TestState>(state: T, update: null | 
     }
 
     Object.keys(update.nodes).forEach((key) => {
-        if (update.nodes[+key] === null) {
-            delete state.top.nodes[+key];
+        if (update.nodes[key] === null) {
+            delete state.top.nodes[key];
         } else {
-            state.top.nodes[+key] = update.nodes[+key]!;
+            state.top.nodes[key] = update.nodes[key]!;
         }
     });
 

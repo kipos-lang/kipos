@@ -66,9 +66,9 @@ const withNodes = (nodes: Nodes, up: Record<number, Node | null>): Nodes => {
     nodes = { ...nodes };
     Object.entries(up).forEach(([key, value]) => {
         if (value === null) {
-            delete nodes[+key];
+            delete nodes[key];
         } else {
-            nodes[+key] = value;
+            nodes[key] = value;
         }
     });
     return nodes;
@@ -132,9 +132,9 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
     let only = [] as false | number[];
     let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
     Object.entries(next.nodes).forEach(([key, value]) => {
-        if (prev.nodes[+key] !== value) {
+        if (prev.nodes[key] !== value) {
             if (only) {
-                const pnode = prev.nodes[+key];
+                const pnode = prev.nodes[key];
 
                 if (
                     (pnode?.type === 'id' && value.type === 'id') ||
@@ -143,18 +143,18 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
                         pnode.spans.length === value.spans.length &&
                         pnode.spans.every((span, i) => span.type === value.spans[i].type))
                 ) {
-                    only.push(+key);
+                    only.push(key);
                 } else {
                     only = false;
                 }
             }
-            diff.nodes[+key] = value;
+            diff.nodes[key] = value;
             changed = true;
         }
     });
     Object.keys(prev.nodes).forEach((key) => {
-        if (!next.nodes[+key]) {
-            diff.nodes[+key] = null;
+        if (!next.nodes[key]) {
+            diff.nodes[key] = null;
             changed = true;
         }
     });

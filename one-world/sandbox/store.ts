@@ -147,6 +147,9 @@ const createStore = (): Store => {
                 genId,
             );
             mod.history = result.history;
+            if (mod.history.length > 200) {
+                mod.history = mod.history.slice(-200);
+            }
             const changed = allIds(result.selections);
             Object.assign(changed, allIds(mod.selections));
             if (mod.selections !== result.selections) {

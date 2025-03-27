@@ -12,8 +12,11 @@ I have an editor. like. right?
 - [x] gotta be able to click stufff
 - [x] whyy am I not multiselecting?
 - [ ] click & drag would be good
-- [ ] wait undo isn't really workingat all
-- [ ] ok gotta write some tests y'all
+- [x] wait undo isn't really workingat all
+- [x] ok gotta write some tests y'all
+- [ ] rename module...
+- [ ] next up, create moduleeee
+- [ ] gotta be able to wrap folks
 
 ## Basic multi-top setup
 

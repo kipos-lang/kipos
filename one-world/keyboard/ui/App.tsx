@@ -125,10 +125,10 @@ export const App = ({ id }: { id: string }) => {
     const placeholders: Record<number, string> = {};
     Object.entries(parsed.ctx.meta).forEach(([key, meta]) => {
         if (meta.kind && styleKinds[meta.kind]) {
-            styles[+key] = styleKinds[meta.kind];
+            styles[key] = styleKinds[meta.kind];
         }
         if (meta.placeholder) {
-            placeholders[+key] = meta.placeholder;
+            placeholders[key] = meta.placeholder;
         }
     });
 

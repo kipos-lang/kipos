@@ -43,7 +43,7 @@ const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean
     const redo: TopUpdate = { ...next, nodes: {} };
     const undo: TopUpdate = { ...prev, nodes: {} };
 
-    let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
+    let changed = next.root !== prev.root || next.children !== prev.children;
     Object.entries(next.nodes).forEach(([key, value]) => {
         if (prev.nodes[key] !== value) {
             redo.nodes[key] = value;
@@ -71,12 +71,16 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             if (!prev[key]) {
                 redo[key] = value;
                 undo[key] = null;
+                changed = true;
             } else {
                 const [r, u, c] = diffTop(prev[key], value);
                 redo[key] = r;
                 undo[key] = u;
+                if (c) {
+                    changed = true;
+                }
             }
-            changed = true;
+            // console.log('diff', key, prev[key], value);
         }
     });
 
@@ -85,6 +89,7 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             redo[key] = null;
             undo[key] = value;
             changed = true;
+            // console.log('removed', key);
         }
     });
 
@@ -93,6 +98,7 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
 
 const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | void => {
     const [redo, undo, changed] = diffTops(prev.tops, next.tops);
+    console.log('calc', changed);
     if (!changed) return;
     return {
         type: 'change',
@@ -145,9 +151,9 @@ const withNodes = (nodes: Nodes, up: Record<number, Node | null>): Nodes => {
     nodes = { ...nodes };
     Object.entries(up).forEach(([key, value]) => {
         if (value === null) {
-            delete nodes[+key];
+            delete nodes[key];
         } else {
-            nodes[+key] = value;
+            nodes[key] = value;
         }
     });
     return nodes;
@@ -164,7 +170,11 @@ type MyState = {
     state: AppState;
 };
 
-const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), tops: revDelta(change.tops) });
+const invertChange = (change: HistoryChange): HistoryChange => ({
+    ...change,
+    selections: revDelta(change.selections),
+    tops: revDelta(change.tops),
+});
 
 const wrap = (state: AppState): MyState => {
     return {
