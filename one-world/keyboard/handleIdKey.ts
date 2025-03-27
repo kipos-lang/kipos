@@ -180,8 +180,8 @@ export const handleIdKey = (
                 typeof kind === 'number'
                     ? { type: 'text', ccls: kind, grem }
                     : kind === 'sep'
-                      ? { type: 'sep', newLine: grem === '\n' }
-                      : { type: kind },
+                    ? { type: 'sep', newLine: grem === '\n' }
+                    : { type: kind },
         },
     ];
 };
@@ -190,10 +190,10 @@ export const whatNeighbor = (what: KeyWhat): Flat => {
     return what.type === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: what.newLine }
         : what.type === 'space'
-          ? { type: 'space', loc: '-1' }
-          : what.type === 'string'
-            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-            : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
+        ? { type: 'space', loc: '-1' }
+        : what.type === 'string'
+        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+        : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
 };
 
 export const getSplit = (top: Top, path: Path, at: number | 'before' | 'after') => {
@@ -201,7 +201,7 @@ export const getSplit = (top: Top, path: Path, at: number | 'before' | 'after') 
     if (node.type === 'id') {
         return splitIdCell({ type: 'id', node, path, cursor: { type: 'id', end: typeof at === 'number' ? at : 0 } });
     }
-    if (node.type === 'list') {
+    if (node.type === 'list' || node.type === 'table' || node.type === 'text') {
         const pnode = top.nodes[parentLoc(path)];
         const blank: Node = richNode(pnode)
             ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
@@ -337,8 +337,8 @@ export function flatNeighbor(kind: Kind, grem: string): Flat {
     return kind === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: grem === '\n' }
         : kind === 'space'
-          ? { type: 'space', loc: '-1' }
-          : kind === 'string'
-            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-            : { type: 'id', text: grem, loc: '-1', ccls: kind };
+        ? { type: 'space', loc: '-1' }
+        : kind === 'string'
+        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+        : { type: 'id', text: grem, loc: '-1', ccls: kind };
 }

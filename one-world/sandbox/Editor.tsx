@@ -86,8 +86,12 @@ export const Editor = () => {
     useEffect(() => {
         const fn = (evt: KeyboardEvent) => {
             if (evt.key === 'z' && evt.metaKey) {
+                evt.preventDefault();
                 editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
                 return;
+            }
+            if (evt.key === 'Tab') {
+                evt.preventDefault();
             }
             editor.update({
                 type: 'key',
