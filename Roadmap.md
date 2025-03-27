@@ -16,7 +16,8 @@ I have an editor. like. right?
 - [x] ok gotta write some tests y'all
 - [ ] rename module...
 - [ ] next up, create moduleeee
-- [ ] gotta be able to wrap folks
+- [x] gotta be able to wrap folks
+- [ ] TABELS
 - [ ] let's make up/down work
 
 ## Basic multi-top setup

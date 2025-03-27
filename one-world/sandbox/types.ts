@@ -1,7 +1,7 @@
 import { NodeSelection } from '../keyboard/utils';
 import { Nodes } from '../shared/cnodes';
 import { HistoryItem } from './history';
-import { HistoryChange } from './state';
+import { HistoryChange } from './store/state';
 
 export type Module = {
     id: string;

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Top, Showsel } from './App';
-import { useStore } from './store';
+import { useStore } from './store/store';
 import { zedlight } from './zedcolors';
 import { SelStart } from '../keyboard/handleShiftNav';
 import { moveA } from '../keyboard/keyActionToUpdate';

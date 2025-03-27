@@ -1,16 +1,16 @@
-import { genId } from '../keyboard/ui/genId';
-import { Node, Nodes } from '../shared/cnodes';
+import { genId } from '../../keyboard/ui/genId';
+import { Node, Nodes } from '../../shared/cnodes';
 
-import { _applyUpdate, applyNormalUpdate, applySelUp } from '../keyboard/applyUpdate';
-import { Mods } from '../keyboard/handleShiftNav';
-import { KeyAction, keyActionToUpdate } from '../keyboard/keyActionToUpdate';
-import { Config } from '../keyboard/test-utils';
-import { keyUpdate, Visual } from '../keyboard/ui/keyUpdate';
-import { CopiedValues } from '../keyboard/update/multi-change';
-import { NodeSelection, selStart, Top } from '../keyboard/utils';
-import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
-import { Toplevel } from './types';
-import { selectStart } from '../keyboard/handleNav';
+import { _applyUpdate, applyNormalUpdate, applySelUp } from '../../keyboard/applyUpdate';
+import { Mods } from '../../keyboard/handleShiftNav';
+import { KeyAction, keyActionToUpdate } from '../../keyboard/keyActionToUpdate';
+import { Config } from '../../keyboard/test-utils';
+import { keyUpdate, Visual } from '../../keyboard/ui/keyUpdate';
+import { CopiedValues } from '../../keyboard/update/multi-change';
+import { NodeSelection, selStart, Top } from '../../keyboard/utils';
+import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../history';
+import { Toplevel } from '../types';
+import { selectStart } from '../../keyboard/handleNav';
 
 export type AppState = {
     roots: string[];

@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Action, AppState, reduce } from './state';
-import { Node } from '../shared/cnodes';
-import { useHash } from '../useHash';
-import { LanguageConfiguration, Module, Toplevel } from './types';
-import { genId } from '../keyboard/ui/genId';
-import { Cursor, Highlight, lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses, selStart, Top } from '../keyboard/utils';
+import { Node } from '../../shared/cnodes';
+import { useHash } from '../../useHash';
+import { LanguageConfiguration, Module, Toplevel } from '../types';
+import { genId } from '../../keyboard/ui/genId';
+import { Cursor, Highlight, lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses, selStart, Top } from '../../keyboard/utils';
 import { loadLanguageConfigs, loadModules, saveModule } from './storage';
-import { getSelectionStatuses } from '../keyboard/selections';
+import { getSelectionStatuses } from '../../keyboard/selections';
 
 export type ModuleTree = {
     node?: Module;

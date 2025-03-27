@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { Path, selStart } from '../keyboard/utils';
 import { Node } from '../shared/cnodes';
-import { ModuleTree, SelStatus, useStore } from './store';
-import { RenderNode } from './RenderNode';
+import { ModuleTree, SelStatus, useStore } from './store/store';
+import { RenderNode } from './render/RenderNode';
 import { Editor } from './Editor';
 
 export const App = () => {

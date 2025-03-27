@@ -1,4 +1,4 @@
-import { LanguageConfiguration, Module } from './types';
+import { LanguageConfiguration, Module } from '../types';
 
 export const key = (id: string) => `kipos:${id}`;
 
