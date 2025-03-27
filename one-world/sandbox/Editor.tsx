@@ -7,6 +7,7 @@ import { SelStart } from '../keyboard/handleShiftNav';
 import { moveA } from '../keyboard/keyActionToUpdate';
 import { argify, atomify } from '../keyboard/selections';
 import { HiddenInput } from '../keyboard/ui/HiddenInput';
+import { css } from 'goober';
 
 // type ECtx = {
 //     // drag
@@ -83,19 +84,21 @@ export const Editor = () => {
     const store = useStore();
     const editor = store.useEditor();
     const drag = useMakeDrag();
+    const module = editor.useModule();
 
     return (
         <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
             Editor here
             <KeyHandler />
             <DragCtx.Provider value={drag}>
-                {editor.module.roots.map((id) => (
+                {module.roots.map((id) => (
                     <Top id={id} key={id} />
                 ))}
             </DragCtx.Provider>
             <button
+                className={css({ marginBlock: '12px' })}
                 onClick={() => {
-                    editor.update({ type: 'new-tl', after: editor.module.roots[editor.module.roots.length - 1] });
+                    editor.update({ type: 'new-tl', after: module.roots[module.roots.length - 1] });
                 }}
             >
                 Add Toplevel
@@ -111,6 +114,7 @@ const KeyHandler = () => {
 
     const onKeyDown = useCallback(
         (evt: React.KeyboardEvent<Element>) => {
+            console.log(`key for`, editor);
             if (evt.key === 'z' && evt.metaKey) {
                 evt.preventDefault();
                 editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
@@ -127,7 +131,7 @@ const KeyHandler = () => {
                 config: js, // parser.config,
             });
         },
-        [editor],
+        [editor, sel],
     );
 
     return (

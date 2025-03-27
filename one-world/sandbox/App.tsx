@@ -4,7 +4,6 @@ import { Node } from '../shared/cnodes';
 import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
 import { RenderNode } from './render/RenderNode';
 import { Editor } from './Editor';
-import { genId } from '../keyboard/ui/genId';
 import { lightColor, lightColorA } from '../keyboard/ui/colors';
 import { EditIcon } from './icons';
 import { css } from 'goober';
@@ -28,9 +27,10 @@ export const App = () => {
 export const Top = ({ id }: { id: string }) => {
     const store = useStore();
     const editor = store.useEditor();
+    // const module = editor.useModule()
     const top = editor.useTop(id);
 
-    const isSelected = editor.module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
+    // const isSelected = module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
     const root = top.useRoot();
     const rootPath = useMemo(
         () => ({
@@ -114,7 +114,7 @@ const DebugSidebar = () => {
 
 const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {
     const store = useStore();
-    const [editing, setEditing] = useState(false);
+    const [editing, setEditing] = useState(null as null | string);
     return (
         <div>
             {tree.node ? (
@@ -131,14 +131,43 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                             background: lightColorA(0.5),
                         },
                     })}
-                    onClick={() => {
+                    onClick={(evt) => {
                         location.hash = '#' + tree.node!.id;
                         // store.select(tree.node!.id)
                     }}
                 >
-                    {tree.node.name}
+                    {editing != null ? (
+                        <input
+                            value={editing}
+                            onChange={(evt) => setEditing(evt.target.value)}
+                            onKeyDown={(evt) => {
+                                if (evt.key === 'Escape') {
+                                    setEditing(null);
+                                    evt.preventDefault();
+                                }
+                            }}
+                            onClick={(evt) => {
+                                evt.stopPropagation();
+                            }}
+                        />
+                    ) : (
+                        tree.node.name
+                    )}
                     <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
-                    <EditIcon />
+                    <div
+                        onClick={(evt) => {
+                            evt.stopPropagation();
+                            if (editing != null) {
+                                if (!editing.trim() || editing === tree.node!.name) return setEditing(null);
+                                store.updateeModule({ id: tree.node!.id, name: editing });
+                                setEditing(null);
+                            } else {
+                                setEditing(tree.node!.name);
+                            }
+                        }}
+                    >
+                        <EditIcon />
+                    </div>
                 </div>
             ) : null}
             {tree.children.length ? (
@@ -151,6 +180,7 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                             const name = prompt('Name');
                             store.addModule(newModule(name ?? 'NewModule'));
                         }}
+                        style={{ marginTop: 12 }}
                     >
                         Add module
                     </button>
@@ -163,7 +193,7 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
 export const ModuleSidebar = () => {
     const store = useStore();
     const selected = store.useSelected();
-    const tree = store.moduleTree;
+    const tree = store.useModuleTree();
     return (
         <div style={{ padding: 8 }}>
             <div>Modules</div>

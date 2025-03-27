@@ -19,13 +19,21 @@ I have an editor. like. right?
 - [x] ; table split in the /after/ of a string, gotta handle that
 
 - [x] better key handling, prepare for copy/paste
+- [x] rename module
+
+WO WHAIT
+useEditor should just cache the editors
+
+
+some weird clicking bug looks likeeee
+
+
 - [ ] let's make up/down work
 - [ ] clicking non-ids plsss
 - [ ] click & drag would be good
 
 - [ ] thinkin through macros n stuff
   - the if-let macro is maybe more ambitious
-- [ ] rename module...
 
 and... now do we get a little execution?
 like let's hook up the aprser, get that sweet syntax highlight.

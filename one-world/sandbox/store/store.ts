@@ -7,25 +7,30 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses, selStart, Top } from '../../keyboard/utils';
 import { loadLanguageConfigs, loadModules, saveModule } from './storage';
 import { getSelectionStatuses } from '../../keyboard/selections';
+import { validate } from '../../keyboard/validate';
 
 export type ModuleTree = {
     node?: Module;
     children: ModuleTree[];
 };
 
+type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>> & { id: string };
+
 interface Store {
     module(id: string): Module;
     get languageConfigs(): Record<string, LanguageConfiguration>;
-    get moduleTree(): ModuleTree;
+    // get moduleTree(): ModuleTree;
     select(id: string): void;
     addModule(module: Module): void;
+    updateeModule(update: ModuleUpdate): void;
     // get selectedModule(): string
     useEditor(): EditorStore;
     useSelected(): string;
+    useModuleTree(): ModuleTree;
 }
 
 interface EditorStore {
-    get module(): Module;
+    useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;
     update(action: Action): void;
@@ -84,7 +89,7 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-type Evt = 'roots' | 'selected' | 'selection' | `top:${string}` | `node:${string}`;
+type Evt = 'modules' | 'selected' | 'selection' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
 
 const createStore = (): Store => {
     const modules = loadModules();
@@ -123,11 +128,110 @@ const createStore = (): Store => {
         }, [evt]);
     };
 
-    let selectionStatuses: Record<string, SelStatus> = recalcSelectionStatuses(modules[selected]);
+    const editors: Record<string, EditorStore> = {};
+    // let editor = makeEditor(selected, modules, useTick, shout);
 
-    const makeEditor = (selected: string) => ({
+    return {
+        module(id: string) {
+            return modules[id];
+        },
+        updateeModule(update) {
+            Object.assign(modules[update.id], update);
+            saveModule(modules[update.id]);
+            treeCache = makeModuleTree(modules);
+            shout(`module:${update.id}`);
+            shout(`modules`);
+        },
+        addModule(module) {
+            modules[module.id] = module;
+            saveModule(module);
+            treeCache = makeModuleTree(modules);
+        },
+        get languageConfigs() {
+            return configs;
+        },
+        useModuleTree() {
+            useTick(`modules`);
+            return treeCache;
+        },
+        select(id: string) {
+            selected = id;
+            shout('selected');
+        },
+        useSelected() {
+            useTick('selected');
+            return selected;
+        },
+        useEditor() {
+            useTick(`selected`);
+            if (!editors[selected]) {
+                editors[selected] = makeEditor(selected, modules, useTick, shout);
+            }
+            useTick(`module:${selected}:roots`);
+            return editors[selected];
+        },
+    };
+};
+
+// const nodeStatus = (id: string, selections: NodeSelection): SelStatus | undefined => {};
+
+const StoreCtx = createContext({ store: null } as { store: null | Store });
+
+export const useStore = (): Store => {
+    const v = useContext(StoreCtx);
+    if (!v.store) v.store = createStore();
+
+    useEffect(() => {
+        const f = () => {
+            const id = location.hash.slice(1);
+            v.store!.select(id);
+        };
+        window.addEventListener('hashchange', f);
+        return () => window.removeEventListener('hashchange', f);
+    }, []);
+
+    return v.store;
+};
+
+const allIds = (sels: NodeSelection[]) => {
+    const ids: Record<string, true> = {};
+    sels.forEach((sel) => {
+        sel.start.path.children.forEach((id) => (ids[id] = true));
+        sel.end?.path.children.forEach((id) => (ids[id] = true));
+    });
+    return ids;
+};
+const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
+    const res: Record<string, true> = {};
+    Object.keys(two).forEach((k) => {
+        if (!one[k]) res[k] = true;
+    });
+    return res;
+};
+
+const recalcSelectionStatuses = (mod: Module) => {
+    const statuses: SelectionStatuses = {};
+    mod.selections.forEach((sel) => {
+        const st = getSelectionStatuses(sel, mod.toplevels[sel.start.path.root.top]);
+
+        Object.entries(st).forEach(([key, status]) => {
+            if (statuses[key]) {
+                statuses[key].cursors.push(...status.cursors);
+                statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+            } else {
+                statuses[key] = status;
+            }
+        });
+    });
+    return statuses;
+};
+
+const makeEditor = (selected: string, modules: Record<string, Module>, useTick: (evt: Evt) => void, shout: (evt: Evt) => void) => {
+    let selectionStatuses = recalcSelectionStatuses(modules[selected]);
+    return {
         selected,
-        get module() {
+        useModule() {
+            useTick(`module:${selected}`);
             return modules[selected];
         },
         useSelection() {
@@ -188,12 +292,26 @@ const createStore = (): Store => {
 
             if (mod.roots !== result.roots) {
                 mod.roots = result.roots;
-                shout('roots');
+                shout(`module:${mod.id}:roots`);
             }
 
             Object.keys(changed).forEach((k) => {
                 shout(`node:${k}`);
             });
+
+            mod.selections.forEach((sel) => {
+                if (!sel.start.path) {
+                    console.log('WHAT SEL');
+                    debugger;
+                }
+                try {
+                    validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
+                } catch (err) {
+                    debugger;
+                    validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
+                }
+            });
+
             saveModule(mod);
         },
         useTop(top: string) {
@@ -215,93 +333,5 @@ const createStore = (): Store => {
                 },
             };
         },
-    });
-
-    let editor = makeEditor(selected);
-
-    return {
-        module(id: string) {
-            return modules[id];
-        },
-        addModule(module) {
-            modules[module.id] = module;
-            saveModule(module);
-            treeCache = makeModuleTree(modules);
-        },
-        get languageConfigs() {
-            return configs;
-        },
-        get moduleTree() {
-            return treeCache;
-        },
-        select(id: string) {
-            selected = id;
-            shout('selected');
-        },
-        useSelected() {
-            useTick('selected');
-            return selected;
-        },
-        useEditor() {
-            useTick(`selected`);
-            useTick(`roots`);
-            if (editor.selected !== selected) {
-                editor = makeEditor(selected);
-            }
-            return editor;
-        },
     };
-};
-
-// const nodeStatus = (id: string, selections: NodeSelection): SelStatus | undefined => {};
-
-const StoreCtx = createContext({ store: null } as { store: null | Store });
-
-export const useStore = (): Store => {
-    const v = useContext(StoreCtx);
-    if (!v.store) v.store = createStore();
-
-    useEffect(() => {
-        const f = () => {
-            const id = location.hash.slice(1);
-            v.store!.select(id);
-        };
-        window.addEventListener('hashchange', f);
-        return () => window.removeEventListener('hashchange', f);
-    }, []);
-
-    return v.store;
-};
-
-const allIds = (sels: NodeSelection[]) => {
-    const ids: Record<string, true> = {};
-    sels.forEach((sel) => {
-        sel.start.path.children.forEach((id) => (ids[id] = true));
-        sel.end?.path.children.forEach((id) => (ids[id] = true));
-    });
-    return ids;
-};
-const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
-    const res: Record<string, true> = {};
-    Object.keys(two).forEach((k) => {
-        if (!one[k]) res[k] = true;
-    });
-    return res;
-};
-
-const recalcSelectionStatuses = (mod: Module) => {
-    const statuses: SelectionStatuses = {};
-    mod.selections.forEach((sel) => {
-        const st = getSelectionStatuses(sel, mod.toplevels[sel.start.path.root.top]);
-
-        Object.entries(st).forEach(([key, status]) => {
-            if (statuses[key]) {
-                statuses[key].cursors.push(...status.cursors);
-                statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
-            } else {
-                statuses[key] = status;
-            }
-        });
-    });
-    return statuses;
 };

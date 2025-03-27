@@ -11,6 +11,7 @@ import { NodeSelection, selStart, Top } from '../../keyboard/utils';
 import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../history';
 import { Toplevel } from '../types';
 import { selectStart } from '../../keyboard/handleNav';
+import { validate } from '../../keyboard/validate';
 
 export type AppState = {
     roots: string[];
@@ -207,6 +208,19 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
 
         case 'selections':
+            action.selections.forEach((sel) => {
+                if (!sel.start.path) {
+                    console.log('WHAT SEL');
+                    debugger;
+                }
+                try {
+                    validate({ sel, top: state.tops[sel.start.path.root.top] });
+                } catch (err) {
+                    debugger;
+                    validate({ sel, top: state.tops[sel.start.path.root.top] });
+                }
+            });
+
             return { ...state, selections: action.selections };
 
         case 'update': {
