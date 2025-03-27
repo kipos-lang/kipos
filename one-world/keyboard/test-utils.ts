@@ -27,6 +27,7 @@ export type TestState = {
     sel: NodeSelection;
     nextLoc: () => string;
 };
+
 export type TestParser<T> = {
     config: Config;
     parse(node: RecNode, cursor?: NodeID): ParseResult<T>;

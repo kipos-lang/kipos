@@ -1,4 +1,31 @@
 
+# the language
+
+## parser
+
+CST -> AST
+also produces /meta/ for syntax highlighting
+and (error reporting?) because parse errors are local...
+
+## inferrer
+
+AST -> TINFO
+also a mapping of (nodeid -> Type)
+and a list of errors
+and maybe a list of trace events, if we're in debug mode
+
+
+## compiler
+
+## evaluator
+
+# parsing
+
+let's talk about it.
+
+I'm assuming I'll run the re-parse on input, right?
+to what extent should it be ... async? seems like it could be
+
 ## So,
 
 I have an editor. like. right?
@@ -21,14 +48,11 @@ I have an editor. like. right?
 - [x] better key handling, prepare for copy/paste
 - [x] rename module
 
-WO WHAIT
 - [x] useEditor should just cache the editors
   did not fix 😭
+- [x] found the missing dependency. ... which an eslint rule would have caught 😭
 
-
-some weird clicking bug looks likeeee
-
-
+- [ ] HIGH LIGHT
 - [ ] let's make up/down work
 - [ ] clicking non-ids plsss
 - [ ] click & drag would be good
