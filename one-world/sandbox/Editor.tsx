@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Top, Showsel } from './App';
 import { useStore } from './store/store';
@@ -6,6 +6,7 @@ import { zedlight } from './zedcolors';
 import { SelStart } from '../keyboard/handleShiftNav';
 import { moveA } from '../keyboard/keyActionToUpdate';
 import { argify, atomify } from '../keyboard/selections';
+import { HiddenInput } from '../keyboard/ui/HiddenInput';
 
 // type ECtx = {
 //     // drag
@@ -83,8 +84,33 @@ export const Editor = () => {
     const editor = store.useEditor();
     const drag = useMakeDrag();
 
-    useEffect(() => {
-        const fn = (evt: KeyboardEvent) => {
+    return (
+        <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
+            Editor here
+            <KeyHandler />
+            <DragCtx.Provider value={drag}>
+                {editor.module.roots.map((id) => (
+                    <Top id={id} key={id} />
+                ))}
+            </DragCtx.Provider>
+            <button
+                onClick={() => {
+                    editor.update({ type: 'new-tl', after: editor.module.roots[editor.module.roots.length - 1] });
+                }}
+            >
+                Add Toplevel
+            </button>
+            <Showsel />
+        </div>
+    );
+};
+
+const KeyHandler = () => {
+    const editor = useEditor();
+    const sel = editor.useSelection();
+
+    const onKeyDown = useCallback(
+        (evt: React.KeyboardEvent<Element>) => {
             if (evt.key === 'z' && evt.metaKey) {
                 evt.preventDefault();
                 editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
@@ -100,28 +126,27 @@ export const Editor = () => {
                 // visual,
                 config: js, // parser.config,
             });
-        };
-
-        window.addEventListener('keydown', fn);
-        return () => window.removeEventListener('keydown', fn);
-    }, [editor]);
+        },
+        [editor],
+    );
 
     return (
-        <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
-            Editor here
-            <DragCtx.Provider value={drag}>
-                {editor.module.roots.map((id) => (
-                    <Top id={id} key={id} />
-                ))}
-            </DragCtx.Provider>
-            <button
-                onClick={() => {
-                    editor.update({ type: 'new-tl', after: editor.module.roots[editor.module.roots.length - 1] });
-                }}
-            >
-                Add Toplevel
-            </button>
-            <Showsel />
-        </div>
+        <HiddenInput
+            onKeyDown={onKeyDown}
+            getDataToCopy={() => {
+                throw new Error('no copy yet');
+            }}
+            onDelete={() => {
+                console.error('on delete');
+            }}
+            onInput={(text) => {
+                // Not sure why I would need this
+                // over the onKeyDown
+            }}
+            onPaste={(data) => {
+                console.error(`paste I guess`, data);
+            }}
+            sel={sel}
+        />
     );
 };

@@ -11,17 +11,23 @@ I have an editor. like. right?
 
 - [x] gotta be able to click stufff
 - [x] whyy am I not multiselecting?
-- [ ] click & drag would be good
 - [x] wait undo isn't really workingat all
 - [x] ok gotta write some tests y'all
-- [ ] rename module...
-- [ ] next up, create moduleeee
+- [x] next up, create moduleeee
 - [x] gotta be able to wrap folks
 - [x] TABELS
+- [x] ; table split in the /after/ of a string, gotta handle that
+
 - [ ] let's make up/down work
+- [ ] clicking non-ids plsss
+- [ ] click & drag would be good
+
 - [ ] thinkin through macros n stuff
   - the if-let macro is maybe more ambitious
-- [ ] ; table split in the /after/ of a string, gotta handle that
+- [ ] rename module...
+
+and... now do we get a little execution?
+like let's hook up the aprser, get that sweet syntax highlight.
 
 ## Basic multi-top setup
 

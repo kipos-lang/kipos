@@ -39,7 +39,7 @@ export const Top = ({ id }: { id: string }) => {
 
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
             <button
                 onClick={() => {
                     editor.update({ type: 'rm-tl', id });
@@ -47,6 +47,7 @@ export const Top = ({ id }: { id: string }) => {
             >
                 &times;
             </button>
+            <div style={{ flexBasis: 12 }} />
             {/* <span style={{ fontSize: '50%', border: '1px solid red' }}>{id.slice(-5)}</span> */}
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
