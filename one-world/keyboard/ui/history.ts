@@ -27,7 +27,7 @@ export type HistoryChange = {
     id: string;
     onlyy?: SimpleChangeIds; // the id or text:index that is the "only" thing that was modified
     // session: string;
-    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<number, Node | null> }>;
+    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<string, Node | null> }>;
     selections: Delta<NodeSelection[]>;
 };
 
@@ -129,7 +129,7 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
         ...next,
         nodes: {},
     };
-    let only = [] as false | number[];
+    let only = [] as false | string[];
     let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
     Object.entries(next.nodes).forEach(([key, value]) => {
         if (prev.nodes[key] !== value) {

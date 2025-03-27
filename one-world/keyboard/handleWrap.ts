@@ -6,7 +6,7 @@ import { SelStart } from './handleShiftNav';
 import { handleTextText } from './handleTextText';
 import { KeyAction, moveA } from './keyActionToUpdate';
 import { replaceAt } from './replaceAt';
-import { flatten, flatToUpdateNew } from './rough';
+import { flatten, flatToUpdateNew, updateNodes } from './rough';
 import { getCurrent } from './selections';
 import { TestState } from './test-utils';
 import { Cursor, lastChild, parentPath, Path, pathWithChildren, selStart, Top, Update } from './utils';
@@ -218,17 +218,32 @@ const wrapParent = (one: SelStart, two: SelStart, top: Top): void | { path: Path
 };
 
 export const wrapUpdate = (top: Top, path: Path, min: number, max: number, kind: ListKind<any>, nextLoc: () => string): Update | void => {
-    const nodes: Nodes = {};
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'list') return;
-    const children = node.children.slice();
     const loc = nextLoc();
 
+    if (min === 0 && max === node.children.length - 1) {
+        const update = replaceAt(parentPath(path).children, top, node.loc, loc);
+        update.nodes[loc] = { type: 'list', kind, children: [node.loc], loc };
+        const start = selectStart(pathWithChildren(parentPath(path), loc, node.loc, node.children[0]), {
+            ...top,
+            nodes: updateNodes(top.nodes, update.nodes),
+        });
+        if (!start) return;
+        return { ...update, selection: { start } };
+    }
+
+    const nodes: Nodes = {};
+    const children = node.children.slice();
     const taken = children.splice(min, max - min + 1, loc);
     nodes[node.loc] = { ...node, children };
 
+    // if (children.length === 1 && (node.kind ==='spaced' || node.kind === 'smooshed')) {
+    //     // need to absorb the one. or like ... just wrap it? hm.
+    // }
+
     let start: SelStart;
-    if (node.kind === 'spaced' || node.kind === 'smooshed') {
+    if ((node.kind === 'spaced' || node.kind === 'smooshed') && taken.length > 1) {
         const inner = nextLoc();
         nodes[loc] = { type: 'list', kind, children: [inner], loc };
         nodes[inner] = { type: 'list', kind: node.kind, children: taken, loc: inner };

@@ -8,6 +8,7 @@ import { asTop, atPath, id, idc, js, listc, nloc, noText, round, selPath, smoosh
 import { AppState, reduce } from './state';
 import { selStart } from '../keyboard/utils';
 import { root } from '../keyboard/root';
+import { Mods } from '../keyboard/handleShiftNav';
 // import { keyUpdate } from './ui/keyUpdate';
 // import { Cursor } from './utils';
 // import { validate } from './validate';
@@ -36,6 +37,36 @@ test('arrow shouldnt add history', () => {
     state = reduce(state, { type: 'key', key: 'ArrowLeft', config: js, mods: {} }, false, nextLoc);
     expect(show(state)).toEqual('id(a/0)');
     expect(state.history).toHaveLength(1);
+});
+
+const dontLoc = () => {
+    throw new Error(`I wasn't expecting to need to generate a loc`);
+};
+
+const key = (state: AppState, key: string, nextLoc: () => string = dontLoc, mods: Mods = {}) =>
+    reduce(state, { type: 'key', key, config: js, mods }, false, nextLoc);
+
+test('closing string', () => {
+    const nextLoc = nloc();
+    let state = initial();
+    'a("a"'.split('').forEach((letter) => (state = key(state, letter, nextLoc)));
+    expect(show(state)).toEqual('list[smooshed](id(a/0) (text(a)))');
+});
+
+const left = (state: AppState, count: number, shift = false) => {
+    for (let i = 0; i < count; i++) {
+        state = key(state, 'ArrowLeft', undefined, { shift });
+    }
+    return state;
+};
+
+test('space wrap', () => {
+    const nextLoc = nloc();
+    let state = initial();
+    'a b'.split('').forEach((letter) => (state = key(state, letter, nextLoc)));
+    state = left(state, 3, true);
+    state = key(state, '(', nextLoc);
+    expect(show(state)).toEqual('(list[spaced](id(a/0) id(b/0)))');
 });
 
 // test('can we wrap', () => {

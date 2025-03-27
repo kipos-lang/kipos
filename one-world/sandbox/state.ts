@@ -98,7 +98,6 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
 
 const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | void => {
     const [redo, undo, changed] = diffTops(prev.tops, next.tops);
-    console.log('calc', changed);
     if (!changed) return;
     return {
         type: 'change',
@@ -312,7 +311,6 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
                 if (!update) continue;
                 for (let keyAction of update) {
                     const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction);
-                    // console.log('sub', sub);
                     const result = applyNormalUpdate({ top, sel, nextLoc }, sub);
                     tops[sel.start.path.root.top] = result.top;
                     selections[i] = result.sel;

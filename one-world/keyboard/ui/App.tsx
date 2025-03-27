@@ -121,8 +121,8 @@ export const App = ({ id }: { id: string }) => {
 
     const xml = useMemo(() => (parsed.result ? toXML(parsed.result) : null), [parsed.result]);
     const xmlcst = useMemo(() => nodeToXML(rootNode), [rootNode]);
-    const styles: Record<number, Style> = {};
-    const placeholders: Record<number, string> = {};
+    const styles: Record<string, Style> = {};
+    const placeholders: Record<string, string> = {};
     Object.entries(parsed.ctx.meta).forEach(([key, meta]) => {
         if (meta.kind && styleKinds[meta.kind]) {
             styles[key] = styleKinds[meta.kind];

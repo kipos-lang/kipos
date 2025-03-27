@@ -96,7 +96,11 @@ export const handleTextText = (
         }
     }
 
-    if (grem === '"' && cursor.end.index === current.spans.length - 1 && left === text.length) {
+    if (
+        grem === '"' &&
+        (cursor.end.index === current.spans.length - 1 || cursor.end.index === current.spans[current.spans.length - 1].loc) &&
+        left === text.length
+    ) {
         let parent = top.nodes[parentLoc(path)];
         if (!richNode(parent)) {
             return moveA(selStart(path, { type: 'list', where: 'after' }));

@@ -17,6 +17,7 @@ I have an editor. like. right?
 - [ ] rename module...
 - [ ] next up, create moduleeee
 - [ ] gotta be able to wrap folks
+- [ ] let's make up/down work
 
 ## Basic multi-top setup
 

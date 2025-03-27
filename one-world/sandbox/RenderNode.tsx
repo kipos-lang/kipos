@@ -73,7 +73,7 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
                 <span ref={drag.ref(node.loc)} style={style}>
                     {has('before') ? <Cursor /> : null}"{has('inside') ? <Cursor /> : null}
                     {node.spans.map((span, i) => {
-                        const sc = sel?.cursors.filter((c) => c.type === 'text' && c.end.index === i);
+                        const sc = sel?.cursors.filter((c) => c.type === 'text' && (c.end.index === i || c.end.index === span.loc));
                         if (span.type === 'text') {
                             if (sc?.length) {
                                 const hl = sel?.highlight?.type === 'text' ? sel.highlight.spans[i] : undefined;
@@ -113,10 +113,10 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
                                     />
                                 );
                             }
-                            const text = span.text;
                             const hl = sel?.highlight?.type === 'text' ? sel.highlight.spans[i] : undefined;
                             return (
                                 <span
+                                    key={i}
                                     style={hl ? { backgroundColor: lightColor } : undefined}
                                     // style={style}
                                     // style={{ backgroundColor: 'red' }}
@@ -141,7 +141,7 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
                         }
                         if (span.type === 'embed') {
                             return (
-                                <span>
+                                <span key={i}>
                                     {'${'}
                                     <RenderNode key={i} parent={self} id={span.item} />
                                     {'}'}
