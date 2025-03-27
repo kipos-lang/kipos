@@ -22,7 +22,8 @@ I have an editor. like. right?
 - [x] rename module
 
 WO WHAIT
-useEditor should just cache the editors
+- [x] useEditor should just cache the editors
+  did not fix 😭
 
 
 some weird clicking bug looks likeeee

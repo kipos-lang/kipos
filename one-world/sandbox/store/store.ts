@@ -89,7 +89,7 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-type Evt = 'modules' | 'selected' | 'selection' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
+type Evt = 'modules' | 'selected' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
 
 const createStore = (): Store => {
     const modules = loadModules();
@@ -146,6 +146,7 @@ const createStore = (): Store => {
             modules[module.id] = module;
             saveModule(module);
             treeCache = makeModuleTree(modules);
+            shout('modules');
         },
         get languageConfigs() {
             return configs;
@@ -235,8 +236,7 @@ const makeEditor = (selected: string, modules: Record<string, Module>, useTick: 
             return modules[selected];
         },
         useSelection() {
-            useTick(`selection`);
-            useTick(`selected`);
+            useTick(`module:${selected}:selection`);
             return modules[selected].selections;
         },
         update(action: Action) {
@@ -260,7 +260,7 @@ const makeEditor = (selected: string, modules: Record<string, Module>, useTick: 
             Object.assign(changed, allIds(mod.selections));
             if (mod.selections !== result.selections) {
                 mod.selections = result.selections;
-                shout('selection');
+                shout(`module:${selected}:selection`);
             }
 
             const old = selectionStatuses;

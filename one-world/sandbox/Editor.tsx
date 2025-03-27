@@ -77,7 +77,7 @@ export const useMakeDrag = (): DragCtxT => {
             },
         };
         return drag;
-    }, []);
+    }, [editor]);
 };
 
 export const Editor = () => {
@@ -114,7 +114,6 @@ const KeyHandler = () => {
 
     const onKeyDown = useCallback(
         (evt: React.KeyboardEvent<Element>) => {
-            console.log(`key for`, editor);
             if (evt.key === 'z' && evt.metaKey) {
                 evt.preventDefault();
                 editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
