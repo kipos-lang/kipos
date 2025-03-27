@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import { Path, selStart } from '../keyboard/utils';
 import { Node } from '../shared/cnodes';
-import { ModuleTree, SelStatus, useStore } from './store/store';
+import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
 import { RenderNode } from './render/RenderNode';
 import { Editor } from './Editor';
+import { genId } from '../keyboard/ui/genId';
 
 export const App = () => {
-    const store = useStore();
     return (
         <div
             style={{
@@ -99,6 +99,7 @@ const DebugSidebar = () => {
 };
 
 const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
+    const store = useStore();
     return (
         <div>
             {tree.node ? (
@@ -107,6 +108,7 @@ const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
                         cursor: 'pointer',
                         padding: 8,
                     }}
+                    onClick={() => store.select(tree.node!.id)}
                 >
                     {tree.node.name}
                 </div>
@@ -116,6 +118,14 @@ const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
                     {tree.children.map((child, i) => (
                         <ShowModuleTree key={child.node?.id ?? i} tree={child} />
                     ))}
+                    <button
+                        onClick={() => {
+                            const name = prompt('Name');
+                            store.addModule(newModule(name ?? 'NewModule'));
+                        }}
+                    >
+                        Add module
+                    </button>
                 </div>
             ) : null}
         </div>

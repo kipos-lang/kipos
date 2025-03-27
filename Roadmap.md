@@ -17,8 +17,11 @@ I have an editor. like. right?
 - [ ] rename module...
 - [ ] next up, create moduleeee
 - [x] gotta be able to wrap folks
-- [ ] TABELS
+- [x] TABELS
 - [ ] let's make up/down work
+- [ ] thinkin through macros n stuff
+  - the if-let macro is maybe more ambitious
+- [ ] ; table split in the /after/ of a string, gotta handle that
 
 ## Basic multi-top setup
 

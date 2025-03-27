@@ -222,7 +222,7 @@ export const wrapUpdate = (top: Top, path: Path, min: number, max: number, kind:
     if (node.type !== 'list') return;
     const loc = nextLoc();
 
-    if (min === 0 && max === node.children.length - 1) {
+    if (min === 0 && max === node.children.length - 1 && (node.kind === 'spaced' || node.kind === 'smooshed')) {
         const update = replaceAt(parentPath(path).children, top, node.loc, loc);
         update.nodes[loc] = { type: 'list', kind, children: [node.loc], loc };
         const start = selectStart(pathWithChildren(parentPath(path), loc, node.loc, node.children[0]), {

@@ -17,6 +17,8 @@ interface Store {
     module(id: string): Module;
     get languageConfigs(): Record<string, LanguageConfiguration>;
     get moduleTree(): ModuleTree;
+    select(id: string): void;
+    addModule(module: Module): void;
     // get selectedModule(): string
     useEditor(): EditorStore;
     useSelected(): string;
@@ -40,7 +42,7 @@ interface TopStore {
     useNode(path: Path): { node: Node; sel?: SelStatus };
 }
 
-const newModule = (): Module => {
+export const newModule = (name = 'Hello'): Module => {
     const id = genId();
     const tid = genId();
     const rid = genId();
@@ -48,7 +50,7 @@ const newModule = (): Module => {
         id,
         history: [],
         editorPlugins: {},
-        name: 'Hello',
+        name,
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
@@ -221,11 +223,20 @@ const createStore = (): Store => {
         module(id: string) {
             return modules[id];
         },
+        addModule(module) {
+            modules[module.id] = module;
+            saveModule(module);
+            treeCache = makeModuleTree(modules);
+        },
         get languageConfigs() {
             return configs;
         },
         get moduleTree() {
             return treeCache;
+        },
+        select(id: string) {
+            selected = id;
+            shout('selected');
         },
         useSelected() {
             useTick('selected');
