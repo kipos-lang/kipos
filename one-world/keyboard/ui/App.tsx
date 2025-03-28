@@ -20,6 +20,7 @@ import { RenderNode } from './RenderNode';
 import { ShowXML } from './XML';
 import { useKeyFns } from './useKeyFns';
 import { useBackslashMenu } from './useBackslashMenu';
+import { genId } from './genId';
 
 const styleKinds: Record<string, Style> = {
     comment: { color: { r: 200, g: 200, b: 200 } },
@@ -64,6 +65,7 @@ export type Action =
 
 const getInitialState = (id: string): AppState => {
     const data: AppState = localStorage[id] ? JSON.parse(localStorage[id]) : initialAppState;
+    data.nextLoc = genId;
     // if (!data.top.tmpText) data.top.tmpText = {};
     // @ts-ignore
     if (data.sel) {
@@ -79,9 +81,7 @@ const getInitialState = (id: string): AppState => {
 const useAppState = (id: string) => {
     const [state, dispatch] = useReducer(reducer, id, getInitialState);
     useEffect(() => {
-        if (state != null && state !== initialAppState) {
-            localStorage[id] = JSON.stringify(state);
-        }
+        localStorage[id] = JSON.stringify(state);
     }, [state, id]);
     return [state, dispatch] as const;
 };
@@ -93,6 +93,7 @@ const putOnWindow = (obj: any) => {
 export interface AppState {
     top: Top;
     selections: NodeSelection[];
+    nextLoc: () => string;
     parser?: TestParser<any>;
     history: HistoryItem[];
 }
@@ -120,14 +121,14 @@ export const App = ({ id }: { id: string }) => {
 
     const xml = useMemo(() => (parsed.result ? toXML(parsed.result) : null), [parsed.result]);
     const xmlcst = useMemo(() => nodeToXML(rootNode), [rootNode]);
-    const styles: Record<number, Style> = {};
-    const placeholders: Record<number, string> = {};
+    const styles: Record<string, Style> = {};
+    const placeholders: Record<string, string> = {};
     Object.entries(parsed.ctx.meta).forEach(([key, meta]) => {
         if (meta.kind && styleKinds[meta.kind]) {
-            styles[+key] = styleKinds[meta.kind];
+            styles[key] = styleKinds[meta.kind];
         }
         if (meta.placeholder) {
-            placeholders[+key] = meta.placeholder;
+            placeholders[key] = meta.placeholder;
         }
     });
 

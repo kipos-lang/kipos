@@ -58,9 +58,9 @@ const withNodes = (nodes: Nodes, up: Record<number, Node | null>): Nodes => {
     nodes = { ...nodes };
     Object.entries(up).forEach(([key, value]) => {
         if (value === null) {
-            delete nodes[+key];
+            delete nodes[key];
         } else {
-            nodes[+key] = value;
+            nodes[key] = value;
         }
     });
     return nodes;
@@ -109,7 +109,10 @@ export const redo = <T extends State>(state: T): T => {
 };
 
 export const undo = <T extends State>(state: T): T => {
-    if (!state.history.length) return state;
+    if (!state.history.length) {
+        console.log('HONST HISD');
+        return state;
+    }
     const item = findUndo(state.history);
     return item != null ? revert(state, item, item.type === 'change') : state;
 };

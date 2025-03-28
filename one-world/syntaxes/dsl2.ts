@@ -1,7 +1,6 @@
 import { Src } from '../keyboard/handleShiftNav';
-import { js, TestParser } from '../keyboard/test-utils';
 import { Id, ListKind, Loc, RecNode, TableKind } from '../shared/cnodes';
-import { Bag, bagSize, Ctx, MatchParent } from './dsl';
+import { Bag, bagSize, MatchParent } from './dsl';
 import { binops, Expr, partition, Pat, Stmt } from './ts-types';
 
 type AutoComplete = string;

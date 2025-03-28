@@ -1,7 +1,7 @@
 import { NodeSelection } from '../keyboard/utils';
 import { Nodes } from '../shared/cnodes';
 import { HistoryItem } from './history';
-import { HistoryChange } from './state';
+import { HistoryChange } from './store/state';
 
 export type Module = {
     id: string;
@@ -10,6 +10,8 @@ export type Module = {
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
     editorPlugins: Record<string, any>;
+    macroImports: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
+    ffiImports: { module: string; names: string[]; languageConfiguration: string }[];
     roots: string[];
     history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];
@@ -29,17 +31,12 @@ export type Artifact = {
     languageConfiguration: string; // by id
 };
 
-// Should have either compiler or interpreter
 export type LanguageConfiguration = {
     id: string;
     name: string;
-    parser: Artifact;
-    typeInference?: Artifact;
-    compiler?: {
-        target: 'js' | 'wasm' | 'glsl';
-        source: Artifact;
-    };
-    interpreter?: Artifact;
+    artifact: Artifact;
+    built: number; // timestamp
+    hash: string; // TODO maybe the ID should just be a hash?
 };
 
 // hm

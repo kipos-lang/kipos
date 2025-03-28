@@ -4,7 +4,7 @@ import { shape } from '../../shared/shape';
 import { applyUpdate, applySelUp, applyNormalUpdate, _applyUpdate } from '../applyUpdate';
 import { keyActionToUpdate } from '../keyActionToUpdate';
 import { root } from '../root';
-import { init } from '../test-utils';
+import { init, nloc } from '../test-utils';
 import { Top, NodeSelection } from '../utils';
 import { AppState, Action } from './App';
 import { keyUpdate } from './keyUpdate';
@@ -27,7 +27,7 @@ export type HistoryChange = {
     id: string;
     onlyy?: SimpleChangeIds; // the id or text:index that is the "only" thing that was modified
     // session: string;
-    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<number, Node | null> }>;
+    top: Delta<Omit<Top, 'nodes'> & { nodes: Record<string, Node | null> }>;
     selections: Delta<NodeSelection[]>;
 };
 
@@ -66,9 +66,9 @@ const withNodes = (nodes: Nodes, up: Record<number, Node | null>): Nodes => {
     nodes = { ...nodes };
     Object.entries(up).forEach(([key, value]) => {
         if (value === null) {
-            delete nodes[+key];
+            delete nodes[key];
         } else {
-            nodes[+key] = value;
+            nodes[key] = value;
         }
     });
     return nodes;
@@ -129,12 +129,12 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
         ...next,
         nodes: {},
     };
-    let only = [] as false | number[];
-    let changed = next.nextLoc !== prev.nextLoc || next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
+    let only = [] as false | string[];
+    let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
     Object.entries(next.nodes).forEach(([key, value]) => {
-        if (prev.nodes[+key] !== value) {
+        if (prev.nodes[key] !== value) {
             if (only) {
-                const pnode = prev.nodes[+key];
+                const pnode = prev.nodes[key];
 
                 if (
                     (pnode?.type === 'id' && value.type === 'id') ||
@@ -143,18 +143,18 @@ const diffTop = (prev: Top, next: Top): [HistoryChange['top']['next'], boolean, 
                         pnode.spans.length === value.spans.length &&
                         pnode.spans.every((span, i) => span.type === value.spans[i].type))
                 ) {
-                    only.push(+key);
+                    only.push(key);
                 } else {
                     only = false;
                 }
             }
-            diff.nodes[+key] = value;
+            diff.nodes[key] = value;
             changed = true;
         }
     });
     Object.keys(prev.nodes).forEach((key) => {
-        if (!next.nodes[+key]) {
-            diff.nodes[+key] = null;
+        if (!next.nodes[key]) {
+            diff.nodes[key] = null;
             changed = true;
         }
     });
@@ -210,7 +210,7 @@ export const applyAppUpdate = (state: AppState, action: Action, noJoin = false):
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
         case 'update':
-            const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
+            const result = _applyUpdate({ top: state.top, sel: state.selections[0], nextLoc: state.nextLoc }, action.update);
             return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
 
         case 'paste':
@@ -221,7 +221,9 @@ export const applyAppUpdate = (state: AppState, action: Action, noJoin = false):
 
                 selections.forEach((sel, i) => {
                     if (sel.end) {
-                        const result = _applyUpdate({ top, sel: state.selections[i] }, [{ type: 'multi-delete', start: sel.start, end: sel.end }]);
+                        const result = _applyUpdate({ top, sel: state.selections[i], nextLoc: state.nextLoc }, [
+                            { type: 'multi-delete', start: sel.start, end: sel.end },
+                        ]);
                         top = result.top;
                         selections[i] = result.sel;
                     }
@@ -232,7 +234,7 @@ export const applyAppUpdate = (state: AppState, action: Action, noJoin = false):
                     if (!v) break;
                     const sel = state.selections[i];
 
-                    const result = _applyUpdate({ top, sel: state.selections[i] }, [
+                    const result = _applyUpdate({ top, sel: state.selections[i], nextLoc: state.nextLoc }, [
                         {
                             type: 'paste',
                             path: sel.start.path,
@@ -252,11 +254,11 @@ export const applyAppUpdate = (state: AppState, action: Action, noJoin = false):
             let top = state.top;
             for (let i = 0; i < selections.length; i++) {
                 const sel = selections[i];
-                const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
+                const update = keyUpdate({ top, sel, nextLoc: state.nextLoc }, action.key, action.mods, action.visual, action.config);
                 if (Array.isArray(update)) {
                     for (let keyAction of update) {
-                        const sub = keyActionToUpdate({ top, sel }, keyAction);
-                        const result = applyNormalUpdate({ top, sel }, sub);
+                        const sub = keyActionToUpdate({ top, sel, nextLoc: state.nextLoc }, keyAction);
+                        const result = applyNormalUpdate({ top, sel, nextLoc: state.nextLoc }, sub);
                         top = result.top;
                         selections[i] = result.sel;
                         if (sub && Array.isArray(sub.selection)) {
@@ -271,7 +273,7 @@ export const applyAppUpdate = (state: AppState, action: Action, noJoin = false):
                     }
                     continue;
                 }
-                const result = _applyUpdate({ top, sel }, update);
+                const result = _applyUpdate({ top, sel, nextLoc: state.nextLoc }, update);
                 top = result.top;
                 selections[i] = result.sel;
             }
@@ -285,4 +287,4 @@ export const reducer = (state: AppState, action: Action) => {
 };
 
 const is = init();
-export const initialAppState: AppState = { top: is.top, selections: [is.sel], history: [] };
+export const initialAppState = (): AppState => ({ top: is.top, selections: [is.sel], history: [], nextLoc: nloc() });

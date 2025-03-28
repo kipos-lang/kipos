@@ -10,7 +10,14 @@ const prevTableLoc = (table: Table<unknown>, at: { row: number; col: number }) =
     return { row: at.row, col: at.col - 1 };
 };
 
-export const joinTable = (top: Top, path: Path, node: Node, cursor: Cursor, at: { row: number; col: number }): void | Update => {
+export const joinTable = (
+    top: Top,
+    path: Path,
+    node: Node,
+    cursor: Cursor,
+    at: { row: number; col: number },
+    nextLoc: () => string,
+): void | Update => {
     const pnode = top.nodes[lastChild(path)];
     if (pnode.type !== 'table') return;
     const pat = prevTableLoc(pnode, at);
@@ -25,7 +32,7 @@ export const joinTable = (top: Top, path: Path, node: Node, cursor: Cursor, at: 
 
     const one = pruneEmptyIds(flat, { node, cursor });
     const two = collapseAdjacentIDs(one.items, one.selection);
-    const result = unflat(top, two.items, two.selection.node);
+    const result = unflat(top, two.items, two.selection.node, nextLoc);
     const ncursor = two.selection.cursor;
     if (result.sloc == null) {
         throw new Error(`sel node not encountered`);
@@ -60,7 +67,7 @@ export const joinTable = (top: Top, path: Path, node: Node, cursor: Cursor, at: 
 
     return up;
 };
-export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number | 'before' | 'after', multi: boolean) => {
+export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number | 'before' | 'after', multi: boolean, nextLoc: () => string) => {
     const table = top.nodes[lastChild(tablePath)];
     if (table.type !== 'table') return;
 
@@ -79,7 +86,7 @@ export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number 
     // This is the thing to split
     const cell = top.nodes[item];
 
-    const { result, two } = splitCell(cell, top, loc);
+    const { result, two } = splitCell(cell, top, loc, nextLoc);
     if (result.sloc == null) throw new Error(`sel node not encountered`);
     if (result.other.length !== 2) throw new Error(`spit should result in 2 tops`);
 
@@ -90,7 +97,7 @@ export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number 
 
     if (newRow.length === 1) {
         for (let i = 1; i < rows[row].length; i++) {
-            const nloc = top.nextLoc();
+            const nloc = nextLoc();
             newRow.push(nloc);
             result.nodes[nloc] = { type: 'id', text: '', loc: nloc };
         }
@@ -109,7 +116,7 @@ export const splitTableRow = (top: Top, path: Path, tablePath: Path, at: number 
     };
 };
 
-export const splitTableCol = (top: Top, path: Path, tablePath: Path, at: number | 'before' | 'after') => {
+export const splitTableCol = (top: Top, path: Path, tablePath: Path, at: number | 'before' | 'after', nextLoc: () => string) => {
     const table = top.nodes[lastChild(tablePath)];
     if (table.type !== 'table') return;
 
@@ -128,7 +135,7 @@ export const splitTableCol = (top: Top, path: Path, tablePath: Path, at: number 
     // This is the thing to split
     const cell = top.nodes[item];
 
-    const { result, two } = splitCell(cell, top, loc);
+    const { result, two } = splitCell(cell, top, loc, nextLoc);
     if (result.sloc == null) throw new Error(`sel node not encountered`);
 
     const rows = table.rows.slice();

@@ -59,7 +59,7 @@ export const shouldNudgeLeft = (path: Path, cursor: Cursor, getNode: (id: string
     return true;
 };
 
-export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart): JustSelUpdate | void => {
+export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart, nextLoc: () => string): JustSelUpdate | void => {
     const [left, neighbors, right, _] = collectSelectedNodes(start, end, (id) => top.nodes[id]);
     const lnudge = shouldNudgeRight(left.path, left.cursor, (id) => top.nodes[id]);
     const rnudge = shouldNudgeLeft(right.path, right.cursor, (id) => top.nodes[id]);
@@ -104,8 +104,6 @@ export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart): J
 
     let selection: NodeSelection = { start: sel };
 
-    let nextLoc = undefined as undefined | number;
-
     const lparent = parentLoc(left.path);
     const rparent = parentLoc(right.path);
     if (lparent === rparent) {
@@ -115,7 +113,7 @@ export const handleDeleteTooMuch = (top: Top, start: SelStart, end: SelStart): J
             const i2 = pnode.children.indexOf(lastChild(right.path));
             if (i2 === i1 + 1) {
                 const children = pnode.children.slice();
-                const loc = top.nextLoc();
+                const loc = nextLoc();
                 const two = children.splice(i1, 2, loc);
                 nodes[loc] = { type: 'list', kind: 'smooshed', children: two, loc };
                 nodes[pnode.loc] = { ...pnode, children };
@@ -136,13 +134,12 @@ const copyDeep = (loc: NodeID, top: Top, dest: Nodes) => {
 
 export type CopiedValues = { tree: RecNodeT<NodeID>; single: boolean };
 
-export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: CopiedValues): void | Update => {
-    let nextLoc = top.nextLoc;
+export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: CopiedValues, nextLoc: () => string): void | Update => {
     const nodes: Nodes = {};
 
     const root = fromRec(values.tree, nodes, (l) => {
         if (l == null || l === '-1' || nodes[l] || top.nodes[l]) {
-            return top.nextLoc();
+            return nextLoc();
         }
         return l;
     });

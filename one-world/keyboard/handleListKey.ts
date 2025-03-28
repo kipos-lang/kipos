@@ -120,20 +120,20 @@ export const handleListKey = (config: Config, top: Top, path: Path, cursor: Coll
                 typeof kind === 'number'
                     ? { type: 'text', grem, ccls: kind }
                     : kind === 'sep'
-                    ? { type: 'sep', newLine: grem === '\n' }
-                    : { type: kind },
+                      ? { type: 'sep', newLine: grem === '\n' }
+                      : { type: kind },
         },
     ];
 };
 
-export const splitListCell = (current: Node, cursor: ListCursor, blank: Node) => (cell: Node, top: Top, loc: NodeID) => {
+export const splitListCell = (current: Node, cursor: ListCursor, blank: Node) => (cell: Node, top: Top, loc: NodeID, nextLoc: () => string) => {
     const flat = flatten(cell, top, undefined, 1);
     const nodes: UNodes = {};
     const neighbor: Flat = { type: 'sep', loc };
     const { sel, ncursor } = addNeighbor({ current, cursor, flat, neighbor, blank });
     const one = pruneEmptyIds(flat, { node: sel, cursor: ncursor });
     const two = collapseAdjacentIDs(one.items, one.selection);
-    const result = unflat(top, two.items, two.selection.node);
+    const result = unflat(top, two.items, two.selection.node, nextLoc);
     Object.assign(result.nodes, nodes);
     return { result, two };
 };

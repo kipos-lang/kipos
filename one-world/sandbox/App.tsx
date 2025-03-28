@@ -1,16 +1,14 @@
-import React, { useCallback, useContext, useEffect, useMemo } from 'react';
-import { interleaveF } from '../keyboard/interleave';
-import { js } from '../keyboard/test-utils';
-import { Cursor, TextWithCursor } from '../keyboard/ui/cursor';
-import { closer, opener } from '../keyboard/ui/RenderNode';
-import { IdCursor, ListWhere, Path, pathWithChildren } from '../keyboard/utils';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Path, selStart } from '../keyboard/utils';
 import { Node } from '../shared/cnodes';
-import { splitGraphemes } from '../splitGraphemes';
-import { ModuleTree, SelStatus, useStore } from './store';
-import { zedlight } from './zedcolors';
+import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
+import { RenderNode } from './render/RenderNode';
+import { Editor } from './Editor';
+import { lightColor, lightColorA } from '../keyboard/ui/colors';
+import { EditIcon } from './icons';
+import { css } from 'goober';
 
 export const App = () => {
-    const store = useStore();
     return (
         <div
             style={{
@@ -26,12 +24,13 @@ export const App = () => {
     );
 };
 
-const Top = ({ id }: { id: string }) => {
+export const Top = ({ id }: { id: string }) => {
     const store = useStore();
     const editor = store.useEditor();
+    // const module = editor.useModule()
     const top = editor.useTop(id);
 
-    const isSelected = editor.module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
+    // const isSelected = module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
     const root = top.useRoot();
     const rootPath = useMemo(
         () => ({
@@ -43,140 +42,69 @@ const Top = ({ id }: { id: string }) => {
 
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+            <button
+                onClick={() => {
+                    editor.update({ type: 'rm-tl', id });
+                }}
+                className={css({
+                    background: 'transparent',
+                    '&:hover': {
+                        color: 'red',
+                    },
+                    lineHeight: '18px',
+                    border: 'none',
+                    color: 'black',
+                    cursor: 'pointer',
+                })}
+            >
+                &times;
+            </button>
+            <div style={{ flexBasis: 12 }} />
+            {/* <span style={{ fontSize: '50%', border: '1px solid red' }}>{id.slice(-5)}</span> */}
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
+            {/* {isSelected ? JSON.stringify(editor.module.selections) : null} */}
         </div>
     );
 };
 
-const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
+export const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
     throw new Error('n');
 });
 
-const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => {
-    const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
-    switch (node.type) {
-        case 'id':
-            if (!sel) return <span>{node.text}</span>;
-            return (
-                <TextWithCursor
-                    text={splitGraphemes(node.text)}
-                    highlight={sel.highlight?.type === 'id' ? sel.highlight.spans : undefined}
-                    cursors={(sel.cursors.filter((c) => c.type === 'id') as IdCursor[]).map((c) => c.end)}
-                />
-            );
-        case 'text':
-            return (
-                <span>
-                    {has('before') ? <Cursor /> : null}"{has('inside') ? <Cursor /> : null}
-                    {node.spans.map((span, i) => {
-                        const sc = sel?.cursors.filter((c) => c.type === 'text' && c.end.index === i);
-                        if (span.type === 'text') {
-                            if (sc?.length) {
-                                const hl = sel?.highlight?.type === 'text' ? sel.highlight.spans[i] : undefined;
-                                return (
-                                    <TextWithCursor
-                                        key={i}
-                                        text={splitGraphemes(span.text)}
-                                        highlight={hl}
-                                        cursors={sc.map((s) => (s.type === 'text' ? s.end.cursor : 0))}
-                                    />
-                                );
-                            }
-                            return span.text;
-                        }
-                        if (span.type === 'embed') {
-                            return <RenderNode key={i} parent={self} id={span.item} />;
-                        }
-                        return 'SPAN' + span.type;
-                    })}
-                    "{has('after') ? <Cursor /> : null}
-                </span>
-            );
-        // return <span>{node.text}</span>;
-        case 'list':
-            if (typeof node.kind !== 'string') return 'UK';
-            const children = node.children.map((id) =>
-                node.forceMultiline ? (
-                    <span
-                        style={{
-                            display: 'block',
-                            paddingLeft: 32,
-                        }}
-                        key={id}
-                    >
-                        <RenderNode parent={self} id={id} key={id} />
-                        {node.kind === 'smooshed' || node.kind === 'spaced' ? null : ', '}
-                    </span>
-                ) : (
-                    <RenderNode parent={self} id={id} key={id} />
-                ),
-            );
-            if (node.kind === 'smooshed') {
-                return <span>{children}</span>;
-            }
-            if (node.kind === 'spaced') {
-                return (
-                    <span>
-                        {interleaveF(children, (k) => (
-                            <span key={k}>&nbsp;</span>
-                        ))}
-                    </span>
-                );
-            }
-            return (
-                <span>
-                    {has('before') ? <Cursor /> : null}
-                    {opener[node.kind]}
-                    {has('inside') ? <Cursor /> : null}
-                    {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>, </span>)}
-                    {closer[node.kind]}
-                    {has('after') ? <Cursor /> : null}
-                </span>
-            );
+export const cursorPositionInSpanForEvt = (evt: React.MouseEvent, target: HTMLSpanElement, text: string[]) => {
+    const range = new Range();
+    let best = null as null | [number, number];
+    for (let i = 0; i <= text.length; i++) {
+        const at = text.slice(0, i).join('').length;
+        range.setStart(target.firstChild!, at);
+        range.setEnd(target.firstChild!, at);
+        const box = range.getBoundingClientRect();
+        if (evt.clientY < box.top || evt.clientY > box.bottom) continue;
+        const dst = Math.abs(box.left - evt.clientX);
+        if (!best || dst < best[0]) best = [dst, i];
     }
+    return best ? best[1] : null;
 };
 
-const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
-    const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
-    const { node, sel } = useContext(UseNodeCtx)(self);
+export const Showsel = () => {
+    const store = useStore();
+    const editor = store.useEditor();
+    const sel = editor.useSelection();
 
     return (
         <>
-            {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>
-            {JSON.stringify(sel)} */}
-            <R node={node} self={self} sel={sel} />
-        </>
-    );
-};
-
-const Editor = () => {
-    const store = useStore();
-    const editor = store.useEditor();
-
-    useEffect(() => {
-        const fn = (evt: KeyboardEvent) => {
-            editor.update({
-                type: 'key',
-                key: evt.key,
-                mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
-                // visual,
-                config: js, // parser.config,
-            });
-        };
-        window.addEventListener('keydown', fn);
-        return () => window.removeEventListener('keydown', fn);
-    }, [editor]);
-
-    return (
-        <div style={{ flex: 1, background: zedlight.background }}>
-            Editor here
-            {editor.module.roots.map((id) => (
-                <Top id={id} key={id} />
+            {sel.map((sel, i) => (
+                <div key={i}>
+                    <div>{sel.start.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.start.cursor)}
+                    <div>{sel.end?.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.end?.cursor)}
+                </div>
             ))}
-        </div>
+        </>
     );
 };
 
@@ -184,24 +112,78 @@ const DebugSidebar = () => {
     return <div>Debug sidebarrr</div>;
 };
 
-const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
+const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {
+    const store = useStore();
+    const [editing, setEditing] = useState(null as null | string);
     return (
         <div>
             {tree.node ? (
                 <div
-                    style={{
+                    className={css({
                         cursor: 'pointer',
-                        padding: 8,
+                        padding: '8px',
+                        background: selected === tree.node.id ? lightColor : undefined,
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        '&:hover': {
+                            background: lightColorA(0.5),
+                        },
+                    })}
+                    onClick={(evt) => {
+                        location.hash = '#' + tree.node!.id;
+                        // store.select(tree.node!.id)
                     }}
                 >
-                    {tree.node.name}
+                    {editing != null ? (
+                        <input
+                            value={editing}
+                            onChange={(evt) => setEditing(evt.target.value)}
+                            onKeyDown={(evt) => {
+                                if (evt.key === 'Escape') {
+                                    setEditing(null);
+                                    evt.preventDefault();
+                                }
+                            }}
+                            onClick={(evt) => {
+                                evt.stopPropagation();
+                            }}
+                        />
+                    ) : (
+                        tree.node.name
+                    )}
+                    <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
+                    <div
+                        onClick={(evt) => {
+                            evt.stopPropagation();
+                            if (editing != null) {
+                                if (!editing.trim() || editing === tree.node!.name) return setEditing(null);
+                                store.updateeModule({ id: tree.node!.id, name: editing });
+                                setEditing(null);
+                            } else {
+                                setEditing(tree.node!.name);
+                            }
+                        }}
+                    >
+                        <EditIcon />
+                    </div>
                 </div>
             ) : null}
             {tree.children.length ? (
                 <div style={{ marginLeft: 16 }}>
                     {tree.children.map((child, i) => (
-                        <ShowModuleTree key={child.node?.id ?? i} tree={child} />
+                        <ShowModuleTree key={child.node?.id ?? i} selected={selected} tree={child} />
                     ))}
+                    <button
+                        onClick={() => {
+                            const name = prompt('Name');
+                            store.addModule(newModule(name ?? 'NewModule'));
+                        }}
+                        style={{ marginTop: 12 }}
+                    >
+                        Add module
+                    </button>
                 </div>
             ) : null}
         </div>
@@ -210,11 +192,12 @@ const ShowModuleTree = ({ tree }: { tree: ModuleTree }) => {
 
 export const ModuleSidebar = () => {
     const store = useStore();
-    const tree = store.moduleTree;
+    const selected = store.useSelected();
+    const tree = store.useModuleTree();
     return (
         <div style={{ padding: 8 }}>
             <div>Modules</div>
-            <ShowModuleTree tree={tree} />
+            <ShowModuleTree selected={selected} tree={tree} />
         </div>
     );
 };

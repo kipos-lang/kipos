@@ -284,8 +284,12 @@ export const childLocs = (node: Node): NodeID[] => {
     }
 };
 
-export const fromMap = <Loc>(id: NodeID, nodes: Nodes, toLoc: (l: NodeID) => Loc): RecNodeT<Loc> => {
+export const fromMap = <Loc>(id: NodeID, nodes: Nodes, toLoc: (l: NodeID) => Loc, path: string[] = []): RecNodeT<Loc> => {
+    if (path.includes(id)) {
+        throw new Error(`Circular reference ${id} : ${path.join(', ')}`);
+    }
     const node = nodes[id];
+    const next = path.concat([id]);
     if (!node) {
         throw new Error(`id ${id} not found in nodes map`);
     }
@@ -299,7 +303,7 @@ export const fromMap = <Loc>(id: NodeID, nodes: Nodes, toLoc: (l: NodeID) => Loc
                 loc,
                 spans: node.spans.map((span) =>
                     span.type === 'embed'
-                        ? { ...span, item: fromMap(span.item, nodes, toLoc), loc: toLoc(span.loc) }
+                        ? { ...span, item: fromMap(span.item, nodes, toLoc, next), loc: toLoc(span.loc) }
                         : { ...span, loc: toLoc(span.loc) },
                 ),
             };
@@ -311,17 +315,17 @@ export const fromMap = <Loc>(id: NodeID, nodes: Nodes, toLoc: (l: NodeID) => Loc
                     typeof node.kind !== 'string' && node.kind.type === 'tag'
                         ? {
                               ...node.kind,
-                              node: fromMap(node.kind.node, nodes, toLoc),
-                              attributes: node.kind.attributes != null ? fromMap(node.kind.attributes, nodes, toLoc) : undefined,
+                              node: fromMap(node.kind.node, nodes, toLoc, next),
+                              attributes: node.kind.attributes != null ? fromMap(node.kind.attributes, nodes, toLoc, next) : undefined,
                           }
                         : node.kind,
-                children: node.children.map((id) => fromMap(id, nodes, toLoc)),
+                children: node.children.map((id) => fromMap(id, nodes, toLoc, next)),
             };
         case 'table':
             return {
                 ...node,
                 loc,
-                rows: node.rows.map((row) => row.map((id) => fromMap(id, nodes, toLoc))),
+                rows: node.rows.map((row) => row.map((id) => fromMap(id, nodes, toLoc, next))),
             };
     }
 };

@@ -137,11 +137,18 @@ test('left across span', () => {
 // MARK: tabs
 
 function checkTabs(
-    top: Top,
-    sels: Record<number, import('/Users/jared/clone/exploration/j3/one-world/keyboard/utils').NodeSelection>,
+    {
+        top,
+        sels,
+        nextLoc,
+    }: {
+        top: Top;
+        sels: Record<number, import('/Users/jared/clone/exploration/j3/one-world/keyboard/utils').NodeSelection>;
+        nextLoc(): string;
+    },
     shift = false,
 ) {
-    let state: TestState = { top, sel: sels[0] };
+    let state: TestState = { top, sel: sels[0], nextLoc };
     for (let i = 1; sels[i]; i++) {
         state = applyNormalUpdate(state, selUpdate(handleTab(state, shift)));
         expect(state.sel).toEqual(sels[i]);
@@ -149,7 +156,7 @@ function checkTabs(
 }
 
 test('goTabLateral', () => {
-    let { top, sels } = asTopAndPaths(
+    let stuff = asTopAndPaths(
         round<Sels>(
             [
                 //
@@ -188,22 +195,22 @@ test('goTabLateral', () => {
         ),
         { ids: [], top: '' },
     );
-    checkTabs(top, sels);
+    checkTabs(stuff);
 });
 
 test('smoosh tab', () => {
-    let { top, sels } = asTopAndPaths(smoosh<Sels>([id('hi', [0, idc(0)]), round([], [1, listc('before')])]), { ids: [], top: '' });
-    checkTabs(top, sels);
+    let stuff = asTopAndPaths(smoosh<Sels>([id('hi', [0, idc(0)]), round([], [1, listc('before')])]), { ids: [], top: '' });
+    checkTabs(stuff);
 });
 
 test('smoosh tab next', () => {
-    let { top, sels } = asTopAndPaths(smoosh<Sels>([id('hi', [0, idc(2)]), round([], [1, listc('inside')])]), { ids: [], top: '' });
-    checkTabs(top, sels);
+    let stuff = asTopAndPaths(smoosh<Sels>([id('hi', [0, idc(2)]), round([], [1, listc('inside')])]), { ids: [], top: '' });
+    checkTabs(stuff);
 });
 
 test('smoosh tab round next', () => {
-    let { top, sels } = asTopAndPaths(smoosh<Sels>([id('+', [1, idc(1)]), id('hi'), round([], [0, listc('before')])]), { ids: [], top: '' });
-    checkTabs(top, sels, true);
+    let stuff = asTopAndPaths(smoosh<Sels>([id('+', [1, idc(1)]), id('hi'), round([], [0, listc('before')])]), { ids: [], top: '' });
+    checkTabs(stuff, true);
 });
 
 // test('largerrrr', () => {

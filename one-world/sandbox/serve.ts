@@ -1,10 +1,19 @@
-import { serve } from '../keyboard/ui/server';
+import { serve } from 'bun';
+import homepage from './index.html';
+import { readFile } from 'fs/promises';
+
+const port = 4141;
 
 serve({
-    port: 4141,
-    watch: '../',
-    outdir: './',
-    entries: {
-        'run.js': ['./run.tsx'],
+    routes: {
+        '/': homepage,
+        '/favicon.png': async () => new Response(await readFile('./favicon.png')),
+        '/fonts/:name': async (req) => {
+            const { name } = req.params;
+            return new Response(await readFile('./fonts/' + name));
+        },
     },
+    development: true,
+    port,
 });
+console.log(`http://localhost:${port}`);

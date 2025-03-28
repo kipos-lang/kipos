@@ -33,7 +33,7 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
     // console.log('action', action);
     switch (action.type) {
         case 'join-table':
-            return joinTable(state.top, action.path, state.top.nodes[action.child.loc], action.child.cursor, action.at);
+            return joinTable(state.top, action.path, state.top.nodes[action.child.loc], action.child.cursor, action.at, state.nextLoc);
         case 'remove-span':
             return removeSpan(state.top, action.path, action.index);
         case 'unwrap':
@@ -43,9 +43,9 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
         case 'sel-expand':
             return { nodes: {}, selection: { start: state.sel.start, end: action.sel } };
         case 'remove-self':
-            return removeSelf(state.top, { path: action.path, node: state.top.nodes[lastChild(action.path)] });
+            return removeSelf(state.top, { path: action.path, node: state.top.nodes[lastChild(action.path)] }, state.nextLoc);
         case 'join-list':
-            return joinInList(state.top, action.path, action.child);
+            return joinInList(state.top, action.path, action.child, state.nextLoc);
         case 'toggle-multiline': {
             const node = state.top.nodes[action.loc];
             if (node.type === 'list' || node.type === 'table') {
@@ -54,14 +54,14 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
             return;
         }
         case 'set-id-text':
-            return setIdText(state.top, action.path, action.text, action.end, action.ccls);
+            return setIdText(state.top, action.path, action.text, action.end, state.nextLoc, action.ccls);
         case 'set-text-text': {
             return setTextText(state.top, action.path, action.text, action.index, action.end);
         }
         case 'text-delete':
             return textDelete(state.top, action.path, action.left, action.right);
         case 'multi-delete': {
-            const up = handleDeleteTooMuch(state.top, action.start, action.end);
+            const up = handleDeleteTooMuch(state.top, action.start, action.end, state.nextLoc);
             if (up) {
                 rebalanceSmooshed(up, state.top);
                 joinSmooshed(up, state.top);
@@ -72,37 +72,37 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
         case 'join-text':
             return handleJoinText(state.top, action.path);
         case 'text-format':
-            return handleTextFormat(state.top, action.path, action.format, action.left, action.right, action.select);
+            return handleTextFormat(state.top, action.path, action.format, action.left, action.right, state.nextLoc, action.select);
         case 'wrap':
-            return wrapUpdate(state.top, action.path, action.min, action.max, action.kind);
+            return wrapUpdate(state.top, action.path, action.min, action.max, action.kind, state.nextLoc);
         case 'id-wrap':
-            return handleIdWrap(state.top, action.path, action.left, action.right, action.kind);
+            return handleIdWrap(state.top, action.path, action.left, action.right, action.kind, state.nextLoc);
         case 'insert-list':
-            return handleInsertList(state.top, action.path, action.pos, action.kind);
+            return handleInsertList(state.top, action.path, action.pos, action.kind, state.nextLoc);
         case 'add-span':
-            return addSpan(state.top, action.path, action.span, action.index, action.cursor, action.within);
+            return addSpan(state.top, action.path, action.span, action.index, action.cursor, state.nextLoc, action.within);
         case 'dedent-out-of-rich':
-            return dedentOutOfRich(state.top, action.path);
+            return dedentOutOfRich(state.top, action.path, state.nextLoc);
         case 'split-text-in-rich':
-            return splitTextInRich(state.top, action.path, action.at);
+            return splitTextInRich(state.top, action.path, action.at, state.nextLoc);
         case 'tag-set-attributes':
-            return tagSetAttributes(state.top, action.path, action.table, action.cursor);
+            return tagSetAttributes(state.top, action.path, action.table, action.cursor, state.nextLoc);
         case 'insert-text':
-            return handleInsertText(state.top, action.path, action.pos, action.what);
+            return handleInsertText(state.top, action.path, action.pos, action.what, state.nextLoc);
         case 'replace-self':
-            return replaceSelf(state.top, action.path, action.node, action.cursor);
+            return replaceSelf(state.top, action.path, action.node, action.cursor, state.nextLoc);
         case 'table-split':
             if (action.rowMulti != null) {
-                return splitTableRow(state.top, action.path, action.tablePath, action.at, action.rowMulti);
+                return splitTableRow(state.top, action.path, action.tablePath, action.at, action.rowMulti, state.nextLoc);
             } else {
-                return splitTableCol(state.top, action.path, action.tablePath, action.at);
+                return splitTableCol(state.top, action.path, action.tablePath, action.at, state.nextLoc);
             }
         case 'control-toggle':
             return controlToggle(state.top, action.path, action.index);
         case 'add-inside':
-            return addInside(state.top, action.path, action.children, action.cursor);
+            return addInside(state.top, action.path, action.children, action.cursor, state.nextLoc);
         case 'paste':
-            return pasteUpdate(state.top, action.path, action.cursor, action.values);
+            return pasteUpdate(state.top, action.path, action.cursor, action.values, state.nextLoc);
     }
 };
 

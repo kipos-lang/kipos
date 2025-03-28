@@ -4,7 +4,7 @@ import { richNode } from '../handleNav';
 import { Spat } from '../handleSpecialText';
 import { Top, Path, Update, parentLoc, lastChild, findTableLoc, selStart, pathWithChildren, parentPath, gparentLoc, getSpanIndex } from '../utils';
 
-export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update => {
+export const splitTextInRich = (top: Top, path: Path, at: Spat, nextLoc: () => string): void | Update => {
     let parent = top.nodes[parentLoc(path)];
     if (!richNode(parent)) return;
     const current = top.nodes[lastChild(path)];
@@ -21,7 +21,7 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
     const after = current.spans.slice(lat);
     after[0] = { ...span, text: text.slice(at.cursor).join('') };
 
-    const loc = top.nextLoc();
+    const loc = nextLoc();
 
     const nodes: Nodes = {};
 
@@ -39,8 +39,8 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
         rows.splice(row + 1, 0, [loc, ...right]);
         if (!right.length) {
             for (let i = 1; i < rows[row].length; i++) {
-                const cloc = top.nextLoc();
-                nodes[cloc] = { type: 'text', spans: [{ type: 'text', text: '', loc: top.nextLoc() }], loc: cloc };
+                const cloc = nextLoc();
+                nodes[cloc] = { type: 'text', spans: [{ type: 'text', text: '', loc: nextLoc() }], loc: cloc };
                 rows[row + 1].push(cloc);
             }
         }
@@ -58,7 +58,7 @@ export const splitTextInRich = (top: Top, path: Path, at: Spat): void | Update =
     };
 };
 
-export const dedentOutOfRich = (top: Top, path: Path): void | Update => {
+export const dedentOutOfRich = (top: Top, path: Path, nextLoc: () => string): void | Update => {
     const parent = top.nodes[parentLoc(path)];
     const gparent = top.nodes[gparentLoc(path)];
     const loc = lastChild(path);
@@ -73,10 +73,9 @@ export const dedentOutOfRich = (top: Top, path: Path): void | Update => {
     const after = children.slice(at + 1);
     children.splice(at);
     gchildren.splice(gat + 1, 0, loc);
-    let nextLoc = top.nextLoc;
     const nodes: Nodes = {};
     if (after.length) {
-        const loc = top.nextLoc();
+        const loc = nextLoc();
         gchildren.splice(gat + 2, 0, loc);
         nodes[loc] = { ...parent, children: after, loc };
     }

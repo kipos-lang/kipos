@@ -1,17 +1,21 @@
-import { genId } from '../keyboard/ui/genId';
-import { Node, Nodes } from '../shared/cnodes';
+import { genId } from '../../keyboard/ui/genId';
+import { Node, Nodes } from '../../shared/cnodes';
 
-import { _applyUpdate, applyNormalUpdate, applySelUp } from '../keyboard/applyUpdate';
-import { Mods } from '../keyboard/handleShiftNav';
-import { KeyAction, keyActionToUpdate } from '../keyboard/keyActionToUpdate';
-import { Config } from '../keyboard/test-utils';
-import { keyUpdate, Visual } from '../keyboard/ui/keyUpdate';
-import { CopiedValues } from '../keyboard/update/multi-change';
-import { NodeSelection, Top } from '../keyboard/utils';
-import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from './history';
+import { _applyUpdate, applyNormalUpdate, applySelUp } from '../../keyboard/applyUpdate';
+import { Mods } from '../../keyboard/handleShiftNav';
+import { KeyAction, keyActionToUpdate } from '../../keyboard/keyActionToUpdate';
+import { Config } from '../../keyboard/test-utils';
+import { keyUpdate, Visual } from '../../keyboard/ui/keyUpdate';
+import { CopiedValues } from '../../keyboard/update/multi-change';
+import { NodeSelection, selStart, Top } from '../../keyboard/utils';
+import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../history';
+import { Toplevel } from '../types';
+import { selectStart } from '../../keyboard/handleNav';
+import { validate } from '../../keyboard/validate';
 
 export type AppState = {
-    tops: Record<string, Top>;
+    roots: string[];
+    tops: Record<string, Toplevel>;
     selections: NodeSelection[];
     history: HistoryItem<HistoryChange>[];
 };
@@ -26,7 +30,7 @@ export type HistoryChange = {
     selections: Delta<NodeSelection[]>;
 };
 
-type TopUpdate = Omit<Top, 'nodes'> & { nodes: Record<string, Node | null> };
+type TopUpdate = Omit<Toplevel, 'nodes'> & { nodes: Record<string, Node | null> };
 
 export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryChange => {
     return {
@@ -36,11 +40,11 @@ export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryCh
     };
 };
 
-const diffTop = (prev: Top, next: Top): [TopUpdate, TopUpdate, boolean] => {
+const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean] => {
     const redo: TopUpdate = { ...next, nodes: {} };
     const undo: TopUpdate = { ...prev, nodes: {} };
 
-    let changed = next.root !== prev.root; // || !equal(next.tmpText, prev.tmpText);
+    let changed = next.root !== prev.root || next.children !== prev.children;
     Object.entries(next.nodes).forEach(([key, value]) => {
         if (prev.nodes[key] !== value) {
             redo.nodes[key] = value;
@@ -68,12 +72,16 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             if (!prev[key]) {
                 redo[key] = value;
                 undo[key] = null;
+                changed = true;
             } else {
                 const [r, u, c] = diffTop(prev[key], value);
                 redo[key] = r;
                 undo[key] = u;
+                if (c) {
+                    changed = true;
+                }
             }
-            changed = true;
+            // console.log('diff', key, prev[key], value);
         }
     });
 
@@ -82,6 +90,7 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             redo[key] = null;
             undo[key] = value;
             changed = true;
+            // console.log('removed', key);
         }
     });
 
@@ -104,6 +113,9 @@ export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual; config: Config }
+    | { type: 'selections'; selections: NodeSelection[] }
+    | { type: 'new-tl'; after: string; parent?: string }
+    | { type: 'rm-tl'; id: string }
     | { type: 'paste'; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
     | { type: 'undo' }
     | { type: 'redo' };
@@ -139,9 +151,9 @@ const withNodes = (nodes: Nodes, up: Record<number, Node | null>): Nodes => {
     nodes = { ...nodes };
     Object.entries(up).forEach(([key, value]) => {
         if (value === null) {
-            delete nodes[+key];
+            delete nodes[key];
         } else {
-            nodes[+key] = value;
+            nodes[key] = value;
         }
     });
     return nodes;
@@ -158,7 +170,11 @@ type MyState = {
     state: AppState;
 };
 
-const invertChange = (change: HistoryChange): HistoryChange => ({ ...change, selections: revDelta(change.selections), tops: revDelta(change.tops) });
+const invertChange = (change: HistoryChange): HistoryChange => ({
+    ...change,
+    selections: revDelta(change.selections),
+    tops: revDelta(change.tops),
+});
 
 const wrap = (state: AppState): MyState => {
     return {
@@ -180,7 +196,7 @@ const wrap = (state: AppState): MyState => {
     };
 };
 
-export const reduce = (state: AppState, action: Action, noJoin: boolean): AppState => {
+export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc: () => string): AppState => {
     switch (action.type) {
         case 'undo': {
             return undo(wrap(state)).state;
@@ -190,10 +206,70 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
         }
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
-        case 'update':
-            throw new Error('noaa');
-        // const result = _applyUpdate({ top: state.top, sel: state.selections[0] }, action.update);
-        // return recordHistory(state, { ...state, top: result.top, selections: [result.sel] }, noJoin);
+
+        case 'selections':
+            action.selections.forEach((sel) => {
+                if (!sel.start.path) {
+                    console.log('WHAT SEL');
+                    debugger;
+                }
+                try {
+                    validate({ sel, top: state.tops[sel.start.path.root.top] });
+                } catch (err) {
+                    debugger;
+                    validate({ sel, top: state.tops[sel.start.path.root.top] });
+                }
+            });
+
+            return { ...state, selections: action.selections };
+
+        case 'update': {
+            // const sel = action.update
+            // const sel = state.selections[0];
+            // const top = state.tops[sel.start.path.root.top];
+            // console.log('update', action.update);
+            // console.log('the top', top);
+            // const result = _applyUpdate({ top, sel, nextLoc: genId }, action.update);
+            // console.log('result', result);
+            // return recordHistory(state, { ...state, tops: { ...state.tops, [top.id]: result.top }, selections: [result.sel] }, noJoin);
+            throw new Error('updateeee');
+        }
+
+        case 'rm-tl': {
+            const roots = state.roots.slice();
+            const at = roots.indexOf(action.id);
+            roots.splice(at, 1);
+            let next = at < roots.length ? roots[at] : roots[at - 1];
+            if (next == null) return state;
+            const top = state.tops[next];
+            const sel = selectStart({ root: { top: top.id, ids: [] }, children: [top.root] }, top);
+            if (!sel) return state;
+            const tops = { ...state.tops };
+            delete tops[action.id];
+            return { ...state, roots, tops, selections: [{ start: sel }] };
+        }
+
+        case 'new-tl': {
+            if (action.parent == null) {
+                const tid = genId();
+                const rid = genId();
+                return {
+                    ...state,
+                    tops: {
+                        ...state.tops,
+                        [tid]: {
+                            id: tid,
+                            root: rid,
+                            children: [],
+                            nodes: { [rid]: { type: 'id', text: '', loc: rid } },
+                        },
+                    },
+                    roots: state.roots.concat([tid]),
+                    selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
+                };
+            }
+            return state;
+        }
 
         case 'paste': {
             console.log('pasting', action.data);
@@ -220,7 +296,7 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                 const sel = state.selections[i];
                 const top = tops[sel.start.path.root.top];
 
-                const result = _applyUpdate({ top, sel: state.selections[i] }, [
+                const result = _applyUpdate({ top, sel: state.selections[i], nextLoc }, [
                     {
                         type: 'paste',
                         path: sel.start.path,
@@ -245,12 +321,11 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
                     throw new Error(`multi-toplevel, not doing`);
                 }
                 const top = tops[sel.start.path.root.top];
-                const update = keyUpdate({ top, sel }, action.key, action.mods, action.visual, action.config);
+                const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, action.config);
                 if (!update) continue;
                 for (let keyAction of update) {
-                    const sub = keyActionToUpdate({ top, sel }, keyAction);
-                    // console.log('sub', sub);
-                    const result = applyNormalUpdate({ top, sel }, sub);
+                    const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction);
+                    const result = applyNormalUpdate({ top, sel, nextLoc }, sub);
                     tops[sel.start.path.root.top] = result.top;
                     selections[i] = result.sel;
                     if (sub && Array.isArray(sub.selection)) {
@@ -268,4 +343,5 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean): AppSta
             return recordHistory(state, { ...state, tops, selections }, noJoin);
         }
     }
+    throw new Error(`not handled action ${(action as any).type}`);
 };

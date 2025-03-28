@@ -27,10 +27,10 @@ export const useKeyFns = (
 
     const visual: Visual = {
         up(sel) {
-            return posUp(sel, cstate.current.top, refs);
+            return posUp(sel, cstate.current.top, refs, state.nextLoc);
         },
         down(sel) {
-            return posDown(sel, cstate.current.top, refs);
+            return posDown(sel, cstate.current.top, refs, state.nextLoc);
         },
         spans: cspans.current,
     };
@@ -101,7 +101,7 @@ export const useKeyFns = (
             onKeyDown,
             getDataToCopy() {
                 const state = cstate.current;
-                const copied = state.selections.map((sel) => handleCopyMulti({ top: state.top, sel })).filter(Boolean) as {
+                const copied = state.selections.map((sel) => handleCopyMulti({ top: state.top, sel, nextLoc: state.nextLoc })).filter(Boolean) as {
                     tree: RecNodeT<NodeID>;
                 }[];
                 if (!copied.length) return null;

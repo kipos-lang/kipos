@@ -14,6 +14,12 @@ test('table pls', () => {
     check(state, table('round', [], true), listc('inside'));
 });
 
+test('split after string', () => {
+    let state = asTop(table('curly', [[text([tspan('hi')], true)]]), listc('after'));
+    state = applyUpdate(state, handleKey(state, ':', lisp)!);
+    check(state, table('curly', [[text([tspan('hi')]), id('', true)]]), idc(0));
+});
+
 test('table w/ blank', () => {
     let state = asTop(round([id('', true)]), idc(0));
     state = applyUpdate(state, handleKey(state, ':', lisp)!);

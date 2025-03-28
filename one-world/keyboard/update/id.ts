@@ -2,7 +2,7 @@ import { Id, NodeID } from '../../shared/cnodes';
 import { flatToUpdateNew } from '../rough';
 import { Top, Path, parentPath, lastChild, selStart } from '../utils';
 
-export const setIdText = (top: Top, path: Path, text: string, end: number, ccls?: number) => {
+export const setIdText = (top: Top, path: Path, text: string, end: number, nextLoc: () => string, ccls?: number) => {
     if (text.length === 0) {
         const ppath = parentPath(path);
         const parent = top.nodes[lastChild(ppath)];
@@ -15,13 +15,14 @@ export const setIdText = (top: Top, path: Path, text: string, end: number, ccls?
                 { isParent: true, node: parent, path: ppath },
                 {},
                 top,
+                nextLoc,
             );
         }
     }
     const node = top.nodes[lastChild(path)];
     if (node.type !== 'id') return;
     return {
-        nodes: { [node.loc]: { ...node, text, ccls: text.length === 0 ? undefined : ccls ?? node.ccls } },
+        nodes: { [node.loc]: { ...node, text, ccls: text.length === 0 ? undefined : (ccls ?? node.ccls) } },
         // tmpText: { [current.node.loc]: text },
         selection: { start: selStart(path, { type: 'id', end }) },
     };

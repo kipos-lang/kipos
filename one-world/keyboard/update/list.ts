@@ -7,7 +7,7 @@ import { flatten, flatToUpdateNew } from '../rough';
 import { Top, Path, Cursor, lastChild, selStart, pathWithChildren, Update } from '../utils';
 import { findParent } from './updaters';
 
-export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, cursor: Cursor) => {
+export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, cursor: Cursor, nextLoc: () => string) => {
     const tag = top.nodes[lastChild(path)];
     if (tag.type !== 'list' || !isTag(tag.kind)) {
         return;
@@ -16,7 +16,7 @@ export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, 
     let selPath: NodeID[] = [];
 
     const root = fromRec(node, nodes, (loc, __, path) => {
-        const nl = top.nextLoc();
+        const nl = nextLoc();
         if (loc === true) {
             selPath = path.concat([nl]);
         }
@@ -31,7 +31,7 @@ export const tagSetAttributes = (top: Top, path: Path, node: RecNodeT<boolean>, 
     };
 };
 
-export const joinInList = (top: Top, path: Path, child: { loc: NodeID; cursor: Cursor }) => {
+export const joinInList = (top: Top, path: Path, child: { loc: NodeID; cursor: Cursor }, nextLoc: () => string) => {
     const pnode = top.nodes[lastChild(path)];
     const node = top.nodes[child.loc];
     let flat = flatten(pnode, top, {});
@@ -41,7 +41,7 @@ export const joinInList = (top: Top, path: Path, child: { loc: NodeID; cursor: C
     for (; fat > 0 && flat[fat - 1].type === 'smoosh'; fat--);
     const prev = flat[fat - 1];
     flat.splice(fat - 1, 1);
-    return flatToUpdateNew(flat, { node, cursor: child.cursor }, { isParent: true, node: pnode, path }, {}, top);
+    return flatToUpdateNew(flat, { node, cursor: child.cursor }, { isParent: true, node: pnode, path }, {}, top, nextLoc);
 }; // like. now I gotta know who the parent issss
 // waittt I can just assert that the relevant thing needs to be in the selection path.
 // good deal.

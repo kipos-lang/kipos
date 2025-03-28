@@ -1,7 +1,7 @@
 import { childLocs, isRich, NodeID } from '../shared/cnodes';
 import { isTag, richNode } from './handleNav';
 import { TestState } from './test-utils';
-import { getSpan, lastChild, parentLoc, Path, Top } from './utils';
+import { getSpan, lastChild, NodeSelection, parentLoc, Path, Top } from './utils';
 import { getCurrent } from './selections';
 
 const validatePath = (top: Top, path: Path) => {
@@ -121,7 +121,7 @@ const validateNodes = (top: Top, id: NodeID) => {
     childLocs(node).forEach((cid) => validateNodes(top, cid));
 };
 
-const validateCursor = (state: TestState) => {
+const validateCursor = (state: Pick<TestState, 'top' | 'sel'>) => {
     const current = getCurrent(state.sel, state.top);
     if (current.type === 'text') {
         const parent = state.top.nodes[parentLoc(current.path)];
@@ -142,7 +142,7 @@ const validateCursor = (state: TestState) => {
     }
 };
 
-export const validate = (state: TestState) => {
+export const validate = (state: Pick<TestState, 'top' | 'sel'>) => {
     try {
         validatePath(state.top, state.sel.start.path);
     } catch (err) {

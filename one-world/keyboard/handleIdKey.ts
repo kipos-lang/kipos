@@ -11,7 +11,13 @@ import { collapseAdjacentIDs, flatten, pruneEmptyIds, unflat } from './rough';
 import { Config } from './test-utils';
 import { Current, Cursor, IdCursor, Path, Top, UNodes, lastChild, parentLoc, parentPath, pathWithChildren, selStart } from './utils';
 
-export const handleIdKey = (config: Config, top: Top, current: Extract<Current, { type: 'id' }>, grem: string): KeyAction[] | void => {
+export const handleIdKey = (
+    config: Config,
+    top: Top,
+    current: Extract<Current, { type: 'id' }>,
+    grem: string,
+    nextLoc: () => string,
+): KeyAction[] | void => {
     // let node = top.nodes[lastChild(current.path)];
     // if (node.type !== 'id') throw new Error('not id');
     const kind = textKind(grem, config);
@@ -153,7 +159,7 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
     if (kind === 'space') {
         // check to see if we should just move to an adjacent space
         if (parent?.node.kind === 'spaced') {
-            const right = handleNav('ArrowRight', { top, sel: { start: selStart(current.path, current.cursor) } });
+            const right = handleNav('ArrowRight', { top, sel: { start: selStart(current.path, current.cursor) }, nextLoc });
             if (right) {
                 const rn = top.nodes[lastChild(right.path)];
                 const rp = top.nodes[parentLoc(right.path)];
@@ -174,8 +180,8 @@ export const handleIdKey = (config: Config, top: Top, current: Extract<Current, 
                 typeof kind === 'number'
                     ? { type: 'text', ccls: kind, grem }
                     : kind === 'sep'
-                      ? { type: 'sep', newLine: grem === '\n' }
-                      : { type: kind },
+                    ? { type: 'sep', newLine: grem === '\n' }
+                    : { type: kind },
         },
     ];
 };
@@ -184,10 +190,10 @@ export const whatNeighbor = (what: KeyWhat): Flat => {
     return what.type === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: what.newLine }
         : what.type === 'space'
-          ? { type: 'space', loc: '-1' }
-          : what.type === 'string'
-            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-            : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
+        ? { type: 'space', loc: '-1' }
+        : what.type === 'string'
+        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+        : { type: 'id', text: what.grem, loc: '-1', ccls: what.ccls };
 };
 
 export const getSplit = (top: Top, path: Path, at: number | 'before' | 'after') => {
@@ -195,7 +201,7 @@ export const getSplit = (top: Top, path: Path, at: number | 'before' | 'after') 
     if (node.type === 'id') {
         return splitIdCell({ type: 'id', node, path, cursor: { type: 'id', end: typeof at === 'number' ? at : 0 } });
     }
-    if (node.type === 'list') {
+    if (node.type === 'list' || node.type === 'table' || node.type === 'text') {
         const pnode = top.nodes[parentLoc(path)];
         const blank: Node = richNode(pnode)
             ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
@@ -260,14 +266,14 @@ export type SplitRes = {
 
 export const splitIdCell =
     (current: Extract<Current, { type: 'id' }>) =>
-    (cell: Node, top: Top, loc: NodeID): SplitRes => {
+    (cell: Node, top: Top, loc: NodeID, nextLoc: () => string): SplitRes => {
         const flat = flatten(cell, top, undefined, 1);
         const nodes: UNodes = {};
         const neighbor: Flat = { type: 'sep', loc };
         const { sel, ncursor } = addIdNeighbor({ neighbor, current, flat, nodes, top });
         const one = pruneEmptyIds(flat, { node: sel, cursor: ncursor });
         const two = collapseAdjacentIDs(one.items, one.selection);
-        const result = unflat(top, two.items, two.selection.node);
+        const result = unflat(top, two.items, two.selection.node, nextLoc);
         Object.assign(result.nodes, nodes);
         return { result, two };
     };
@@ -331,8 +337,8 @@ export function flatNeighbor(kind: Kind, grem: string): Flat {
     return kind === 'sep'
         ? { type: 'sep', loc: '-1', multiLine: grem === '\n' }
         : kind === 'space'
-          ? { type: 'space', loc: '-1' }
-          : kind === 'string'
-            ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
-            : { type: 'id', text: grem, loc: '-1', ccls: kind };
+        ? { type: 'space', loc: '-1' }
+        : kind === 'string'
+        ? { type: 'text', spans: [{ type: 'text', text: '', loc: '' }], loc: '-1' }
+        : { type: 'id', text: grem, loc: '-1', ccls: kind };
 }

@@ -11,13 +11,17 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@isomorphic-git/lightning-fs": "^4.6.0",
         "@types/bun": "^1.2.5",
         "@types/jest": "^29.5.14",
         "@types/node": "^22.13.10",
         "@types/react": "^19.0.12",
         "@types/react-dom": "^19.0.4",
+        "buffer": "^6.0.3",
         "fast-deep-equal": "^3.1.3",
+        "goober": "^2.1.16",
         "grapheme-splitter": "^1.0.4",
+        "isomorphic-git": "^1.30.1",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "typescript": "^5.8.2"
