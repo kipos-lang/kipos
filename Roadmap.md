@@ -1,4 +1,59 @@
 
+# To sum up:
+
+1. macros are imported specially
+2. ffi things are imported specially
+3. a "Language" (configuration) has an ID & Name, and points to a single export from a module compiled by some other language (maybe the base language)
+
+I wonder if it's important to specify ... the compilation target ... in the LanguageConfiguration... maybe I'll add that, or maybe not.
+
+BUT the hash that we're hashing is like the hash of the final artifact, that javascript bundle that is produced and then stored.
+DOES THIS MEAN that it's impossible to re-generate these artifacts?
+hmm. that is kinda what it means, and I don't love that.
+UNLESS ok so we ALSO want to like have a serialization of the code that went
+into it on the one end. all the CST in their modules.
+hmmm sooo another way to attack this is to integrate with Git, and say
+"If you want to generate a new Language you need a clean git stage".
+
+# Hm
+Ok, so if "langauge configuration" is just a single object that gets
+produced somewhere, it leads me to ask "should I have a formal system for
+an 'export', that is an 'artifact' that gets ... built.
+
+Ok because I definitely want to be able to pull up a list of
+"these are the languageconfigs that you might want to pull from".
+BUT that could easily just be "here are the ones you recently used
+or are currently in use by modules we know about".
+
+# FFI
+
+1) want to be able to say "this module + this exported name, compiled by this language config"
+2) [-] want to be able to say "I'm gonna inline some javascript"...maybe? eh that
+doesn't have to be handled by the IDE, it can just be an artifact of compilation.
+Same story with like inlining some ASM or WASM or whatever.
+
+:( ok, so having to specify the whole recursive languageconfiguration is
+actually going to get old. Soo maybe we do need to be able to say
+"this language config, by ID".
+
+hmmmmmm.
+ok hear me out, what if ... I just had a toplevel that was configured to use
+a different languageconfiguration.
+and that was how ffi worked.
+
+because I have an aversion to making it so the parser/autocompleter etc. have
+access to the list of languageconfigurations that the IDE knows about.
+
+I'd kinda rather handle that in the IDE, for example by
+--.
+ok here's another idea, I could do the same thing as with macro imports.
+just totally special case it.
+
+hmmmm remind me why I'm not special-casing imports in general? idk
+I guess I want to allow for innovation in that space too.
+
+ok but FFI is special enough that I'm happy to make it special.
+
 # the language
 
 Ok now let's talk about how allowing languageConfiguration to point to

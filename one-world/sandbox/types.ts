@@ -7,10 +7,11 @@ export type Module = {
     id: string;
     name: string;
     parent: string;
-    languageConfiguration: 'default' | Artifact;
+    languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
     editorPlugins: Record<string, any>;
     macroImports: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
+    ffiImports: { module: string; names: string[]; languageConfiguration: string }[];
     roots: string[];
     history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];
@@ -30,16 +31,13 @@ export type Artifact = {
     languageConfiguration: string; // by id
 };
 
-// // Should have either compiler or interpreter
-// export type LanguageConfiguration = {
-//     id: string;
-//     name: string;
-//     parser: Artifact;
-//     typeInference?: Artifact;
-//     intern?: Artifact;
-//     compiler?: Artifact;
-//     interpreter?: Artifact;
-// };
+export type LanguageConfiguration = {
+    id: string;
+    name: string;
+    artifact: Artifact;
+    built: number; // timestamp
+    hash: string; // TODO maybe the ID should just be a hash?
+};
 
 // hm
 // Is there a way to enforce that they're all using the same

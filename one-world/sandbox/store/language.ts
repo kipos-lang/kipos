@@ -20,7 +20,8 @@ export type Meta = { kind?: string; placeholder?: string };
 
 export type ParseResult<T> = {
     result: T | undefined;
-    externalReferences: { loc: string; name: string; namespace?: string }[];
+    externalReferences: { loc: string; name: string; namespace?: string[] }[];
+    ffiReferences: { loc: string; namespace: string[]; name: string };
     // hmmm do I really need the `goods` at this point...
     // goods: RecNode[];
     // bads: MatchError[];
@@ -40,7 +41,7 @@ export type Parser<Macro, AST> = {
     spans(ast: AST): Src[];
 };
 
-type InferResult<Type, TypeInfo> = {
+export type InferResult<Type, TypeInfo> = {
     result?: TypeInfo;
     types: Record<string, Type>;
     // hmm oh errors
@@ -49,14 +50,10 @@ type InferResult<Type, TypeInfo> = {
     events?: any[]; // add this in from the stepping debugger
 };
 
-type Inferrer<AST, Type, TypeInfo> = {
+export type Inferrer<AST, Type, TypeInfo> = {
     infer(ast: AST): InferResult<Type, TypeInfo>;
     typeToCST(type: Type): { cst: RecNode; meta: Record<string, Meta> };
 };
-
-// type Compiler<AST, TypeInfo> = {
-//     // hmm ... I think I need multiple ASTs? or wait, maybe IRs?
-// };
 
 /*
 
@@ -75,7 +72,8 @@ in the first example,
 //     intern?: (ast: AST, tinfo: TypeInfo) => IR;
 // };
 
-type Language<Macro, AST, Type, TypeInfo, IR = { ast: AST; tinfo: TypeInfo }, Target = string> = {
+export type Language<Macro, AST, Type, TypeInfo, IR = { ast: AST; tinfo: TypeInfo }, Target = string> = {
+    version: 1;
     parser: Parser<Macro, AST>;
     inferrer: Inferrer<AST, Type, TypeInfo>;
     intern?: (ast: AST, tinfo: TypeInfo) => IR;

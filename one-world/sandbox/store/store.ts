@@ -47,16 +47,17 @@ interface TopStore {
     useNode(path: Path): { node: Node; sel?: SelStatus };
 }
 
-export const newModule = (name = 'Hello'): Module => {
+export const newModule = (name = 'NewModule'): Module => {
     const id = genId();
     const tid = genId();
     const rid = genId();
     return {
         id,
+        name,
         history: [],
         editorPlugins: {},
-        name,
         macroImports: [],
+        ffiImports: [],
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
