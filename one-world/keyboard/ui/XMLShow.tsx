@@ -24,7 +24,7 @@ const XMLShow = ({
         const lst: XML[] = [];
         walxml(xml, (m) => {
             if (!m.src) return;
-            if (m.src.right || state.top.nodes[m.src.left[0].idx].type !== 'id') {
+            if (m.src.right || state.top.nodes[m.src.left].type !== 'id') {
                 lst.push(m);
             }
         });
@@ -32,13 +32,13 @@ const XMLShow = ({
     }, [xml, state]);
 
     const pos = (loc: Loc, right?: Loc): [number, number] | null => {
-        const lf = refs[loc[0].idx];
+        const lf = refs[loc];
         if (!lf) return null;
         const lb = lf.getBoundingClientRect();
         if (!right) {
             return [lb.left, lb.right];
         }
-        const rf = refs[right[0].idx];
+        const rf = refs[right];
         if (!rf) return null;
         const rb = rf.getBoundingClientRect();
         return [lb.left, rb.right];
@@ -90,14 +90,14 @@ const XMLShow = ({
                                     key={j}
                                     onClick={() => {
                                         const all = allPaths(state.top);
-                                        const st = all[span.left[0].idx];
+                                        const st = all[span.left];
                                         if (!span.right) {
                                             return;
                                         }
                                         const ssel = selectStart(st, state.top);
                                         if (!ssel) return;
 
-                                        const ed = all[span.right[0].idx];
+                                        const ed = all[span.right];
                                         dispatch({
                                             nodes: {},
                                             selection: {
@@ -105,7 +105,7 @@ const XMLShow = ({
                                                 // multi: { end: selEnd(ed) },
                                             },
                                         });
-                                        console.log(span, all[span.left[0].idx]);
+                                        console.log(span, all[span.left]);
                                         state.top;
                                     }}
                                     style={{

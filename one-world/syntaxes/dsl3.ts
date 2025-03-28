@@ -124,7 +124,7 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
         if (cm) {
             for (let i = 0; i < cm.consumed; i++) {
                 const node = parent.nodes[at + i];
-                ctx.meta[node.loc[0].idx] = { kind: 'comment' };
+                ctx.meta[node.loc] = { kind: 'comment' };
             }
             at += cm.consumed;
         }
@@ -143,7 +143,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
     switch (rule.type) {
         case 'kwd':
             if (node?.type !== 'id' || node.text !== rule.kwd) return;
-            ctx.meta[node.loc[0].idx] = { kind: rule.meta ?? 'kwd' };
+            ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             return { value: node, consumed: 1 };
         case 'id':
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return;
@@ -154,7 +154,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             const num = Number(node.text);
             if (!Number.isFinite(num)) return;
             if (rule.just === 'int' && !Number.isInteger(num)) return;
-            ctx.meta[node.loc[0].idx] = { kind: 'number' };
+            ctx.meta[node.loc] = { kind: 'number' };
             return { value: num, consumed: 1 };
         }
         case 'text':
@@ -211,7 +211,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (res && res.consumed < node.children.length) {
                 for (let i = res.consumed; i < node.children.length; i++) {
                     const child = node.children[i];
-                    ctx.meta[child.loc[0].idx] = { kind: 'unparsed' };
+                    ctx.meta[child.loc] = { kind: 'unparsed' };
                 }
             }
             return res ? { value: res.value, consumed: 1 } : res;
@@ -274,7 +274,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         }
         case 'tx': {
             const ictx: Ctx = { ...ctx, scope: {} };
-            const left = at < parent.nodes.length ? parent.nodes[at].loc : [];
+            const left = at < parent.nodes.length ? parent.nodes[at].loc : '';
             const m = match(rule.inner, ictx, parent, at);
             if (!m) return;
             const rat = at + m.consumed - 1;
@@ -599,7 +599,7 @@ export const parser: TestParser<Stmt> = {
             meta: {},
             autocomplete: cursor != null ? { loc: cursor, concrete: [], kinds: [] } : undefined,
         };
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: [] }, 0);
+        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: '' }, 0);
 
         return {
             result: res?.value,

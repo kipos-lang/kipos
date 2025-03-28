@@ -161,7 +161,7 @@ export const match_ = <T>(matcher: Matcher<T>, ctx: Ctx, parent: MatchParent, at
     switch (matcher.type) {
         case 'named': {
             if (at < parent.nodes.length && isBlank(parent.nodes[at])) {
-                const loc = parent.nodes[at].loc[0].idx;
+                const loc = parent.nodes[at].loc;
                 if (!ctx.meta[loc]) ctx.meta[loc] = { placeholder: matcher.name };
             }
             const res = match(matcher.inner, ctx, parent, at, endOfExhaustive);
@@ -177,7 +177,7 @@ export const match_ = <T>(matcher: Matcher<T>, ctx: Ctx, parent: MatchParent, at
                     const node = parent.nodes[at + i];
                     if (node.loc.length === 1) {
                         // TODO merge somehow idk
-                        ctx.meta[node.loc[0].idx] = { kind: matcher.kind };
+                        ctx.meta[node.loc] = { kind: matcher.kind };
                     }
                 }
             }
@@ -264,7 +264,7 @@ export const match_ = <T>(matcher: Matcher<T>, ctx: Ctx, parent: MatchParent, at
         }
         case 'mref':
             if (at < parent.nodes.length && isBlank(parent.nodes[at])) {
-                const loc = parent.nodes[at].loc[0].idx;
+                const loc = parent.nodes[at].loc;
                 if (!ctx.meta[loc]) ctx.meta[loc] = { placeholder: matcher.id };
             }
             return match(ctx.matchers[matcher.id], ctx, parent, at, endOfExhaustive);
@@ -285,7 +285,7 @@ export const match_ = <T>(matcher: Matcher<T>, ctx: Ctx, parent: MatchParent, at
             return { result: { data: matcher.f(node), consumed: 1 }, bad: [], good: [] };
         case 'id':
             if (node.type !== 'id' || ctx.kwds.includes(node.text)) return fail(matcher, node);
-            if (node.loc[0].idx === ctx.autocomplete?.loc) {
+            if (node.loc === ctx.autocomplete?.loc) {
                 ctx.autocomplete.kinds.push(matcher.kind);
             }
             // TODO: this is ... so that we'll keep going with placeholders and stuff
@@ -298,7 +298,7 @@ export const match_ = <T>(matcher: Matcher<T>, ctx: Ctx, parent: MatchParent, at
             }
             return fail(matcher, node);
         case 'kwd':
-            if (node.loc[0].idx === ctx.autocomplete?.loc) {
+            if (node.loc === ctx.autocomplete?.loc) {
                 ctx.autocomplete.concrete.push(matcher.text);
             }
             if (node.type !== 'id' || node.ref || node.text !== matcher.text) return fail(matcher, node);
@@ -392,7 +392,7 @@ export type ParseResult<T> = {
 };
 
 export const parse = <T>(matcher: Matcher<T>, node: RecNode, ctx: Ctx): ParseResult<T> => {
-    const res = match(matcher, ctx, { nodes: [node], loc: [] }, 0, true);
+    const res = match(matcher, ctx, { nodes: [node], loc: '' }, 0, true);
     const goods = foldBag([] as RecNode[], res.good, (ar, n) => (ar.push(n), ar));
     const bads = foldBag([] as MatchError[], res.bad, (ar, n) => ((n.type !== 'missing' ? !goods.includes(n.node) : true) ? (ar.push(n), ar) : ar));
     if (res.result?.consumed === 0) throw new Error('node not consumed');

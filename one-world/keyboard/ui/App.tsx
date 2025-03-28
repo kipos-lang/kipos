@@ -106,14 +106,14 @@ export const App = ({ id }: { id: string }) => {
     const [hover, setHover] = useState(null as null | NodeSelection);
 
     const parser = jsMinusParser;
-    const rootNode = root(state, (idx) => [{ id: '', idx }]);
+    const rootNode = root(state, (idx) => idx);
     const cursor = lastChild(state.selections[0].start.path);
     const parsed = parser.parse(rootNode, cursor);
     const errors = useMemo(() => {
         const errors: Record<NodeID, string> = {};
         parsed.bads.forEach((bad) => {
             if (bad.type !== 'missing') {
-                errors[bad.node.loc[0].idx] = bad.type === 'extra' ? 'Extra node in ' + show(bad.matcher) : 'Mismatch: ' + show(bad.matcher);
+                errors[bad.node.loc] = bad.type === 'extra' ? 'Extra node in ' + show(bad.matcher) : 'Mismatch: ' + show(bad.matcher);
             }
         });
         return errors;
@@ -135,21 +135,21 @@ export const App = ({ id }: { id: string }) => {
     const paths = useMemo(() => allPaths(state.top), [state.top]);
     const hoverSrc = (src: Src | null) => {
         if (!src || !src.left.length) return setHover(null);
-        const l = paths[src.left[0].idx];
+        const l = paths[src.left];
         if (!src.right || !src.right.length) return setHover({ start: selStart(l, { type: 'list', where: 'before' }) });
-        const r = paths[src.right[0].idx];
+        const r = paths[src.right];
         return setHover({ start: selStart(l, { type: 'list', where: 'before' }) });
     };
 
     const clickSrc = (src: Src | null) => {
         if (!src) return;
-        const l = paths[src.left[0].idx];
+        const l = paths[src.left];
         const start = selectStart(l, state.top);
         if (!start) return;
         if (!src.right) {
             return dispatch({ type: 'update', update: moveA(start) });
         }
-        const r = paths[src.right[0].idx];
+        const r = paths[src.right];
         return dispatch({ type: 'update', update: moveA(start) });
     };
 

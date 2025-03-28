@@ -79,7 +79,7 @@ export const stylesEqual = (one?: Style, two?: Style) => {
 // more intelligent merges
 type Src = { top: string; loc: NodeID; moved: boolean };
 
-export type Loc = { id: string; idx: NodeID }[];
+export type Loc = string;
 
 export type IdRef =
     | {

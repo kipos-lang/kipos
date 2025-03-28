@@ -78,9 +78,11 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                     mod.toplevels[key] = top;
                     return;
                 }
+                let nodesChanged = false;
                 Object.keys(top.nodes).forEach((k) => {
                     if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
                         changed[k] = true;
+                        nodesChanged = true;
                     }
                 });
                 mod.toplevels[key].nodes = top.nodes;
@@ -88,6 +90,7 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                     mod.toplevels[key].root = top.root;
                     shout(`top:${key}:root`);
                     shout(`top:${key}`);
+                    nodesChanged = true;
                 }
                 if (top.children !== mod.toplevels[key].children) {
                     mod.toplevels[key].children = top.children;
@@ -95,17 +98,20 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                     shout(`top:${key}`);
                 }
 
-                const node = root<Loc>({ top: mod.toplevels[key] });
-                const result = language.parser.parse([], node);
-                Object.entries(result.ctx.meta).forEach(([key, value]) => {
-                    if (!parseResults[key]) changed[key] = true;
-                    else if (!equal(value, parseResults[key].ctx.meta[key])) {
-                        changed[key] = true;
-                    }
-                });
-                // TODO: compare metas
-                parseResults[key] = result;
-                console.log('aprsed', result);
+                if (nodesChanged) {
+                    const node = root<Loc>({ top: mod.toplevels[key] });
+                    const result = language.parser.parse([], node);
+                    Object.entries(result.ctx.meta).forEach(([key, value]) => {
+                        if (!parseResults[key]) changed[key] = true;
+                        else if (!equal(value, parseResults[key].ctx.meta[key])) {
+                            changed[key] = true;
+                        }
+                    });
+                    // TODO: compare metas
+                    parseResults[key] = result;
+                    console.log('did a new parse', key);
+                    console.log(result);
+                }
             });
 
             if (mod.roots !== result.roots) {

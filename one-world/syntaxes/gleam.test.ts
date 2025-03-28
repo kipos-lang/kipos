@@ -19,7 +19,7 @@ test('long thing', () => {
     const state = cread(splitGraphemes(text), js);
     const gleam = d.parse(
         g.matchers.stmt,
-        root(state, (idx) => [{ id: '', idx }]),
+        root(state, (idx) => idx),
         { matchers: g.matchers, kwds: g.kwds, meta: {} },
     );
     expect(gleam.bads).toEqual([]);
@@ -34,7 +34,7 @@ test('expr exhaustive must be', () => {
     const state = cread(splitGraphemes(text), js);
     const gleam = d.parse(
         g.matchers.stmt,
-        root(state, (idx) => [{ id: '', idx }]),
+        root(state, (idx) => idx),
         { matchers: g.matchers, kwds: g.kwds, meta: {} },
     );
     expect(gleam.bads).not.toEqual([]);

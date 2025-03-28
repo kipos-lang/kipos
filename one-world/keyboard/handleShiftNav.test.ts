@@ -222,7 +222,7 @@ test('smoosh tab round next', () => {
 //             curly([spaced([id('2', 2), id('-'), id('3', 0), id('*'), id('5', 1)], 3)], 4),
 //         ]),
 //     );
-//     const rootNode = root({ top }, (idx) => [{ id: '', idx }]);
+//     const rootNode = root({ top }, (idx) => idx);
 //     const c = ctx();
 //     const gleam = parse(matchers.stmt, rootNode, c);
 //     const spans: Src[] = gleam.result ? stmtSpans(gleam.result) : [];

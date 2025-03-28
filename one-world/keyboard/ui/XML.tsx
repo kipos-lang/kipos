@@ -32,8 +32,8 @@ const tagStyle = {
 };
 
 const isSelected = (src: Src, statuses: SelectionStatuses) => {
-    const lno = src.left[0]?.idx;
-    const rno = src.right?.[0]?.idx;
+    const lno = src.left;
+    const rno = src.right;
     return Object.keys(statuses).some((key) => {
         return key.endsWith(';' + lno) || key.endsWith(',' + lno) || key.endsWith(';' + rno) || key.endsWith(',' + rno);
     });

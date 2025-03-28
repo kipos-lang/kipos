@@ -37,8 +37,8 @@ const fixes = {
 
 const run = (input: string, matcher: string, mctx = ctx) => {
     const state = cread(splitGraphemes(input), js);
-    const rt = root(state, (idx) => [{ id: '', idx }]);
-    const res = match({ type: 'ref', name: matcher }, mctx, { nodes: [rt], loc: [] }, 0);
+    const rt = root(state, (idx) => idx);
+    const res = match({ type: 'ref', name: matcher }, mctx, { nodes: [rt], loc: '' }, 0);
     return res;
 };
 
@@ -52,7 +52,7 @@ Object.entries(fixes).forEach(([key, values]) => {
 
 test.skip('meta from one path doesnt pollute another', () => {
     const state = cread(splitGraphemes('(1,2)'), js);
-    const rt = root(state, (idx) => [{ id: '', idx }]);
+    const rt = root(state, (idx) => idx);
     const mctx: Ctx = {
         meta: {},
         kwds: [],
@@ -66,7 +66,7 @@ test.skip('meta from one path doesnt pollute another', () => {
             ),
         },
     };
-    const res = match({ type: 'ref', name: 'top' }, mctx, { nodes: [rt], loc: [] }, 0);
+    const res = match({ type: 'ref', name: 'top' }, mctx, { nodes: [rt], loc: '' }, 0);
     expect(res?.value).toEqual({ which: 2 });
     expect(mctx.meta).toEqual({});
 });
@@ -284,8 +284,8 @@ test('stmt', () => {
 //     values.forEach((value) => {
 //         test(`${key} + ${value}`, () => {
 //             const state = cread(splitGraphemes(value), js);
-//             const rt = root(state, (idx) => [{ id: '', idx }]);
-//             const res = match({ type: 'ref', name: key }, ctx, { nodes: [rt], loc: [] }, 0);
+//             const rt = root(state, (idx) => idx);
+//             const res = match({ type: 'ref', name: key }, ctx, { nodes: [rt], loc: '' }, 0);
 //             expect(res?.consumed).toEqual(1);
 //         });
 //     });

@@ -24,7 +24,7 @@ const fixes = {
 
 const run = (input: string) => {
     const state = cread(splitGraphemes(input), js);
-    const rt = root(state, (idx) => [{ id: '', idx }]);
+    const rt = root(state, (idx) => idx);
     const res = parser.parse(rt);
     return res;
 };

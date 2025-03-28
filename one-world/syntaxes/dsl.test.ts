@@ -6,7 +6,7 @@ import { lastChild } from '../keyboard/utils';
 
 // test('match id', () => {
 //     const node = id<Loc>('lol');
-//     expect(d.match(d.id(null, d.idt), { matchers: {}, kwds: [], meta: {} }, { nodes: [node], loc: [] }, 0)).toEqual({
+//     expect(d.match(d.id(null, d.idt), { matchers: {}, kwds: [], meta: {} }, { nodes: [node], loc: '' }, 0)).toEqual({
 //         result: { data: node, consumed: 1 },
 //         good: [node, []],
 //         bad: [],
@@ -15,7 +15,7 @@ import { lastChild } from '../keyboard/utils';
 
 test('lol', () => {
     const state = asTop(spaced([id('let'), id('x'), id('='), id('', true)]), idc(0));
-    const rootNode = root(state, (idx) => [{ id: '', idx }]);
+    const rootNode = root(state, (idx) => idx);
     const c: d.Ctx = {
         matchers: {
             stmt: d.list(

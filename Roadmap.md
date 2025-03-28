@@ -1,5 +1,16 @@
 
+# Ok now parsing is in the picture, and guess what??
+I want a sidebar debugger.
+Suprisesee
+
+# Thoughts about locs being strings
+
 gonna want `Loc` to go to just `string` instead of that whole thing.
+
+I think I want something else, like another attribute, on the node,
+that can tell me "where this came from", like "if this was on a macro"
+or whatever. But it shouldn't be in the main data structure that I'm always
+accessing.
 
 # gittt
 
