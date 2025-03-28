@@ -10,6 +10,7 @@ export type Module = {
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
     editorPlugins: Record<string, any>;
+    macrosFrom: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
     roots: string[];
     history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];

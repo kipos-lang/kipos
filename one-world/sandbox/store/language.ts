@@ -33,13 +33,14 @@ export type ParseResult<T> = {
     };
 };
 
-export type Parser<AST> = {
+export type Parser<Macro, AST> = {
     config: Config;
-    parse(node: RecNode, cursor?: string): ParseResult<AST>;
+    parse(macros: Macro[], node: RecNode, cursor?: string): ParseResult<AST>;
     spans(ast: any): Src[];
 };
 
-type InferResult<Type> = {
+type InferResult<Type, TypeInfo> = {
+    result?: TypeInfo;
     types: Record<string, Type>;
     // hmm oh errors
     meta: Record<string, Meta>;
@@ -47,14 +48,32 @@ type InferResult<Type> = {
     events?: any[]; // add this in from the stepping debugger
 };
 
-type Inferrer<AST, Type> = {
-    infer(ast: AST): InferResult<Type>;
+type Inferrer<AST, Type, TypeInfo> = {
+    infer(ast: AST): InferResult<Type, TypeInfo>;
     typeToCST(type: Type): { cst: RecNode; meta: Record<string, Meta> };
 };
 
-type Language<AST, Type> = {
-    parser: Parser<AST>;
-    // typeInference
+type Compiler<AST, TypeInfo> = {
+    // hmm ... I think I need multiple ASTs? or wait, maybe IRs?
+};
+
+/*
+
+so we can say
+parse -> infer -> compile -> print
+parse -> infer -> compile -> eval
+or
+parse -> infer -> compile
+parse -> infer -> eval
+
+in the first example,
+
+
+*/
+
+type Language<Macro, AST, Type, TypeInfo> = {
+    parser: Parser<Macro, AST>;
+    inferrer: Inferrer<AST, Type, TypeInfo>;
     // compiler
     // interpreter
 };

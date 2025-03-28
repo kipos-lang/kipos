@@ -56,6 +56,7 @@ export const newModule = (name = 'Hello'): Module => {
         history: [],
         editorPlugins: {},
         name,
+        macrosFrom: [],
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],

@@ -7,6 +7,86 @@ CST -> AST
 also produces /meta/ for syntax highlighting
 and (error reporting?) because parse errors are local...
 
+WAIT ok so we also want:
+- macrooos
+  - so a macro gets defined as operating on a given DSL key
+
+is it premature to lock things down to my DSL?
+wouldn't I want to support different algorithms?
+
+OOOH OK SO hm, we could say that ... the parser expects macros in (a certain format), and the particulars of what that is are left open. Yeah.
+
+I definitely want to be able to support rolling your own algorithm.
+BUT
+how does the parser know what macros it should be using?
+we look to the module, and we hoist all `import` ... things ...
+hm hrm hm I wonder if imports need to be ... treated separately somehow.
+so that I know to parse them first, and that they don't have any macros involved.
+definitely got to say that an importy toplevel can't have macros happening.
+
+OK so the story is, if you want to do an import,
+you add it to the imports section at the top.
+BUT that section is still free-form, and handled by the parser.
+BUT I think maybe we'll have a separate 'parseImport' function,
+just to be clear about our types and expectations.
+
+question: how nailed down to imports need to be?
+also question: do we allow cross-module references without an import?
+ok I think the answer is, you can do fully-qualified stuff, but the import
+still needs to be listed at the top of your thing.
+
+soooo parsing a module import
+does it do resolution? or does it just produce a name,
+and the IDE does resolution?
+do we want to allow ... the language control over how they represent resolution?
+
+also: module renaming / moving, how do we want that to be represented?
+
+`a/b/c` is one way. `a.b.c` is another.
+
+and you could imagine others.
+Does that mean the `parser` needs to be queried in order
+
+#### Lol ok start this again...
+
+## parser
+
+ok, first we go through the imports
+also, can imports be nested in the same way?
+like, can you do the whole "this toplevel has children" thing.
+kinda why not, right
+
+- walk the imports trees, figure out all the imports
+- macro imports are special, and should be designated as such
+  - what about importing a macro function as a function? is that possible?
+    I mean I guess it's not strictly a function, right.
+- import star probably means that we need to check for macros...
+
+OK OK OK *alternatively*
+we could just require that you declare the modules that you're importing
+macros from at the module-level
+and then other importy stuff is left entirely as an exercise to the user.
+yeah, that seems better, and less...bespoke?
+
+SO: there's a place to define "modules you are using macros from",
+and we just grab all of the macros that are defined in that module.
+DO WE want to allow re-exporting of macros? honestly probably
+want to support both kinds.
+given that macros aren't values, as such.
+
+- languages should expose a `parseWithMacros` function for testing macros in the same module.
+
+## More macro thoughts
+it occurs to me that... doing macros that are "direct parser extensions" is materially different, because the macro does `CST -> AST` instead of `CST -> CST`.
+This means that there wouldn't be a way to "show the macro-expanded code", which is a downside.
+On the other hand, it should allow for more powerful & simpler macros, that better integrate into the rest of the parser; e.g. you can say "and now parse an expression" and it will do it.
+So I think I'm happy with the tradeoff.
+
+
+## parser, this time with feeling
+
+- load macros from the modules specified
+
 ## inferrer
 
 AST -> TINFO
