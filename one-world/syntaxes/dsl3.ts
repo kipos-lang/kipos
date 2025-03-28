@@ -61,6 +61,7 @@ export type Ctx = {
 export type Rule<T> =
     | { type: 'or'; opts: Rule<T>[] }
     | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src) => T }
+    | { type: 'meta'; meta: string; inner: Rule<T> }
     | { type: 'kwd'; kwd: string; meta?: string }
     | { type: 'ref'; name: string; bind?: string }
     | { type: 'seq'; rules: Rule<any>[] }
@@ -81,6 +82,8 @@ const show = (rule: Rule<unknown>): string => {
             return rule.kwd;
         case 'ref':
             return '$' + rule.name;
+        case 'meta':
+            return `meta(${show(rule.inner)},${rule.meta})`;
         case 'seq':
             return `seq(${rule.rules.map(show).join(' ')})`;
         case 'star':
@@ -112,9 +115,9 @@ const show = (rule: Rule<unknown>): string => {
 
 let indent = 0;
 
-type Result = { value?: any; consumed: number };
+type Result<T> = { value?: T; consumed: number };
 
-export const match = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result => {
+export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<T> => {
     if (ctx.rules.comment) {
         const { comment, ...without } = ctx.rules;
         const cm = match_(ctx.rules.comment, { ...ctx, rules: without }, parent, at);
@@ -135,7 +138,7 @@ export const match = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number
 };
 
 // TODO: track a pathhhh
-export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result => {
+export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<any> => {
     const node = parent.nodes[at];
     switch (rule.type) {
         case 'kwd':
@@ -337,6 +340,7 @@ export const text = <T>(embed: Rule<T>): Rule<TextSpan<T>[]> => ({ type: 'text',
 // - List
 // - Table
 export const kwd = (kwd: string, meta?: string): Rule<unknown> => ({ type: 'kwd', kwd, meta });
+export const meta = (inner: Rule<unknown>, meta: string): Rule<unknown> => ({ type: 'meta', meta, inner });
 export const id = (kind?: string | null): Rule<unknown> => ({ type: 'id', kind });
 const int: Rule<number> = { type: 'number', just: 'int' };
 const float: Rule<number> = { type: 'number', just: 'float' };
@@ -595,7 +599,7 @@ export const parser: TestParser<Stmt> = {
             meta: {},
             autocomplete: cursor != null ? { loc: cursor, concrete: [], kinds: [] } : undefined,
         };
-        const res = match({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: [] }, 0);
+        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: [] }, 0);
 
         return {
             result: res?.value,

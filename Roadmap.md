@@ -1,4 +1,18 @@
 
+gonna want `Loc` to go to just `string` instead of that whole thing.
+
+# gittt
+
+// @isomorphic-git/lightning-fs isomorphic-git buffer
+
+looks like I can run git in the broser.
+anndddd how much do I have to care about that...
+
+I'll deal with it laterish
+
+I'm not going to do any branching I don't think, so
+I won't mess with merges
+
 # To sum up:
 
 1. macros are imported specially
@@ -14,6 +28,10 @@ UNLESS ok so we ALSO want to like have a serialization of the code that went
 into it on the one end. all the CST in their modules.
 hmmm sooo another way to attack this is to integrate with Git, and say
 "If you want to generate a new Language you need a clean git stage".
+
+...
+
+honestly maybe I can have ... git in the browser too.
 
 # Hm
 Ok, so if "langauge configuration" is just a single object that gets

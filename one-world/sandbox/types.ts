@@ -36,7 +36,7 @@ export type LanguageConfiguration = {
     name: string;
     artifact: Artifact;
     built: number; // timestamp
-    hash: string; // TODO maybe the ID should just be a hash?
+    hash: string; // TODO maybe the ID should just be a hash? orrr maybe this will be the HEAD commit hash
 };
 
 // hm
