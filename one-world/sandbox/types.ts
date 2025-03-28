@@ -7,10 +7,10 @@ export type Module = {
     id: string;
     name: string;
     parent: string;
-    languageConfiguration: string;
+    languageConfiguration: 'default' | Artifact;
     toplevels: Record<string, Toplevel>;
     editorPlugins: Record<string, any>;
-    macrosFrom: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
+    macroImports: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
     roots: string[];
     history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];
@@ -30,18 +30,16 @@ export type Artifact = {
     languageConfiguration: string; // by id
 };
 
-// Should have either compiler or interpreter
-export type LanguageConfiguration = {
-    id: string;
-    name: string;
-    parser: Artifact;
-    typeInference?: Artifact;
-    compiler?: {
-        target: 'js' | 'wasm' | 'glsl';
-        source: Artifact;
-    };
-    interpreter?: Artifact;
-};
+// // Should have either compiler or interpreter
+// export type LanguageConfiguration = {
+//     id: string;
+//     name: string;
+//     parser: Artifact;
+//     typeInference?: Artifact;
+//     intern?: Artifact;
+//     compiler?: Artifact;
+//     interpreter?: Artifact;
+// };
 
 // hm
 // Is there a way to enforce that they're all using the same

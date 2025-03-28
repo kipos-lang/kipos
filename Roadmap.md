@@ -1,6 +1,28 @@
 
 # the language
 
+Ok now let's talk about how allowing languageConfiguration to point to
+multiple things allows you to have different parts of it be
+written in different languages.
+
+Is that ... just a footgun?
+you know, hmmm I think I probably want to handle that differently,
+where I have an explicit FFI setup that you can use anywhere,
+and then the "language config" is just a single artifact exported from somewhere.
+and it can use FFI if it wants to.
+
+Yeah I like that better. Then I can deal with the "how to have a well-typed ffi"
+in just one place.
+
+###
+
+Alright let's talk about ... whether or not we need an IR step
+I guess it could be like an `intern` step that does AST+TInfo -> IR
+
+so the reason you would want a separate step for it, is as an optimization.
+therefore, I can call it optional. and the default "intern" is just
+to have [AST, TypeInfo] as a tuple.
+
 ## parser
 
 CST -> AST
@@ -86,6 +108,12 @@ So I think I'm happy with the tradeoff.
 ## parser, this time with feeling
 
 - load macros from the modules specified
+- call `parse` on the toplevels, passing in the macros
+
+now ... from `parse`, are we able to construct the dependency graph?
+seems like we would want to be able to.
+which means that `parseResult` would want to tell us "this is an external reference"
+and ... such like.
 
 ## inferrer
 

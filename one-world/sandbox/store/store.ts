@@ -2,10 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Action, AppState } from './state';
 import { Node } from '../../shared/cnodes';
 import { useHash } from '../../useHash';
-import { LanguageConfiguration, Module, Toplevel } from '../types';
+import { Module, Toplevel } from '../types';
 import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
-import { loadLanguageConfigs, loadModules, saveModule } from './storage';
+import { loadModules, saveModule } from './storage';
 import { makeEditor } from './makeEditor';
 import { TestParser } from '../../keyboard/test-utils';
 
@@ -18,7 +18,7 @@ type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>
 
 interface Store {
     module(id: string): Module;
-    get languageConfigs(): Record<string, LanguageConfiguration>;
+    // get languageConfigs(): Record<string, LanguageConfiguration>;
     // get moduleTree(): ModuleTree;
     select(id: string): void;
     addModule(module: Module): void;
@@ -56,7 +56,7 @@ export const newModule = (name = 'Hello'): Module => {
         history: [],
         editorPlugins: {},
         name,
-        macrosFrom: [],
+        macroImports: [],
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
@@ -92,13 +92,13 @@ export const defaultLanguageConfig = 'default';
 
 export type Evt = 'modules' | 'selected' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
 
-const makeLanguage = (configurations: Record<string, LanguageConfiguration>) => {
-    const languages = {};
-};
+// const makeLanguage = (configurations: Record<string, LanguageConfiguration>) => {
+//     const languages = {};
+// };
 
 const createStore = (): Store => {
     const modules = loadModules();
-    const configs = loadLanguageConfigs();
+    // const configs = loadLanguageConfigs();
 
     let treeCache = makeModuleTree(modules);
     let selected = location.hash.slice(1);
@@ -152,9 +152,9 @@ const createStore = (): Store => {
             treeCache = makeModuleTree(modules);
             shout('modules');
         },
-        get languageConfigs() {
-            return configs;
-        },
+        // get languageConfigs() {
+        //     return configs;
+        // },
         useModuleTree() {
             useTick(`modules`);
             return treeCache;

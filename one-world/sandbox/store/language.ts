@@ -2,24 +2,25 @@ import { Src } from '../../keyboard/handleShiftNav';
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
 
-export type MatchError =
-    | {
-          type: 'mismatch' | 'extra';
-          // matcher: Matcher<any>;
-          node: RecNode;
-      }
-    | {
-          type: 'missing';
-          //   matcher: Matcher<any>;
-          at: number;
-          parent: string;
-          sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
-      };
+// export type MatchError =
+//     | {
+//           type: 'mismatch' | 'extra';
+//           // matcher: Matcher<any>;
+//           node: RecNode;
+//       }
+//     | {
+//           type: 'missing';
+//           //   matcher: Matcher<any>;
+//           at: number;
+//           parent: string;
+//           sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
+//       };
 
 export type Meta = { kind?: string; placeholder?: string };
 
 export type ParseResult<T> = {
     result: T | undefined;
+    externalReferences: { loc: string; name: string; namespace?: string }[];
     // hmmm do I really need the `goods` at this point...
     // goods: RecNode[];
     // bads: MatchError[];
@@ -36,7 +37,7 @@ export type ParseResult<T> = {
 export type Parser<Macro, AST> = {
     config: Config;
     parse(macros: Macro[], node: RecNode, cursor?: string): ParseResult<AST>;
-    spans(ast: any): Src[];
+    spans(ast: AST): Src[];
 };
 
 type InferResult<Type, TypeInfo> = {
@@ -53,9 +54,9 @@ type Inferrer<AST, Type, TypeInfo> = {
     typeToCST(type: Type): { cst: RecNode; meta: Record<string, Meta> };
 };
 
-type Compiler<AST, TypeInfo> = {
-    // hmm ... I think I need multiple ASTs? or wait, maybe IRs?
-};
+// type Compiler<AST, TypeInfo> = {
+//     // hmm ... I think I need multiple ASTs? or wait, maybe IRs?
+// };
 
 /*
 
@@ -68,12 +69,16 @@ parse -> infer -> eval
 
 in the first example,
 
-
 */
 
-type Language<Macro, AST, Type, TypeInfo> = {
+// type Inferner<AST, TypeInfo, IR> = {
+//     intern?: (ast: AST, tinfo: TypeInfo) => IR;
+// };
+
+type Language<Macro, AST, Type, TypeInfo, IR = { ast: AST; tinfo: TypeInfo }, Target = string> = {
     parser: Parser<Macro, AST>;
     inferrer: Inferrer<AST, Type, TypeInfo>;
-    // compiler
-    // interpreter
+    intern?: (ast: AST, tinfo: TypeInfo) => IR;
+    compile(ir: IR, deps: Record<string, IR>): Target;
+    eval(ir: IR, deps: Record<string, any>): any;
 };
