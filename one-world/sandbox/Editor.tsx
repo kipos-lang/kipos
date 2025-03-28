@@ -127,7 +127,6 @@ const KeyHandler = () => {
                 key: evt.key,
                 mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
                 // visual,
-                config: js, // parser.config,
             });
         },
         [editor, sel],

@@ -23,7 +23,7 @@ const R = ({ node, self, sel }: { node: Node; self: Path; sel?: SelStatus }) => 
 
 export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
-    const { node, sel } = useContext(UseNodeCtx)(self);
+    const { node, sel, meta } = useContext(UseNodeCtx)(self);
 
     return (
         <>
@@ -31,7 +31,7 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
                 {id.slice(-5)}:{node.type}
             </span> */}
 
-            {/* {sel ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(sel)}</span> : null} */}
+            {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null}
             <R node={node} self={self} sel={sel} />
         </>
         // <span data-self={JSON.stringify(self)} data-id={id}>

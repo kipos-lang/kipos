@@ -14,6 +14,7 @@ import { selectStart } from '../../keyboard/handleNav';
 import { validate } from '../../keyboard/validate';
 
 export type AppState = {
+    config: Config;
     roots: string[];
     tops: Record<string, Toplevel>;
     selections: NodeSelection[];
@@ -112,7 +113,7 @@ const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | v
 export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
     | { type: 'update'; update: KeyAction[] | null | undefined }
-    | { type: 'key'; key: string; mods: Mods; visual?: Visual; config: Config }
+    | { type: 'key'; key: string; mods: Mods; visual?: Visual }
     | { type: 'selections'; selections: NodeSelection[] }
     | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'rm-tl'; id: string }
@@ -321,7 +322,7 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
                     throw new Error(`multi-toplevel, not doing`);
                 }
                 const top = tops[sel.start.path.root.top];
-                const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, action.config);
+                const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, state.config);
                 if (!update) continue;
                 for (let keyAction of update) {
                     const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction);

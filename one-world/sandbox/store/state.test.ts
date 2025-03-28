@@ -16,6 +16,7 @@ import { Mods } from '../../keyboard/handleShiftNav';
 const show = (state: AppState) => state.roots.map((id) => shape(root({ top: state.tops[id] }))).join('\n');
 
 const initial = (): AppState => ({
+    config: js,
     history: [],
     roots: ['a'],
     selections: [{ start: selStart({ root: { top: 'a', ids: [] }, children: ['b'] }, { type: 'id', end: 0 }) }],
@@ -24,7 +25,7 @@ const initial = (): AppState => ({
 
 test('ok can do have a little undo', () => {
     const nextLoc = nloc();
-    let state = reduce(initial(), { type: 'key', key: 'a', config: js, mods: {} }, false, nextLoc);
+    let state = reduce(initial(), { type: 'key', key: 'a', mods: {} }, false, nextLoc);
     expect(show(state)).toEqual('id(a/0)');
     state = reduce(state, { type: 'undo' }, false, nextLoc);
     expect(show(state)).toEqual('id()');
@@ -32,9 +33,9 @@ test('ok can do have a little undo', () => {
 
 test('arrow shouldnt add history', () => {
     const nextLoc = nloc();
-    let state = reduce(initial(), { type: 'key', key: 'a', config: js, mods: {} }, false, nextLoc);
+    let state = reduce(initial(), { type: 'key', key: 'a', mods: {} }, false, nextLoc);
     expect(show(state)).toEqual('id(a/0)');
-    state = reduce(state, { type: 'key', key: 'ArrowLeft', config: js, mods: {} }, false, nextLoc);
+    state = reduce(state, { type: 'key', key: 'ArrowLeft', mods: {} }, false, nextLoc);
     expect(show(state)).toEqual('id(a/0)');
     expect(state.history).toHaveLength(1);
 });
@@ -44,7 +45,7 @@ const dontLoc = () => {
 };
 
 const key = (state: AppState, key: string, nextLoc: () => string = dontLoc, mods: Mods = {}) =>
-    reduce(state, { type: 'key', key, config: js, mods }, false, nextLoc);
+    reduce(state, { type: 'key', key, mods }, false, nextLoc);
 
 test('closing string', () => {
     const nextLoc = nloc();
@@ -71,7 +72,7 @@ test('space wrap', () => {
 
 // test('can we wrap', () => {
 //     const nextLoc = nloc();
-//     let state = reduce(initial(), { type: 'key', key: 'a', config: js, mods: {} }, false, nextLoc);
+//     let state = reduce(initial(), { type: 'key', key: 'a', mods: {} }, false, nextLoc);
 //     expect(show(state)).toEqual('id(a/0)');
 //     state = reduce(state, { type: 'undo' }, false, nextLoc);
 //     expect(show(state)).toEqual('id()');

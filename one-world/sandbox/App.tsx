@@ -7,6 +7,7 @@ import { Editor } from './Editor';
 import { lightColor, lightColorA } from '../keyboard/ui/colors';
 import { EditIcon } from './icons';
 import { css } from 'goober';
+import { Meta } from './store/language';
 
 export const App = () => {
     return (
@@ -70,7 +71,7 @@ export const Top = ({ id }: { id: string }) => {
     );
 };
 
-export const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus } => {
+export const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus; meta?: Meta } => {
     throw new Error('n');
 });
 

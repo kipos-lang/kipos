@@ -7,7 +7,7 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
 import { makeEditor } from './makeEditor';
-import { TestParser } from '../../keyboard/test-utils';
+import { Meta } from './language';
 
 export type ModuleTree = {
     node?: Module;
@@ -44,7 +44,7 @@ export type SelStatus = {
 interface TopStore {
     top: Toplevel;
     useRoot(): string;
-    useNode(path: Path): { node: Node; sel?: SelStatus };
+    useNode(path: Path): { node: Node; sel?: SelStatus; meta?: Meta };
 }
 
 export const newModule = (name = 'NewModule'): Module => {

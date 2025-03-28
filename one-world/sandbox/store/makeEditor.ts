@@ -1,8 +1,13 @@
+import equal from 'fast-deep-equal';
+import { root } from '../../keyboard/root';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import { genId } from '../../keyboard/ui/genId';
 import { SelectionStatuses, mergeHighlights, Path, lastChild, pathKey } from '../../keyboard/utils';
 import { validate } from '../../keyboard/validate';
+import { Loc } from '../../shared/cnodes';
+import { ParseResult } from '../../syntaxes/algw-s2-return';
 import { Module } from '../types';
+import { defaultLang } from './default-lang/default-lang';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { Evt, allIds } from './store';
@@ -26,6 +31,10 @@ const recalcSelectionStatuses = (mod: Module) => {
 
 export const makeEditor = (selected: string, modules: Record<string, Module>, useTick: (evt: Evt) => void, shout: (evt: Evt) => void) => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
+    let language = defaultLang;
+
+    const parseResults: Record<string, ParseResult<any>> = {};
+
     return {
         selected,
         useModule() {
@@ -40,6 +49,7 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
             const mod = modules[selected];
             const result = reduce(
                 {
+                    config: language.parser.config,
                     tops: { ...mod.toplevels },
                     roots: mod.roots,
                     history: mod.history,
@@ -59,7 +69,6 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                 mod.selections = result.selections;
                 shout(`module:${selected}:selection`);
             }
-            const changedTops: Record<string, true> = {};
 
             const old = selectionStatuses;
             selectionStatuses = recalcSelectionStatuses(mod);
@@ -85,6 +94,18 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                     shout(`top:${key}:children`);
                     shout(`top:${key}`);
                 }
+
+                const node = root<Loc>({ top: mod.toplevels[key] });
+                const result = language.parser.parse([], node);
+                Object.entries(result.ctx.meta).forEach(([key, value]) => {
+                    if (!parseResults[key]) changed[key] = true;
+                    else if (!equal(value, parseResults[key].ctx.meta[key])) {
+                        changed[key] = true;
+                    }
+                });
+                // TODO: compare metas
+                parseResults[key] = result;
+                console.log('aprsed', result);
             });
 
             if (mod.roots !== result.roots) {
@@ -124,6 +145,7 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                     return {
                         node: modules[selected].toplevels[top].nodes[lastChild(path)],
                         sel: selectionStatuses[pathKey(path)],
+                        meta: parseResults[top]?.ctx.meta[lastChild(path)],
                     };
                 },
                 useRoot() {

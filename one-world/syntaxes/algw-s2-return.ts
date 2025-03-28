@@ -325,18 +325,18 @@ export type MatchError =
 
 export type ParseResult<T> = {
     result: T | undefined;
-    goods: RecNode[];
-    bads: MatchError[];
+    // goods: RecNode[];
+    // bads: MatchError[];
     ctx: Pick<Ctx, 'autocomplete' | 'meta'>;
 };
 
-export type TestParser<T> = {
-    config: Config;
-    parse(node: RecNode, cursor?: NodeID): ParseResult<T>;
-    spans(ast: any): Src[];
+type Macro = {
+    parent: string;
+    id: string;
+    body: Rule<any>;
 };
 
-export const parser: TestParser<Stmt> = {
+export const parser = {
     config: {
         punct: ['.', '/', '~`!@#$%^&*+-=\\/?:><'],
         space: ' ',
@@ -347,19 +347,17 @@ export const parser: TestParser<Stmt> = {
         xml: true,
     },
     spans: () => [],
-    parse(node, cursor) {
-        const c = {
-            ...ctx,
-            meta: {},
-            autocomplete: cursor != null ? { loc: cursor, concrete: [], kinds: [] } : undefined,
-        };
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: [] }, 0);
-
-        return {
-            result: res?.value,
-            ctx: { meta: c.meta },
-            bads: [],
-            goods: [],
-        };
+    parse(macros: Macro[], node: RecNode) {
+        const myctx = { ...ctx, meta: {}, rules: { ...ctx.rules } };
+        macros.forEach((macro) => {
+            if (!myctx.rules[macro.parent]) {
+                console.warn(`Specified macro parent ${macro.parent} not found`);
+            } else {
+                myctx.rules[macro.id] = macro.body;
+                myctx.rules[macro.parent] = or(macro.body, ref(macro.id));
+            }
+        });
+        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { nodes: [node], loc: [] }, 0);
+        return { result: res?.value, ctx: { meta: myctx.meta } };
     },
 };
