@@ -1,6 +1,6 @@
-import { Type } from '../../../syntaxes/algw-s2-types';
+import { parser } from '../../../syntaxes/algw-s2-return';
+import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Rule } from '../../../syntaxes/dsl3';
-import { Stmt } from '../../../syntaxes/js--types';
 import { js } from '../../../syntaxes/lexer';
 import { Language } from '../language';
 
@@ -13,13 +13,14 @@ type Macro = {
 export const defaultLang: Language<Macro, Stmt, Type, any> = {
     version: 1,
     parser: {
-        config: js,
+        config: parser.config,
         parse(macros, node) {
+            const result = parser.parse(node);
             return {
-                ctx: { meta: {} },
+                ctx: { meta: result.ctx.meta },
                 externalReferences: [],
                 ffiReferences: [],
-                result: undefined,
+                result: result.result,
             };
         },
         spans(ast) {
