@@ -21,7 +21,7 @@ export type Meta = { kind?: string; placeholder?: string };
 export type ParseResult<T> = {
     result: T | undefined;
     externalReferences: { loc: string; name: string; namespace?: string[] }[];
-    ffiReferences: { loc: string; namespace: string[]; name: string };
+    ffiReferences: { loc: string; namespace: string[]; name: string }[];
     // hmmm do I really need the `goods` at this point...
     // goods: RecNode[];
     // bads: MatchError[];
@@ -75,8 +75,8 @@ in the first example,
 export type Language<Macro, AST, Type, TypeInfo, IR = { ast: AST; tinfo: TypeInfo }, Target = string> = {
     version: 1;
     parser: Parser<Macro, AST>;
-    inferrer: Inferrer<AST, Type, TypeInfo>;
+    inferrer?: Inferrer<AST, Type, TypeInfo>;
     intern?: (ast: AST, tinfo: TypeInfo) => IR;
-    compile(ir: IR, deps: Record<string, IR>): Target;
-    eval(ir: IR, deps: Record<string, any>): any;
+    compile?(ir: IR, deps: Record<string, IR>): Target;
+    eval?(ir: IR, deps: Record<string, any>): any;
 };
