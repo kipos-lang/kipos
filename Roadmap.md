@@ -43,6 +43,10 @@ I kinda like that better. I think it will scan better too.
 - [x] all the fancy; named args, constructors, multi-bops, spreads
 - [x] in a table, need to be able to do a 'drop-table' mode.
 
+# Debug parsing
+
+- [ ] let's have the ability to show the parsed stuff pls
+
 # Getting macroy
 
 - [ ] need to be able to do ffi imports, so I can import the dsl functions
@@ -56,13 +60,19 @@ I kinda like that better. I think it will scan better too.
     - @p(...) pat
     - @t(...) type -- except we don't have types atm
       - oh but we want it, right? in order to be able to do type inference
+      - yeah.
+  - also, unquote
+    - ` unquote
+    - ... I don't think we need to specialize unquote,
+      because it will be clear from the surrounding context, right?
+    - this means we can't have an unquote in a raw cst quote ... which is probably fine?
 
 - [ ] also need some evaluation
 
 - [ ] show parse errors better...
 - [ ] have a button to turn on "debug the parse"
 - [ ] do we then go for evaluation?
-- [ ] or type inference? wait no we're gonna be loosy goosy for js--
+- [ ] or type inference?
 
 hello(one)
 hello(:one:two; three:four:)

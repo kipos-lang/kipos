@@ -10,6 +10,8 @@ import { HiddenInput } from '../keyboard/ui/HiddenInput';
 import { css } from 'goober';
 import { Event, Rule, TraceText } from '../syntaxes/dsl3';
 import { shape } from '../shared/shape';
+import { ShowXML } from '../keyboard/ui/XML';
+import { toXML } from '../syntaxes/xml';
 
 // type ECtx = {
 //     // drag
@@ -90,7 +92,7 @@ export const Editor = () => {
 
     return (
         <>
-            <div style={{ flex: 1, padding: 32 }}>
+            <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 Editor here
                 <KeyHandler />
                 <DragCtx.Provider value={drag}>
@@ -224,9 +226,12 @@ const DebugSidebar = () => {
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
     return (
-        <div style={{}}>
+        <div style={{ overflow: 'auto', maxWidth: '40vw' }}>
             <div>Debug sidebar</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
+            <div>
+                <ShowXML root={toXML(results[top].result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
+            </div>
         </div>
     );
 };

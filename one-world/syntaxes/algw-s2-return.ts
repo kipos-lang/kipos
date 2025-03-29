@@ -4,7 +4,7 @@ import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, nu
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
-import { Block, CallArgs, Expr, ObjectRow, Pat, Spread, Stmt } from './algw-s2-types';
+import { Block, CallArgs, Expr, ObjectRow, Pat, Spread, Stmt, Type } from './algw-s2-types';
 
 export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'case', 'else', 'let', 'const', '=', '..', '.', 'fn'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
@@ -164,6 +164,11 @@ const rules = {
     ),
     pat: or<Pat>(
         tx(kwd('_'), (ctx, src) => ({ type: 'any', src })),
+        tx<Pat>(list('smooshed', seq(kwd('`'), ref('pat', 'contents'))), (ctx, src) => ({
+            type: 'unquote',
+            src,
+            contents: ctx.ref<Pat>('contents'),
+        })),
         // tx(number, (ctx, src) => ({type: 'any', src})),
         tx(group('value', number), (ctx, src) => ({ type: 'prim', prim: { type: 'int', value: ctx.ref<number>('value') }, src })),
         tx(group('value', or(kwd('true'), kwd('false'))), (ctx, src) => ({
@@ -230,34 +235,58 @@ const rules = {
         },
     ),
     ...stmts_spaced,
-    'expr..': tx<Expr>(
-        seq(
-            ref('expr', 'base'),
-            group(
-                'suffixes',
-                star(
-                    or<Suffix>(
-                        tx(seq(kwd('.', 'punct'), group('attribute', meta(id('attribute'), 'attribute'))), (ctx, src) => ({
-                            type: 'attribute',
-                            attribute: ctx.ref<Id<Loc>>('attribute'),
-                            src,
-                        })),
-                        tx(list('square', group('index', star(ref('expr')))), (ctx, src) => ({
-                            type: 'index',
-                            index: ctx.ref<Expr[]>('index'),
-                            src,
-                        })),
-                        ref('call-args'),
-                        // tx(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
-                        //     type: 'call',
-                        //     items: ctx.ref<(Expr | Spread<Expr>)[]>('items'),
-                        //     src,
-                        // })),
+    // typ_quote: tx<Expr>(
+    //     seq(kwd('@'), kwd('t'), list('round', ref('type', 'contents'))),
+    //     (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'type', contents: ctx.ref<Type>('contents') } }),
+    // ),
+    pat_quote: tx<Expr>(
+        seq(kwd('@'), kwd('p'), list('round', ref('pat', 'contents'))),
+        (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'pattern', contents: ctx.ref<Pat>('contents') } }),
+    ),
+    quote: tx<Expr>(
+        seq(kwd('@'), ref('expr', 'contents')),
+        (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'expr', contents: ctx.ref<Expr>('contents') } }),
+    ),
+    raw_quote: tx<Expr>(
+        seq(kwd('@@'), group('contents', { type: 'any' })),
+        (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'raw', contents: ctx.ref<RecNode>('contents') } }),
+    ),
+    unquote: tx<Expr>(seq(kwd('`'), ref('expr', 'contents')), (ctx, src): Expr => ({ type: 'unquote', src, contents: ctx.ref<Expr>('contents') })),
+    'expr..': or(
+        ref('unquote'),
+        ref('raw_quote'),
+        ref('pat_quote'),
+        // ref('typ_quote'),
+        ref('quote'),
+        tx<Expr>(
+            seq(
+                ref('expr', 'base'),
+                group(
+                    'suffixes',
+                    star(
+                        or<Suffix>(
+                            tx(seq(kwd('.', 'punct'), group('attribute', meta(id('attribute'), 'attribute'))), (ctx, src) => ({
+                                type: 'attribute',
+                                attribute: ctx.ref<Id<Loc>>('attribute'),
+                                src,
+                            })),
+                            tx(list('square', group('index', star(ref('expr')))), (ctx, src) => ({
+                                type: 'index',
+                                index: ctx.ref<Expr[]>('index'),
+                                src,
+                            })),
+                            ref('call-args'),
+                            // tx(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
+                            //     type: 'call',
+                            //     items: ctx.ref<(Expr | Spread<Expr>)[]>('items'),
+                            //     src,
+                            // })),
+                        ),
                     ),
                 ),
             ),
+            (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), src),
         ),
-        (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), src),
     ),
     expr: or(...Object.keys(exprs).map((name) => ref(name)), list('spaced', ref('expr ')), ref('block')),
     spread: tx<Spread<Expr>>(list('smooshed', seq(kwd('...'), ref('expr..', 'expr'))), (ctx, src) => ({

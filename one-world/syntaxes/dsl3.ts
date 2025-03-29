@@ -234,7 +234,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
 
         case 'any':
             if (!node) return;
-            return { consumed: 1 };
+            return { consumed: 1, value: node };
         case 'meta': {
             const inner = match(rule.inner, ctx, parent, at);
             if (inner) ctx.meta[node.loc] = { kind: rule.meta };

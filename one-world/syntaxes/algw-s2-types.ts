@@ -1,3 +1,4 @@
+import { RecNode } from '../shared/cnodes';
 import { Src } from './dsl3';
 
 export type Prim = { type: 'int'; value: number } | { type: 'bool'; value: boolean };
@@ -10,6 +11,12 @@ export type Stmt =
 export type Spread<T> = { type: 'spread'; inner: T; src: Src };
 export type ObjectRow = { type: 'row'; name: Expr; value: Expr; src: Src } | Spread<Expr>;
 export type CallArgs = { type: 'named'; args: ObjectRow[]; src: Src } | { type: 'unnamed'; args: (Expr | Spread<Expr>)[]; src: Src };
+export type Quote =
+    | { type: 'raw'; contents: RecNode }
+    | { type: 'expr'; contents: Expr }
+    | { type: 'stmt'; contents: Stmt }
+    | { type: 'pattern'; contents: Pat }
+    | { type: 'type'; contents: Type };
 export type Expr =
     | Block
     | { type: 'if'; cond: Expr; yes: Block; no?: Expr; src: Src }
@@ -18,6 +25,8 @@ export type Expr =
     | { type: 'prim'; prim: Prim; src: Src }
     | { type: 'var'; name: string; src: Src }
     | { type: 'str'; value: string; src: Src }
+    | { type: 'quote'; src: Src; quote: Quote }
+    | { type: 'unquote'; src: Src; contents: Expr }
     | { type: 'bop'; left: Expr; rights: { op: { text: string; loc: string }; right: Expr }[]; src: Src }
     | { type: 'lambda'; args: Pat[]; body: Expr; src: Src }
     | { type: 'tuple'; items: (Expr | Spread<Expr>)[]; src: Src }
@@ -28,12 +37,14 @@ export type Expr =
     | { type: 'constructor'; name: { text: string; loc: string }; args?: CallArgs; src: Src };
 export type Pat =
     | { type: 'any'; src: Src }
+    | { type: 'unquote'; src: Src; contents: Pat }
     | { type: 'var'; name: string; src: Src }
     | { type: 'con'; name: string; args: Pat[]; src: Src }
     | { type: 'str'; value: string; src: Src }
     | { type: 'prim'; prim: Prim; src: Src };
 export type Type =
     | { type: 'var'; name: string; src: Src }
+    | { type: 'unquote'; src: Src; contents: Type }
     | { type: 'fn'; args: Type[]; result: Type; src: Src }
     | { type: 'app'; target: Type; args: Type[]; src: Src }
     | { type: 'con'; name: string; src: Src };

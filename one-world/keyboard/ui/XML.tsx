@@ -140,7 +140,7 @@ export const XMLNode = ({
                           value === undefined ? null : (
                               <React.Fragment key={key}>
                                   {key !== 'children' ? (
-                                      <div style={{ gridColumn: 1, fontWeight: 'bold' }}>
+                                      <div style={{ gridColumn: 1, fontWeight: '400' }}>
                                           {key}
                                           {Array.isArray(value) ? `[${value.length}]` : ''}
                                       </div>

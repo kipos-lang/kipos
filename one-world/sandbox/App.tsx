@@ -17,6 +17,7 @@ export const App = () => {
                 display: 'flex',
                 flexDirection: 'row',
                 height: '100vh',
+                alignItems: 'stretch',
             }}
         >
             <ModuleSidebar />
