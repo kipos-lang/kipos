@@ -12,6 +12,7 @@ import { Event, Rule, TraceText } from '../syntaxes/dsl3';
 import { shape } from '../shared/shape';
 import { ShowXML } from '../keyboard/ui/XML';
 import { toXML } from '../syntaxes/xml';
+import { currentTheme } from './themes';
 
 // type ECtx = {
 //     // drag
@@ -220,6 +221,39 @@ const ruleSummary = (rule: Rule<any>): string => {
     }
 };
 
+const ShowAST = () => {
+    const editor = useEditor();
+    const results = editor.useParseResults();
+    const sel = editor.useSelection();
+    const top = sel[0].start.path.root.top;
+    return (
+        <div>
+            <ShowXML root={toXML(results[top].result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
+        </div>
+    );
+};
+
+const Collapsible = ({ title, children }: { title: string; children: React.ReactNode }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <div>
+            <div
+                onClick={() => setOpen(!open)}
+                className={css({
+                    cursor: 'pointer',
+                    '&:hover': {
+                        background: currentTheme.metaNode.punct.color,
+                        color: 'white',
+                    },
+                })}
+            >
+                {title}
+            </div>
+            {open ? children : null}
+        </div>
+    );
+};
+
 const DebugSidebar = () => {
     const editor = useEditor();
     const results = editor.useParseResults();
@@ -229,9 +263,9 @@ const DebugSidebar = () => {
         <div style={{ overflow: 'auto', maxWidth: '40vw' }}>
             <div>Debug sidebar</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
-            <div>
-                <ShowXML root={toXML(results[top].result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
-            </div>
+            <Collapsible title="AST">
+                <ShowAST />
+            </Collapsible>
         </div>
     );
 };
