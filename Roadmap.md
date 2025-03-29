@@ -29,7 +29,7 @@ because it incorporates linting & type checking?
 
 # Next up:
 
-- [ ] get tables parsing
+- [x] get tables parsing
 - [ ] show parse errors better...
 - [ ] have a button to turn on "debug the parse"
 - [ ] do we then go for evaluation?

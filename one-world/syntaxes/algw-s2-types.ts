@@ -13,6 +13,7 @@ export type Expr =
     | { type: 'if'; cond: Expr; yes: Block; no?: Expr; src: Src }
     | { type: 'match'; target: Expr; cases: { pat: Pat; body: Expr }[]; src: Src }
     | { type: 'array'; items: (Expr | Spread<Expr>)[]; src: Src }
+    | { type: 'object'; rows: ({ type: 'row'; name: Expr; value: Expr; src: Src } | Spread<Expr>)[]; src: Src }
     | { type: 'prim'; prim: Prim; src: Src }
     | { type: 'var'; name: string; src: Src }
     | { type: 'str'; value: string; src: Src }

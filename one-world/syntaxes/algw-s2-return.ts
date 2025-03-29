@@ -102,6 +102,24 @@ const exprs: Record<string, Rule<Expr>> = {
         src,
         value: textString(ctx.ref<TextSpan<string>[]>('spans')),
     })),
+    'expr object': tx<Expr>(
+        group(
+            'rows',
+            table(
+                'curly',
+                or(
+                    ref('spread'),
+                    tx(seq(ref('expr', 'name'), ref('expr', 'value')), (ctx, src) => ({
+                        type: 'row',
+                        name: ctx.ref<Expr>('name'),
+                        value: ctx.ref<Expr>('value'),
+                        src,
+                    })),
+                ),
+            ),
+        ),
+        (ctx, src) => ({ type: 'object', rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'), src }),
+    ),
     // ({ type:'str', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
     'expr tuple': tx<Expr>(list('round', group('items', star(ref('expr')))), (ctx, src) => {
         const items = ctx.ref<Expr[]>('items');
@@ -341,8 +359,8 @@ export const parser = {
         punct: ['.', '/', '~`!@#$%^&*+-=\\/?:><'],
         space: ' ',
         sep: ',;\n',
-        tableCol: ',:',
-        tableRow: ';\n',
+        tableCol: ':',
+        tableRow: ';,\n',
         tableNew: ':',
         xml: true,
     },

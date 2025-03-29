@@ -303,7 +303,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: rule.f(ictx, { left, right }), consumed: m.consumed };
         }
         case 'group': {
-            if (!ctx.scope) throw new Error(`group out of scope, must be within a tx()`);
+            if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);
             const m = match(rule.inner, { ...ctx, scope: null }, parent, at);
             if (!m) return;
             ctx.scope[rule.name] = m.value;
