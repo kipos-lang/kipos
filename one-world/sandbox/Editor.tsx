@@ -226,6 +226,7 @@ const ShowAST = () => {
     const results = editor.useParseResults();
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
+    if (!results[top]) return null;
     return (
         <div>
             <ShowXML root={toXML(results[top].result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />

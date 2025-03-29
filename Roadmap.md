@@ -45,12 +45,12 @@ I kinda like that better. I think it will scan better too.
 
 # Debug parsing
 
-- [ ] let's have the ability to show the parsed stuff pls
+- [x] let's have the ability to show the parsed stuff pls
 
 # Getting macroy
 
 - [ ] need to be able to do ffi imports, so I can import the dsl functions
-- [ ] also need QUOTE SYNTAX PLEASE
+- [x] also need QUOTE SYNTAX PLEASE
   - how about @yes, @(yes please) etc?
   - so a 1-tuple gets elided, everything else is literal
   - and then ... unquote? what's our game there.
@@ -66,7 +66,10 @@ I kinda like that better. I think it will scan better too.
     - ... I don't think we need to specialize unquote,
       because it will be clear from the surrounding context, right?
     - this means we can't have an unquote in a raw cst quote ... which is probably fine?
+- [ ] might want the ability to do a "spread unquote", like `...a, which whould sploosh an
+  array into a list of children.
 
+- [ ] want to be able to reorder toplevels
 - [ ] also need some evaluation
 
 - [ ] show parse errors better...

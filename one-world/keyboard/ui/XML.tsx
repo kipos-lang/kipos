@@ -65,6 +65,8 @@ export const XMLNode = ({
     const open = state.expanded.some((p) => pstartsWith(path, p, state.extra)) || state.pinned.some((p) => peq(p, path));
     const exact = state.expanded.some((p) => peq(p, path));
 
+    if (!node) return null;
+
     const selected = node.src && isSelected(node.src, statuses);
     // parentSelected ||
     // (node.src && sel.includes(node.src.left[0]?.idx) && (!node.src.right || sel.includes(node.src.right[0]?.idx)));

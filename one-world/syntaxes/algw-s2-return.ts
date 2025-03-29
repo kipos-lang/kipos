@@ -54,7 +54,7 @@ const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
-                base = { type: 'attribute', target: base, attribute: suffix.attribute, src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
+                base = { type: 'attribute', target: base, attribute: textLoc(suffix.attribute), src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
                 // base = {
                 //     type: 'app',
                 //     target: { type: 'var', name: suffix.attribute.text, src: nodesSrc(suffix.attribute) },
@@ -90,6 +90,8 @@ const textString = (spans: TextSpan<string>[]) => {
     return '';
 };
 
+const textLoc = (id: Id<Loc>): { text: string; loc: Loc } => ({ text: id.text, loc: id.loc });
+
 const exprs: Record<string, Rule<Expr>> = {
     'expr num': tx(group('value', number), (ctx, src) => ({ type: 'prim', prim: { type: 'int', value: ctx.ref<number>('value') }, src })),
     'expr var': tx(group('id', meta(id(null), 'ref')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
@@ -102,7 +104,7 @@ const exprs: Record<string, Rule<Expr>> = {
         list('smooshed', seq(kwd('.'), group('id', meta(id(null), 'constructor')), group('args', opt(ref('call-args'))))),
         (ctx, src) => ({
             type: 'constructor',
-            name: ctx.ref<Id<Loc>>('id'),
+            name: textLoc(ctx.ref<Id<Loc>>('id')),
             args: ctx.ref<CallArgs | null>('args') ?? undefined,
             src,
         }),
@@ -197,7 +199,7 @@ const rules = {
             }));
         }),
     ),
-    comment: list('smooshed', seq(kwd('//', 'comment'), { type: 'any' })),
+    comment: meta(list('smooshed', seq(kwd('//', 'comment'), star(meta({ type: 'any' }, 'comment')))), 'comment'),
     block: tx<Block>(
         list(
             'curly',

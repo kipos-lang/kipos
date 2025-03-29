@@ -123,10 +123,11 @@ const aToXML = (v: any, name?: string): XML | XML[] | null => {
 };
 
 export const toXML = (v: any) => {
+    if (!v) return v;
     const res = aToXML(v);
     if (!res || Array.isArray(res)) {
         console.log(v, res);
-        throw new Error('why not');
+        // throw new Error('why not');
     }
     return res;
 };

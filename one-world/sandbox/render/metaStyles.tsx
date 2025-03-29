@@ -7,5 +7,6 @@ export const metaStyles = {
     kwd: { color: zedlight.syntax.keyword.color },
     punct: { color: zedlight.syntax['punctuation.delimiter'].color },
     unparsed: { color: 'red' },
+    comment: { color: 'green' },
     text: { color: zedlight.syntax.string.color },
 };
