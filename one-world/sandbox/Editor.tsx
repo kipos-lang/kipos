@@ -224,7 +224,7 @@ const DebugSidebar = () => {
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
     return (
-        <div style={{ width: 600 }}>
+        <div style={{}}>
             <div>Debug sidebar</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
         </div>

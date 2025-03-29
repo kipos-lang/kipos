@@ -9,9 +9,10 @@ export type Module = {
     parent: string;
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
-    editorPlugins: Record<string, any>;
     macroImports: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
     ffiImports: { module: string; names: string[]; languageConfiguration: string }[];
+    pluginImports: { module: string; names: string[]; languageConfiguration: string }[];
+    pluginConfig: Record<string, any>;
     roots: string[];
     history: HistoryItem<HistoryChange>[];
     selections: NodeSelection[];

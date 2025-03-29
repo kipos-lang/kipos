@@ -367,7 +367,7 @@ type Macro = {
 
 export const parser = {
     config: {
-        punct: ['.', '/', '~`!@#$%^&*+-=\\/?:><'],
+        punct: ['.', '/', '`', '@', '~!#$%^&*+-=\\/?:><'],
         space: ' ',
         sep: ',;\n',
         tableCol: ':',

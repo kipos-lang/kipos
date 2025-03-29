@@ -27,16 +27,38 @@ ALSO so I'll want to be able to represent warnings too.
 should 'infer' be called 'validate'?
 because it incorporates linting & type checking?
 
+# Tables swith drop-indent
+
+I think it needs to be an attribute of the row.
+so that if you add a row in the middle, things don't get messed up.
+
+unfortunately this invalidates current data.
+
+OH WAIT: alternatively, I could say "table multiline has 3 states. all or nothing"
+I kinda like that better. I think it will scan better too.
+
 # Next up:
 
 - [x] get tables parsing
 - [x] all the fancy; named args, constructors, multi-bops, spreads
-- [ ] in a table, need to be able to do a 'drop-table' mode.
-  where right right column is below + indented from the left column.
-  for large switch patterns & bodies.
-  This should be triggerable by:
-  - cmd-return in a non-left cell, or
-  - return at the start of a non-blank non-left cell
+- [x] in a table, need to be able to do a 'drop-table' mode.
+
+# Getting macroy
+
+- [ ] need to be able to do ffi imports, so I can import the dsl functions
+- [ ] also need QUOTE SYNTAX PLEASE
+  - how about @yes, @(yes please) etc?
+  - so a 1-tuple gets elided, everything else is literal
+  - and then ... unquote? what's our game there.
+  - so then, how do we indicate semi-quote?
+    - @@ raw cst
+    - @ expr
+    - @p(...) pat
+    - @t(...) type -- except we don't have types atm
+      - oh but we want it, right? in order to be able to do type inference
+
+- [ ] also need some evaluation
+
 - [ ] show parse errors better...
 - [ ] have a button to turn on "debug the parse"
 - [ ] do we then go for evaluation?
