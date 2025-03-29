@@ -18,7 +18,7 @@ const R = ({ node, self, sel, meta }: { meta?: Meta; node: Node; self: Path; sel
         case 'list':
             return <RenderList meta={meta} node={node} sel={sel} self={self} />;
         case 'table':
-            return <RenderTable node={node} sel={sel} self={self} />;
+            return <RenderTable node={node} meta={meta} sel={sel} self={self} />;
     }
 };
 
