@@ -1,6 +1,6 @@
 import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
-import { Rule } from '../../../syntaxes/dsl3';
+import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Language } from '../language';
 
 type Macro = {
@@ -13,8 +13,8 @@ export const defaultLang: Language<Macro, Stmt, Type, any> = {
     version: 1,
     parser: {
         config: parser.config,
-        parse(macros, node) {
-            const result = parser.parse(macros, node);
+        parse(macros, node, trace?: (evt: Event) => undefined) {
+            const result = parser.parse(macros, node, trace);
             return {
                 ctx: { meta: result.ctx.meta },
                 externalReferences: [],

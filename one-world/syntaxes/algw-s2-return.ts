@@ -1,6 +1,6 @@
 // import { js, TestParser } from '../keyboard/test-utils';
 import { Id, Loc, NodeID, RecNode, TextSpan } from '../shared/cnodes';
-import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, number, text, table, opt, meta } from './dsl3';
+import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, number, text, table, opt, meta, Event } from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
@@ -347,8 +347,8 @@ export const parser = {
         xml: true,
     },
     spans: () => [],
-    parse(macros: Macro[], node: RecNode) {
-        const myctx = { ...ctx, meta: {}, rules: { ...ctx.rules } };
+    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {
+        const myctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace };
         macros.forEach((macro) => {
             if (!myctx.rules[macro.parent]) {
                 console.warn(`Specified macro parent ${macro.parent} not found`);

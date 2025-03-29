@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Top, Showsel } from './App';
 import { useStore } from './store/store';
@@ -8,6 +8,8 @@ import { moveA } from '../keyboard/keyActionToUpdate';
 import { argify, atomify } from '../keyboard/selections';
 import { HiddenInput } from '../keyboard/ui/HiddenInput';
 import { css } from 'goober';
+import { Event, Rule, TraceText } from '../syntaxes/dsl3';
+import { shape } from '../shared/shape';
 
 // type ECtx = {
 //     // drag
@@ -87,23 +89,144 @@ export const Editor = () => {
     const module = editor.useModule();
 
     return (
-        <div style={{ flex: 1, padding: 32, background: zedlight.background }}>
-            Editor here
-            <KeyHandler />
-            <DragCtx.Provider value={drag}>
-                {module.roots.map((id) => (
-                    <Top id={id} key={id} />
+        <>
+            <div style={{ flex: 1, padding: 32 }}>
+                Editor here
+                <KeyHandler />
+                <DragCtx.Provider value={drag}>
+                    {module.roots.map((id) => (
+                        <Top id={id} key={id} />
+                    ))}
+                </DragCtx.Provider>
+                <button
+                    className={css({ marginBlock: '12px' })}
+                    onClick={() => {
+                        editor.update({ type: 'new-tl', after: module.roots[module.roots.length - 1] });
+                    }}
+                >
+                    Add Toplevel
+                </button>
+                <Showsel />
+            </div>
+            <DebugSidebar />
+        </>
+    );
+};
+
+const ParseTrace = ({ trace }: { trace: Event[] }) => {
+    const [at, setAt] = useState(0);
+
+    const stack = useMemo(() => {
+        const stack: Event[][] = [[]];
+        for (let i = 0; i < at; i++) {
+            const evt = trace[i];
+            switch (evt.type) {
+                case 'stack-push':
+                    stack.push([evt]);
+                    break;
+                case 'stack-pop':
+                    stack.pop();
+                    break;
+                default:
+                    stack[stack.length - 1].push(evt);
+            }
+        }
+        return stack;
+    }, [at, trace]);
+
+    return (
+        <div>
+            <div>Parse Trace</div>
+            <input value={at} type="range" min={0} max={trace.length} onChange={(evt) => setAt(+evt.target.value)} />
+            <div>
+                {stack.map((stack, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+                        {stack.map((evt, i) => {
+                            switch (evt.type) {
+                                case 'match':
+                                    return (
+                                        <span key={i}>
+                                            Match <ShowTrace text={evt.message} />
+                                        </span>
+                                    );
+                                case 'stack-push':
+                                    return (
+                                        <span key={i}>
+                                            Stack <ShowTrace text={evt.text} /> loc {evt.loc?.slice(-5)}
+                                        </span>
+                                    );
+                                case 'stack-pop':
+                                    return null;
+                                case 'mismatch':
+                                    return (
+                                        <span key={i}>
+                                            Mismatch <ShowTrace text={evt.message} /> loc {evt.loc?.slice(-5)}{' '}
+                                        </span>
+                                    );
+                                case 'extra':
+                                    return <span key={i}>Extra {evt.loc.slice(-5)} </span>;
+                            }
+                        })}
+                    </div>
                 ))}
-            </DragCtx.Provider>
-            <button
-                className={css({ marginBlock: '12px' })}
-                onClick={() => {
-                    editor.update({ type: 'new-tl', after: module.roots[module.roots.length - 1] });
-                }}
-            >
-                Add Toplevel
-            </button>
-            <Showsel />
+            </div>
+        </div>
+    );
+};
+
+const ShowTrace = ({ text }: { text: TraceText }) => {
+    if (typeof text === 'string') {
+        return <span>{text}</span>;
+    }
+    if (Array.isArray(text)) {
+        return (
+            <>
+                {text.map((t, i) => (
+                    <ShowTrace text={t} key={i} />
+                ))}
+            </>
+        );
+    }
+    if (text.type === 'node') {
+        return <span>Node: {shape(text.node)}</span>;
+    }
+    return <span style={{ color: 'red' }}>{ruleSummary(text.rule)}</span>;
+};
+
+const ruleSummary = (rule: Rule<any>): string => {
+    switch (rule.type) {
+        case 'ref':
+            return `ref(${rule.name})`;
+        case 'text':
+        case 'tx':
+        case 'star':
+        case 'seq':
+        case 'or':
+        case 'opt':
+        case 'group':
+            return `${rule.type}(...)`;
+        case 'meta':
+            return `${rule.type}(...,${rule.meta})`;
+        case 'table':
+        case 'list':
+            return `${rule.type}(...,${JSON.stringify(rule.kind)})`;
+        case 'any':
+        case 'number':
+        case 'kwd':
+        case 'id':
+            return rule.type;
+    }
+};
+
+const DebugSidebar = () => {
+    const editor = useEditor();
+    const results = editor.useParseResults();
+    const sel = editor.useSelection();
+    const top = sel[0].start.path.root.top;
+    return (
+        <div style={{ width: 600 }}>
+            <div>Debug sidebar</div>
+            <div>{results[top] ? <ParseTrace trace={results[top].trace} /> : null}</div>
         </div>
     );
 };

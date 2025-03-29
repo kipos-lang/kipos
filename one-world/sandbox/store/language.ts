@@ -1,6 +1,7 @@
 import { Src } from '../../keyboard/handleShiftNav';
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
+import { Event } from '../../syntaxes/dsl3';
 
 // export type MatchError =
 //     | {
@@ -37,7 +38,7 @@ export type ParseResult<T> = {
 
 export type Parser<Macro, AST> = {
     config: Config;
-    parse(macros: Macro[], node: RecNode, cursor?: string): ParseResult<AST>;
+    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST>;
     spans(ast: AST): Src[];
 };
 

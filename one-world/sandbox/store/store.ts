@@ -8,6 +8,8 @@ import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../key
 import { loadModules, saveModule } from './storage';
 import { makeEditor } from './makeEditor';
 import { Meta } from './language';
+import { ParseResult } from '../../syntaxes/algw-s2-return';
+import { Event } from '../../syntaxes/dsl3';
 
 export type ModuleTree = {
     node?: Module;
@@ -29,7 +31,8 @@ interface Store {
     useModuleTree(): ModuleTree;
 }
 
-interface EditorStore {
+export interface EditorStore {
+    useParseResults(): Record<string, ParseResult<any> & { trace: Event[] }>;
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;

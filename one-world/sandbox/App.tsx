@@ -20,7 +20,6 @@ export const App = () => {
         >
             <ModuleSidebar />
             <Editor />
-            <DebugSidebar />
         </div>
     );
 };
@@ -43,7 +42,17 @@ export const Top = ({ id }: { id: string }) => {
 
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+        <div
+            style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                padding: 12,
+                borderRadius: 4,
+                margin: 12,
+                boxShadow: '2px 2px 4px #ccc',
+            }}
+        >
             <button
                 onClick={() => {
                     editor.update({ type: 'rm-tl', id });
@@ -107,10 +116,6 @@ export const Showsel = () => {
             ))}
         </>
     );
-};
-
-const DebugSidebar = () => {
-    return <div>Debug sidebarrr</div>;
 };
 
 const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {

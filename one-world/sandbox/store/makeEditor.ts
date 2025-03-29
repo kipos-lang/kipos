@@ -6,11 +6,13 @@ import { SelectionStatuses, mergeHighlights, Path, lastChild, pathKey } from '..
 import { validate } from '../../keyboard/validate';
 import { Loc } from '../../shared/cnodes';
 import { ParseResult } from '../../syntaxes/algw-s2-return';
-import { Module } from '../types';
+import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
-import { Evt, allIds } from './store';
+import { EditorStore, Evt, allIds } from './store';
+import { Event } from '../../syntaxes/dsl3';
+import { Language } from './language';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -29,14 +31,27 @@ const recalcSelectionStatuses = (mod: Module) => {
     return statuses;
 };
 
-export const makeEditor = (selected: string, modules: Record<string, Module>, useTick: (evt: Evt) => void, shout: (evt: Evt) => void) => {
+export const makeEditor = (
+    selected: string,
+    modules: Record<string, Module>,
+    useTick: (evt: Evt) => void,
+    shout: (evt: Evt) => void,
+): EditorStore => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
-    const parseResults: Record<string, ParseResult<any>> = {};
+    const parseResults: Record<string, ParseResult<any> & { trace: Event[] }> = {};
+
+    Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
+        parseResults[key] = doParse(language, top);
+    });
 
     return {
-        selected,
+        // selected,
+        useParseResults() {
+            useTick(`module:${selected}:parse-results`);
+            return parseResults;
+        },
         useModule() {
             useTick(`module:${selected}`);
             return modules[selected];
@@ -99,18 +114,15 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
                 }
 
                 if (nodesChanged) {
-                    const node = root<Loc>({ top: mod.toplevels[key] });
-                    const result = language.parser.parse([], node);
+                    const result = doParse(language, mod.toplevels[key]);
                     Object.entries(result.ctx.meta).forEach(([key, value]) => {
                         if (!parseResults[key]) changed[key] = true;
                         else if (!equal(value, parseResults[key].ctx.meta[key])) {
                             changed[key] = true;
                         }
                     });
-                    // TODO: compare metas
                     parseResults[key] = result;
-                    console.log('did a new parse', key);
-                    console.log(result);
+                    shout(`module:${selected}:parse-results`);
                 }
             });
 
@@ -164,4 +176,20 @@ export const makeEditor = (selected: string, modules: Record<string, Module>, us
             };
         },
     };
+};
+
+const doParse = (language: Language<any, any, any, any>, top: Toplevel) => {
+    const node = root<Loc>({ top });
+    const trace: Event[] = [];
+    const TRACE = false;
+    const result = language.parser.parse(
+        [],
+        node,
+        TRACE
+            ? (evt) => {
+                  trace.push(evt);
+              }
+            : undefined,
+    );
+    return { ...result, trace };
 };

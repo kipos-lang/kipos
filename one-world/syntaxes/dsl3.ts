@@ -45,9 +45,19 @@ export type Src = { left: Loc; right?: Loc };
 
 type AutoComplete = string;
 
+export type TraceText = string | { type: 'rule'; rule: Rule<any> } | TraceText[] | { type: 'node'; node: RecNode };
+
+export type Event =
+    | { type: 'stack-push'; text: TraceText; loc?: Loc }
+    | { type: 'stack-pop' }
+    | { type: 'match'; loc: Loc; message: TraceText }
+    | { type: 'extra'; loc: Loc }
+    | { type: 'mismatch'; loc?: Loc; message: TraceText };
+
 export type Ctx = {
     ref<T>(name: string): T;
     rules: Record<string, Rule<any>>;
+    trace?: (evt: Event) => undefined;
     scope?: null | Record<string, any>;
     kwds: string[];
     meta: Record<NodeID, { kind?: string; placeholder?: string }>;
@@ -129,11 +139,17 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
             at += cm.consumed;
         }
     }
+    ctx.trace?.({
+        type: 'stack-push',
+        loc: parent.nodes[at]?.loc,
+        text: ['> ', { type: 'rule', rule }],
+    });
     // console.log(`> `.padStart(2 + indent), show(rule));
     // indent++;
     const res = match_(rule, ctx, parent, at);
     // indent--;
     // console.log(`${res ? '<' : 'x'} `.padStart(2 + indent), show(rule));
+    ctx.trace?.({ type: 'stack-pop' });
     return res;
 };
 
@@ -142,19 +158,22 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
     const node = parent.nodes[at];
     switch (rule.type) {
         case 'kwd':
-            if (node?.type !== 'id' || node.text !== rule.kwd) return;
+            if (node?.type !== 'id' || node.text !== rule.kwd) return ctx.trace?.({ type: 'mismatch', message: 'not the kwd "' + rule.kwd + '"' });
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
         case 'id':
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return;
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id' });
             return { value: node, consumed: 1 };
         case 'number': {
-            if (node?.type !== 'id') return;
-            if (rule.just === 'float' && !node.text.includes('.')) return;
+            if (node?.type !== 'id') return ctx.trace?.({ type: 'mismatch', message: 'not id' });
+            if (rule.just === 'float' && !node.text.includes('.')) return ctx.trace?.({ type: 'mismatch', message: 'not float: ' + node.text });
             const num = Number(node.text);
-            if (!Number.isFinite(num)) return;
-            if (rule.just === 'int' && !Number.isInteger(num)) return;
+            if (!Number.isFinite(num)) return ctx.trace?.({ type: 'mismatch', message: 'NaN: ' + node.text });
+            if (rule.just === 'int' && !Number.isInteger(num)) return ctx.trace?.({ type: 'mismatch', message: 'not int: ' + node.text });
             ctx.meta[node.loc] = { kind: 'number' };
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a number: ' + node.text });
             return { value: num, consumed: 1 };
         }
         case 'text':
@@ -170,6 +189,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                     spans.push(span);
                 }
             }
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a text' });
             return { value: spans, consumed: 1 };
 
         case 'table': {
@@ -181,6 +201,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                     res.push(m.value);
                 }
             }
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a table' });
             return { value: res, consumed: 1 };
         }
 
@@ -228,7 +249,11 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         case 'any':
             if (!node) return;
             return { consumed: 1 };
-
+        case 'meta': {
+            const inner = match(rule.inner, ctx, parent, at);
+            if (inner) ctx.meta[node.loc] = { kind: rule.meta };
+            return inner;
+        }
         case 'ref': {
             // console.log('ref', rule.name);
             if (!ctx.rules[rule.name]) throw new Error(`no rule named '${rule.name}'`);
@@ -243,10 +268,14 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         }
         case 'seq': {
             const start = at;
+            let i = 0;
             for (let item of rule.rules) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['seq(', rule.rules.map((_, j) => (j === i ? '*' : '_')), ')'] });
                 const m = match(item, ctx, parent, at);
                 if (!m) return; // err? err. errrr
                 at += m.consumed;
+                i++;
             }
             return { consumed: at - start };
         }
@@ -266,9 +295,13 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { consumed: at - start, value: values };
         }
         case 'or': {
+            let i = 0;
             for (let opt of rule.opts) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['or(', rule.opts.map((_, j) => (j === i ? '*' : '_')), ')'] });
                 const m = match(opt, ctx, parent, at);
                 if (m) return m;
+                i++;
             }
             return; // TODO errsss
         }

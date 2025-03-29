@@ -7,10 +7,17 @@ import { splitGraphemes } from '../../splitGraphemes';
 import { cursorPositionInSpanForEvt } from '../App';
 import { useDrag } from '../Editor';
 import { SelStatus } from '../store/store';
+import { Meta } from '../store/language';
+import { metaStyles } from './metaStyles';
 
-export const RenderId = ({ node, sel, self }: { node: Node & { type: 'id' }; sel?: SelStatus; self: Path }) => {
+export const RenderId = ({ node, sel, self, meta }: { meta?: Meta; node: Node & { type: 'id' }; sel?: SelStatus; self: Path }) => {
     const hl = sel?.highlight?.type === 'full' || (sel?.highlight?.type === 'list' && sel.highlight.opener && sel.highlight.closer);
-    const style = hl ? { borderRadius: '2px', backgroundColor: lightColor, outline: `2px solid ${lightColor}` } : undefined;
+    let style: undefined | React.CSSProperties = hl
+        ? { borderRadius: '2px', backgroundColor: lightColor, outline: `2px solid ${lightColor}` }
+        : undefined;
+    if (meta?.kind && metaStyles[meta.kind as 'ref']) {
+        style = { ...style, ...metaStyles[meta.kind as 'ref'] };
+    }
 
     const drag = useDrag();
 
