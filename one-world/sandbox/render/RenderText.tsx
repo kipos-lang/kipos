@@ -8,11 +8,19 @@ import { cursorPositionInSpanForEvt } from '../App';
 import { useDrag } from '../Editor';
 import { RenderNode } from './RenderNode';
 import { SelStatus } from '../store/store';
+import { Meta } from '../store/language';
+import { metaStyles } from './metaStyles';
 
-export const RenderText = ({ node, sel, self }: { self: Path; node: Node & { type: 'text' }; sel?: SelStatus }) => {
+export const RenderText = ({ node, sel, self, meta }: { meta?: Meta; self: Path; node: Node & { type: 'text' }; sel?: SelStatus }) => {
     const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
     const hl = sel?.highlight?.type === 'full' || (sel?.highlight?.type === 'list' && sel.highlight.opener && sel.highlight.closer);
-    const style = hl ? { borderRadius: '2px', backgroundColor: lightColor, outline: `2px solid ${lightColor}` } : undefined;
+    let style: undefined | React.CSSProperties = hl
+        ? { borderRadius: '2px', backgroundColor: lightColor, outline: `2px solid ${lightColor}` }
+        : undefined;
+    if (meta?.kind && metaStyles[meta.kind as 'ref']) {
+        style = { ...style, ...metaStyles[meta.kind as 'ref'] };
+    }
+
     const drag = useDrag();
     return (
         <span ref={drag.ref(node.loc)} style={style}>

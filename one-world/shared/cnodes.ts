@@ -79,7 +79,7 @@ export const stylesEqual = (one?: Style, two?: Style) => {
 // more intelligent merges
 type Src = { top: string; loc: NodeID; moved: boolean };
 
-export type Loc = { id: string; idx: NodeID }[];
+export type Loc = string;
 
 export type IdRef =
     | {
@@ -159,7 +159,7 @@ export type Collection<Loc> = List<Loc> | Table<Loc>;
 export type Table<Loc> = {
     type: 'table';
     kind: TableKind;
-    forceMultiline?: boolean;
+    forceMultiline?: boolean | 'indent-last';
     rows: NodeID[][];
     loc: Loc;
     src?: Src;
@@ -192,7 +192,7 @@ export type RecCollection<Loc> =
           type: 'table';
           kind: TableKind;
           rows: RecNodeT<Loc>[][];
-          forceMultiline?: boolean;
+          forceMultiline?: boolean | 'indent-last';
           loc: Loc;
           src?: Src;
       };

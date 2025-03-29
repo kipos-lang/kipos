@@ -79,7 +79,7 @@ const Example = ({ text }: { text: string[] }) => {
         return () => clearInterval(v);
     }, [state.running]);
 
-    const rootNode = root(state.state, (idx) => [{ id: '', idx }]);
+    const rootNode = root(state.state, (idx) => idx);
     const xmlcst = useMemo(() => nodeToXML(rootNode), [rootNode]);
 
     return (
@@ -194,7 +194,7 @@ const ExTable = ({ examples, config, dconfig }: { examples: [string, string][]; 
         return examples.map((ex) => precompute(splitGraphemes(ex[1]), config, nextLoc));
     }, [examples]);
 
-    const xmls = useMemo(() => states.map((state, i) => nodeToXML(root(state.state, (idx) => [{ id: '', idx }]))), [states]);
+    const xmls = useMemo(() => states.map((state, i) => nodeToXML(root(state.state, (idx) => idx))), [states]);
 
     return (
         <div>

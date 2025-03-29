@@ -14,7 +14,7 @@ import {
     RecNode,
     NodeID,
 } from '../shared/cnodes';
-import { Ctx, ParseResult } from '../syntaxes/dsl';
+// import { Ctx, ParseResult } from '../syntaxes/dsl';
 import { TESTING_CTREE } from './applyUpdate';
 import { fixTextSel } from './ctdt-test-utils';
 import { selEnd, Src } from './handleShiftNav';
@@ -28,11 +28,11 @@ export type TestState = {
     nextLoc: () => string;
 };
 
-export type TestParser<T> = {
-    config: Config;
-    parse(node: RecNode, cursor?: NodeID): ParseResult<T>;
-    spans(ast: any): Src[];
-};
+// export type TestParser<T> = {
+//     config: Config;
+//     parse(node: RecNode, cursor?: NodeID): any;
+//     spans(ast: any): Src[];
+// };
 
 export const nloc = () => {
     let id = 1;

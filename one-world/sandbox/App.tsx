@@ -8,6 +8,7 @@ import { lightColor, lightColorA } from '../keyboard/ui/colors';
 import { EditIcon } from './icons';
 import { css } from 'goober';
 import { Meta } from './store/language';
+import { zedlight } from './zedcolors';
 
 export const App = () => {
     return (
@@ -16,11 +17,11 @@ export const App = () => {
                 display: 'flex',
                 flexDirection: 'row',
                 height: '100vh',
+                alignItems: 'stretch',
             }}
         >
             <ModuleSidebar />
             <Editor />
-            <DebugSidebar />
         </div>
     );
 };
@@ -43,7 +44,20 @@ export const Top = ({ id }: { id: string }) => {
 
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+        <div
+            className={css({
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                padding: '12px',
+                margin: '12px',
+                borderRadius: '4px',
+                boxShadow: '1px 1px 3px #ccc',
+                fontFamily: 'Jet Brains',
+                // borderBottom: '4px dashed #eee',
+                // paddingBottom: '18px',
+            })}
+        >
             <button
                 onClick={() => {
                     editor.update({ type: 'rm-tl', id });
@@ -109,10 +123,6 @@ export const Showsel = () => {
     );
 };
 
-const DebugSidebar = () => {
-    return <div>Debug sidebarrr</div>;
-};
-
 const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {
     const store = useStore();
     const [editing, setEditing] = useState(null as null | string);
@@ -123,13 +133,19 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                     className={css({
                         cursor: 'pointer',
                         padding: '8px',
-                        background: selected === tree.node.id ? lightColor : undefined,
+                        borderRadius: '4px',
+                        background: selected === tree.node.id ? zedlight.syntax.attribute.color : undefined,
+                        color: selected === tree.node.id ? 'white' : undefined,
                         display: 'flex',
                         flexDirection: 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         '&:hover': {
-                            background: lightColorA(0.5),
+                            background: selected === tree.node.id ? zedlight.syntax.attribute.color : undefined,
+                            color: selected === tree.node.id ? 'white' : undefined,
+                        },
+                        '&:hover .icon': {
+                            opacity: 1,
                         },
                     })}
                     onClick={(evt) => {
@@ -156,6 +172,12 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                     )}
                     <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
                     <div
+                        className={
+                            'icon ' +
+                            css({
+                                opacity: 0,
+                            })
+                        }
                         onClick={(evt) => {
                             evt.stopPropagation();
                             if (editing != null) {
@@ -172,7 +194,7 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                 </div>
             ) : null}
             {tree.children.length ? (
-                <div style={{ marginLeft: 16 }}>
+                <div style={{ marginLeft: tree.node ? 16 : 0 }}>
                     {tree.children.map((child, i) => (
                         <ShowModuleTree key={child.node?.id ?? i} selected={selected} tree={child} />
                     ))}
@@ -196,7 +218,7 @@ export const ModuleSidebar = () => {
     const selected = store.useSelected();
     const tree = store.useModuleTree();
     return (
-        <div style={{ padding: 8 }}>
+        <div style={{ padding: 8, backgroundColor: zedlight['border.selected'] }}>
             <div>Modules</div>
             <ShowModuleTree selected={selected} tree={tree} />
         </div>

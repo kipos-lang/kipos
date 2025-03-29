@@ -43,28 +43,28 @@ export const attrs = (v: Record<string, any>, max = 20) => {
 export const textSpanToXML = <T>(span: TextSpan<T, any>, toXML: (t: T) => XML): XML => {
     switch (span.type) {
         case 'text':
-            return { tag: 'span:' + span.type, src: { left: [] }, attrs: { text: span.text, style: span.style, link: span.link } };
+            return { tag: 'span:' + span.type, src: { left: '' }, attrs: { text: span.text, style: span.style, link: span.link } };
         case 'embed':
             return {
                 tag: 'span:' + span.type,
-                src: { left: [] },
+                src: { left: '' },
                 attrs: { style: span.style, link: span.link },
                 children: { children: toXML(span.item) },
             };
         default:
-            return { tag: 'span:' + span.type, src: { left: [] } };
+            return { tag: 'span:' + span.type, src: { left: '' } };
     }
 };
 
 export const nodeToXML = (node: RecNode): XML => {
     switch (node.type) {
         case 'id':
-            return { tag: node.type, src: { left: node.loc }, attrs: { text: node.text, ref: node.ref, ccls: node.ccls, loc: node.loc[0].idx } };
+            return { tag: node.type, src: { left: node.loc }, attrs: { text: node.text, ref: node.ref, ccls: node.ccls, loc: node.loc } };
         case 'list':
             return {
                 tag: node.type,
                 src: { left: node.loc },
-                attrs: { kind: isTag(node.kind) ? undefined : node.kind, forceMultiline: node.forceMultiline, loc: node.loc[0].idx },
+                attrs: { kind: isTag(node.kind) ? undefined : node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     tag: isTag(node.kind) ? nodeToXML(node.kind.node) : undefined,
                     attributes: isTag(node.kind) && node.kind.attributes ? nodeToXML(node.kind.attributes) : undefined,
@@ -75,7 +75,7 @@ export const nodeToXML = (node: RecNode): XML => {
             return {
                 tag: node.type,
                 src: { left: node.loc },
-                attrs: { kind: node.kind, forceMultiline: node.forceMultiline, loc: node.loc[0].idx },
+                attrs: { kind: node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     children: node.rows.map((row) => ({
                         tag: 'row',
@@ -90,7 +90,7 @@ export const nodeToXML = (node: RecNode): XML => {
             return {
                 tag: node.type,
                 src: { left: node.loc },
-                attrs: { loc: node.loc[0].idx },
+                attrs: { loc: node.loc },
                 children: { children: node.spans.map((span) => textSpanToXML(span, nodeToXML)) },
             };
     }
@@ -123,10 +123,11 @@ const aToXML = (v: any, name?: string): XML | XML[] | null => {
 };
 
 export const toXML = (v: any) => {
+    if (!v) return v;
     const res = aToXML(v);
     if (!res || Array.isArray(res)) {
         console.log(v, res);
-        throw new Error('why not');
+        // throw new Error('why not');
     }
     return res;
 };

@@ -32,16 +32,9 @@ export const nextLargerSpan = (sel: NodeSelection, spans: Src[], top: Top) => {
     let best = null as null | [number, Loc, Loc];
 
     spans.forEach((span) => {
-        if (
-            !span.right ||
-            span.left.length !== 1 ||
-            span.right.length !== 1 ||
-            span.left[0].id !== multi.parent.root.top ||
-            span.right[0].id !== multi.parent.root.top
-        )
-            return;
-        const left = sibs.indexOf(span.left[0].idx);
-        const right = sibs.indexOf(span.right[0].idx);
+        if (!span.right || span.left.length !== 1 || span.right.length !== 1) return;
+        const left = sibs.indexOf(span.left);
+        const right = sibs.indexOf(span.right);
         if (left === -1 || right === -1) return;
         const min = left < right ? left : right;
         const max = left < right ? right : left;

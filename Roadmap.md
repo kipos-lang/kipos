@@ -1,5 +1,96 @@
 
+# Ok now parsing is in the picture, and guess what??
+
+I want a sidebar debugger.
+Suprisesee
+
+- [x] have a basic thing
+
+# Imagining a type checker for my js--
+
+Honestly this is for like a js-+
+because it would have tagged unions,
+which work normally
+but it would also have object literals,
+which would be completely opaque
+
+WAIT ok.
+I could actually still do this for js--
+it would just be "objects are all equivalent"
+and "attribute access produces a new type variable".
+
+in order to have tagged unions, we'd need ast-level support
+for them. which I think I can manage.
+
+yeah, then we can have nice things.
+ALSO so I'll want to be able to represent warnings too.
+should 'infer' be called 'validate'?
+because it incorporates linting & type checking?
+
+# Tables swith drop-indent
+
+I think it needs to be an attribute of the row.
+so that if you add a row in the middle, things don't get messed up.
+
+unfortunately this invalidates current data.
+
+OH WAIT: alternatively, I could say "table multiline has 3 states. all or nothing"
+I kinda like that better. I think it will scan better too.
+
+# Next up:
+
+- [x] get tables parsing
+- [x] all the fancy; named args, constructors, multi-bops, spreads
+- [x] in a table, need to be able to do a 'drop-table' mode.
+
+# Debug parsing
+
+- [x] let's have the ability to show the parsed stuff pls
+
+# Getting macroy
+
+- [ ] need to be able to do ffi imports, so I can import the dsl functions
+- [x] also need QUOTE SYNTAX PLEASE
+  - how about @yes, @(yes please) etc?
+  - so a 1-tuple gets elided, everything else is literal
+  - and then ... unquote? what's our game there.
+  - so then, how do we indicate semi-quote?
+    - @@ raw cst
+    - @ expr
+    - @p(...) pat
+    - @t(...) type -- except we don't have types atm
+      - oh but we want it, right? in order to be able to do type inference
+      - yeah.
+  - also, unquote
+    - ` unquote
+    - ... I don't think we need to specialize unquote,
+      because it will be clear from the surrounding context, right?
+    - this means we can't have an unquote in a raw cst quote ... which is probably fine?
+- [ ] might want the ability to do a "spread unquote", like `...a, which whould sploosh an
+  array into a list of children.
+
+- [ ] want to be able to reorder toplevels
+- [ ] also need some evaluation
+
+- [ ] show parse errors better...
+- [ ] have a button to turn on "debug the parse"
+- [ ] do we then go for evaluation?
+- [ ] or type inference?
+
+hello(one)
+hello(:one:two; three:four:)
+hello[one]
+hello[:one:two:]
+hello[:one:two; three:four:]
+
+# Thoughts about locs being strings
+
 gonna want `Loc` to go to just `string` instead of that whole thing.
+
+I think I want something else, like another attribute, on the node,
+that can tell me "where this came from", like "if this was on a macro"
+or whatever. But it shouldn't be in the main data structure that I'm always
+accessing.
 
 # gittt
 

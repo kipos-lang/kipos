@@ -1,27 +1,13 @@
 import equal from 'fast-deep-equal';
 import { isTag } from '../keyboard/handleNav';
-import { js, TestParser } from '../keyboard/test-utils';
-import { Id, ListKind, Loc, NodeID, RecNode, TableKind, Text, TextSpan } from '../shared/cnodes';
-import { MatchParent } from './dsl';
-import {
-    binops,
-    Expr,
-    kwds,
-    mergeSrc,
-    nodesSrc,
-    partition,
-    Pat,
-    RecordRow,
-    Right,
-    SExpr,
-    SPat,
-    Stmt,
-    stmtSpans,
-    Suffix,
-    suffixops,
-    Type,
-    unops,
-} from './ts-types';
+import { ListKind, Loc, NodeID, RecNode, TableKind, TextSpan } from '../shared/cnodes';
+
+export type MatchParent = {
+    nodes: RecNode[];
+    loc: Loc;
+    sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
+};
+export type Span = { start: Loc; end?: Loc };
 
 /*
 
@@ -45,9 +31,19 @@ export type Src = { left: Loc; right?: Loc };
 
 type AutoComplete = string;
 
+export type TraceText = string | { type: 'rule'; rule: Rule<any> } | TraceText[] | { type: 'node'; node: RecNode };
+
+export type Event =
+    | { type: 'stack-push'; text: TraceText; loc?: Loc }
+    | { type: 'stack-pop' }
+    | { type: 'match'; loc: Loc; message: TraceText }
+    | { type: 'extra'; loc: Loc }
+    | { type: 'mismatch'; loc?: Loc; message: TraceText };
+
 export type Ctx = {
     ref<T>(name: string): T;
     rules: Record<string, Rule<any>>;
+    trace?: (evt: Event) => undefined;
     scope?: null | Record<string, any>;
     kwds: string[];
     meta: Record<NodeID, { kind?: string; placeholder?: string }>;
@@ -124,16 +120,22 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
         if (cm) {
             for (let i = 0; i < cm.consumed; i++) {
                 const node = parent.nodes[at + i];
-                ctx.meta[node.loc[0].idx] = { kind: 'comment' };
+                ctx.meta[node.loc] = { kind: 'comment' };
             }
             at += cm.consumed;
         }
     }
+    ctx.trace?.({
+        type: 'stack-push',
+        loc: parent.nodes[at]?.loc,
+        text: ['> ', { type: 'rule', rule }],
+    });
     // console.log(`> `.padStart(2 + indent), show(rule));
     // indent++;
     const res = match_(rule, ctx, parent, at);
     // indent--;
     // console.log(`${res ? '<' : 'x'} `.padStart(2 + indent), show(rule));
+    ctx.trace?.({ type: 'stack-pop' });
     return res;
 };
 
@@ -142,19 +144,22 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
     const node = parent.nodes[at];
     switch (rule.type) {
         case 'kwd':
-            if (node?.type !== 'id' || node.text !== rule.kwd) return;
-            ctx.meta[node.loc[0].idx] = { kind: rule.meta ?? 'kwd' };
+            if (node?.type !== 'id' || node.text !== rule.kwd) return ctx.trace?.({ type: 'mismatch', message: 'not the kwd "' + rule.kwd + '"' });
+            ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
         case 'id':
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return;
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id' });
             return { value: node, consumed: 1 };
         case 'number': {
-            if (node?.type !== 'id') return;
-            if (rule.just === 'float' && !node.text.includes('.')) return;
+            if (node?.type !== 'id') return ctx.trace?.({ type: 'mismatch', message: 'not id' });
+            if (rule.just === 'float' && !node.text.includes('.')) return ctx.trace?.({ type: 'mismatch', message: 'not float: ' + node.text });
             const num = Number(node.text);
-            if (!Number.isFinite(num)) return;
-            if (rule.just === 'int' && !Number.isInteger(num)) return;
-            ctx.meta[node.loc[0].idx] = { kind: 'number' };
+            if (!Number.isFinite(num)) return ctx.trace?.({ type: 'mismatch', message: 'NaN: ' + node.text });
+            if (rule.just === 'int' && !Number.isInteger(num)) return ctx.trace?.({ type: 'mismatch', message: 'not int: ' + node.text });
+            ctx.meta[node.loc] = { kind: 'number' };
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a number: ' + node.text });
             return { value: num, consumed: 1 };
         }
         case 'text':
@@ -170,6 +175,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                     spans.push(span);
                 }
             }
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a text' });
             return { value: spans, consumed: 1 };
 
         case 'table': {
@@ -181,6 +187,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                     res.push(m.value);
                 }
             }
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a table' });
             return { value: res, consumed: 1 };
         }
 
@@ -211,7 +218,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (res && res.consumed < node.children.length) {
                 for (let i = res.consumed; i < node.children.length; i++) {
                     const child = node.children[i];
-                    ctx.meta[child.loc[0].idx] = { kind: 'unparsed' };
+                    ctx.meta[child.loc] = { kind: 'unparsed' };
                 }
             }
             return res ? { value: res.value, consumed: 1 } : res;
@@ -227,8 +234,12 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
 
         case 'any':
             if (!node) return;
-            return { consumed: 1 };
-
+            return { consumed: 1, value: node };
+        case 'meta': {
+            const inner = match(rule.inner, ctx, parent, at);
+            if (inner) ctx.meta[node.loc] = { kind: rule.meta };
+            return inner;
+        }
         case 'ref': {
             // console.log('ref', rule.name);
             if (!ctx.rules[rule.name]) throw new Error(`no rule named '${rule.name}'`);
@@ -243,10 +254,14 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         }
         case 'seq': {
             const start = at;
+            let i = 0;
             for (let item of rule.rules) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['seq(', rule.rules.map((_, j) => (j === i ? '*' : '_')), ')'] });
                 const m = match(item, ctx, parent, at);
                 if (!m) return; // err? err. errrr
                 at += m.consumed;
+                i++;
             }
             return { consumed: at - start };
         }
@@ -266,15 +281,19 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { consumed: at - start, value: values };
         }
         case 'or': {
+            let i = 0;
             for (let opt of rule.opts) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['or(', rule.opts.map((_, j) => (j === i ? '*' : '_')), ')'] });
                 const m = match(opt, ctx, parent, at);
                 if (m) return m;
+                i++;
             }
             return; // TODO errsss
         }
         case 'tx': {
             const ictx: Ctx = { ...ctx, scope: {} };
-            const left = at < parent.nodes.length ? parent.nodes[at].loc : [];
+            const left = at < parent.nodes.length ? parent.nodes[at].loc : '';
             const m = match(rule.inner, ictx, parent, at);
             if (!m) return;
             const rat = at + m.consumed - 1;
@@ -284,7 +303,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: rule.f(ictx, { left, right }), consumed: m.consumed };
         }
         case 'group': {
-            if (!ctx.scope) throw new Error(`group out of scope, must be within a tx()`);
+            if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);
             const m = match(rule.inner, { ...ctx, scope: null }, parent, at);
             if (!m) return;
             ctx.scope[rule.name] = m.value;
@@ -347,269 +366,6 @@ const float: Rule<number> = { type: 'number', just: 'float' };
 export const number: Rule<number> = { type: 'number' };
 export const list = <T>(kind: ListKind<Rule<unknown>>, item: Rule<T>): Rule<T> => ({ type: 'list', kind, item });
 export const table = <T>(kind: TableKind, row: Rule<T>): Rule<T> => ({ type: 'table', kind, row });
-
-const types: Record<string, Rule<Type>> = {
-    'type ref': tx(group('id', id(null)), (ctx, src) => ({ type: 'ref', name: ctx.ref<Id<Loc>>('id').text, src })),
-};
-
-const parseSmoosh = (base: Expr, suffixes: Suffix[], prefixes: Id<Loc>[], src: Src): Expr => {
-    if (!suffixes.length && !prefixes.length) return base;
-    suffixes.forEach((suffix) => {
-        switch (suffix.type) {
-            case 'attribute':
-                base = { type: 'attribute', target: base, attribute: suffix.attribute, src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
-                return;
-            case 'call':
-                base = { type: 'call', target: base, args: suffix.items, src: mergeSrc(base.src, suffix.src) };
-                return;
-            case 'index':
-                base = { type: 'index', target: base, items: suffix.items, src: mergeSrc(base.src, suffix.src) };
-                return;
-            case 'suffix':
-                base = { type: 'uop', op: suffix.op, src: mergeSrc(base.src, suffix.src), target: base };
-                return;
-        }
-    });
-    for (let i = prefixes.length - 1; i >= 0; i--) {
-        base = { type: 'uop', op: prefixes[i], target: base, src: mergeSrc(nodesSrc(prefixes[i]), base.src) };
-    }
-    return { ...base, src };
-};
-
-const exprs: Record<string, Rule<Expr>> = {
-    'expr num': tx(group('value', number), (ctx, src) => ({ type: 'number', value: ctx.ref<number>('value'), src })),
-    'expr var': tx(group('id', id(null)), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
-    'expr text': tx(group('spans', text(ref('expr'))), (ctx, src) => ({ type: 'text', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
-    'expr table': tx(
-        group(
-            'rows',
-            table(
-                'curly',
-                or(
-                    tx(seq(group('key', id(null)), ref('expr', 'value')), (ctx, src) => ({
-                        type: 'row',
-                        name: ctx.ref<Id<Loc>>('key').text,
-                        src,
-                        value: ctx.ref<Expr>('value'),
-                    })),
-                    list('smooshed', seq(kwd('...'), ref('expr', 'value'))),
-                    tx(group('single', id(null)), (ctx, src) => {
-                        const key = ctx.ref<Id<Loc>>('single');
-                        return { type: 'row', name: key.text, src, nsrc: src, value: { type: 'var', name: key.text, src: nodesSrc(key) } };
-                    }),
-                ),
-            ),
-        ),
-        (ctx, src) => ({ type: 'record', rows: ctx.ref<RecordRow[]>('rows'), src }),
-    ),
-    'expr!': list('smooshed', ref('expr..')),
-    'expr jsx': tx(
-        list(
-            {
-                type: 'tag',
-                node: ref('expr', 'tag'),
-                attributes: opt(ref('expr', 'attributes')),
-            },
-            group('items', star(ref('expr'))),
-        ),
-        (ctx, src) => {
-            const attrs = ctx.ref<Expr | null>('attributes');
-            return {
-                type: 'jsx',
-                src,
-                attributes: attrs?.type === 'record' ? attrs.rows : undefined,
-                children: ctx.ref<Expr[]>('items'),
-                tag: ctx.ref<Expr>('tag'),
-            };
-        },
-    ),
-};
-
-const pats: Record<string, Rule<Pat>> = {
-    'pattern var': tx(group('id', id(null)), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
-    'pattern array': tx(list('square', group('items', star(ref('pat*')))), (ctx, src) => ({ type: 'array', src, values: ctx.ref<SPat[]>('items') })),
-    'pattern default': tx(list('spaced', seq(ref('pat', 'inner'), kwd('=', 'punct'), ref('expr ', 'value'))), (ctx, src) => ({
-        type: 'default',
-        inner: ctx.ref<Pat>('inner'),
-        value: ctx.ref<Expr>('value'),
-        src,
-    })),
-    'pattern typed': tx(list('smooshed', seq(ref('pat', 'inner'), kwd(':', 'punct'), ref('type', 'annotation'))), (ctx, src) => ({
-        type: 'typed',
-        inner: ctx.ref<Pat>('inner'),
-        ann: ctx.ref<Type>('annotation'),
-        src,
-    })),
-    'pattern constructor': tx(
-        list('smooshed', seq(group('constr', id('constructor')), list('round', group('args', star(ref('pat*')))))),
-        (ctx, src) => ({ type: 'constr', constr: ctx.ref<Id<Loc>>('constr'), args: ctx.ref<Pat[]>('args'), src }),
-    ),
-    'pattern text': tx(group('spans', text(ref<Pat>('pat'))), (ctx, src) => ({ type: 'text', spans: ctx.ref<TextSpan<Pat>[]>('spans'), src })),
-};
-
-const stmts: Record<string, Rule<Stmt>> = {
-    for: tx(
-        seq(kwd('for'), list('round', seq(ref('stmt', 'init'), ref('expr', 'cond'), ref('expr', 'update'))), ref('block', 'body')),
-        (ctx, src) => ({
-            type: 'for',
-            init: ctx.ref<Stmt>('init'),
-            cond: ctx.ref<Expr>('cond'),
-            update: ctx.ref<Expr>('update'),
-            body: ctx.ref<Stmt[]>('body'),
-            src,
-        }),
-    ),
-    return: tx(seq(kwd('return'), ref('expr ', 'value')), (ctx, src) => ({ type: 'return', value: ctx.ref<Expr>('value'), src })),
-    throw: tx(seq(kwd('throw'), ref('expr ', 'target')), (ctx, src) => ({ type: 'throw', target: ctx.ref<Expr>('target'), src })),
-    let: tx(seq(kwd('let'), ref('pat', 'pat'), kwd('=', 'punct'), ref('expr ', 'value')), (ctx, src) => ({
-        type: 'let',
-        pat: ctx.ref<Pat>('pat'),
-        value: ctx.ref<Expr>('value'),
-        src,
-    })),
-};
-
-const stmtSpaced = or(...Object.keys(stmts).map((name) => ref(name)));
-
-export const rules = {
-    id: id(null),
-    stmt: or(
-        list('spaced', stmtSpaced),
-        tx<Stmt>(ref('expr', 'expr'), (ctx, src) => ({ type: 'expr', expr: ctx.ref<Expr>('expr'), src })),
-    ),
-    comment: list('smooshed', seq(kwd('//', 'comment'), { type: 'any' })),
-    block: list('curly', star(ref('stmt'))),
-    ...stmts,
-    '...expr': or(
-        tx<SExpr>(seq(kwd('...'), ref('expr..', 'inner')), (ctx, src) => ({ type: 'spread', inner: ctx.ref<Expr>('inner'), src })),
-        ref('expr'),
-    ),
-    'expr..': tx<Expr>(
-        seq(
-            group('prefixes', star(or(...unops.map((k) => kwd(k, 'uop'))))),
-            ref('expr', 'base'),
-            group(
-                'suffixes',
-                star(
-                    or<Suffix>(
-                        tx(seq(kwd('.'), group('attribute', id('attribute'))), (ctx, src) => ({
-                            type: 'attribute',
-                            attribute: ctx.ref<Id<Loc>>('attribute'),
-                            src,
-                        })),
-                        tx(list('square', group('items', star(ref('...expr')))), (ctx, src) => ({
-                            type: 'index',
-                            items: ctx.ref<SExpr[]>('items'),
-                            src,
-                        })),
-                        tx(list('round', group('items', star(ref('...expr')))), (ctx, src) => ({
-                            type: 'call',
-                            items: ctx.ref<SExpr[]>('items'),
-                            src,
-                        })),
-                        tx(group('op', or(...suffixops.map((s) => kwd(s, 'uop')))), (ctx, src) => ({
-                            type: 'suffix',
-                            op: ctx.ref<Id<Loc>>('op'),
-                            src,
-                        })),
-                    ),
-                ),
-            ),
-        ),
-        (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), ctx.ref<Id<Loc>[]>('prefixes'), src),
-    ),
-    'pattern spread': tx(list('smooshed', seq(kwd('...'), ref('pat', 'inner'))), (ctx, src) => ({ type: 'spread', inner: ctx.ref<Pat>('inner') })),
-    expr: or(...Object.keys(exprs).map((name) => ref(name)), list('spaced', ref('expr '))),
-    'expr ': tx<Expr>(
-        seq(
-            ref('fancy', 'left'),
-            group(
-                'rights',
-                star(tx(seq(ref('bop', 'op'), ref('fancy', 'right')), (ctx, src) => ({ op: ctx.ref<Id<Loc>>('op'), right: ctx.ref<Expr>('right') }))),
-            ),
-        ),
-        (ctx, src) => {
-            const rights = ctx.ref<Right[]>('rights');
-            const left = ctx.ref<Expr>('left');
-            return rights.length ? { ...partition(left, rights), src } : left;
-        },
-    ),
-    fancy: or<Expr>(
-        tx(seq(list('round', group('args', star(ref('pat')))), kwd('=>', 'punct'), group('body', or(ref('expr'), ref('block')))), (ctx, src) => ({
-            type: 'fn',
-            args: ctx.ref<Pat[]>('args'),
-            src,
-            body: ctx.ref<Expr | Stmt[]>('body'),
-        })),
-        tx(seq(kwd('if'), ref('expr', 'cond'), ref('block', 'yes'), kwd('else'), ref('block', 'no')), (ctx, src) => ({
-            type: 'if',
-            cond: ctx.ref<Expr>('cond'),
-            yes: ctx.ref<Stmt[]>('yes'),
-            no: ctx.ref<Stmt[]>('no'),
-            src,
-        })),
-        tx(
-            seq(
-                kwd('case'),
-                ref('expr', 'target'),
-                group(
-                    'cases',
-                    table(
-                        'curly',
-                        tx(seq(ref('pat', 'pat'), ref('block', 'body')), (ctx, src) => ({
-                            pat: ctx.ref<Pat>('pat'),
-                            body: ctx.ref<Stmt[]>('body'),
-                        })),
-                    ),
-                ),
-            ),
-            (ctx, src) => ({
-                type: 'case',
-                target: ctx.ref<Expr>('target'),
-                src,
-                cases: ctx.ref<{ pat: Pat; body: Stmt[] | Expr }[]>('cases'),
-            }),
-        ),
-        ref('expr'),
-    ),
-    bop: or(...binops.map((m) => kwd(m, 'bop'))),
-    ...exprs,
-    ...pats,
-    pat: or(...Object.keys(pats).map((name) => ref(name))),
-    type: or(...Object.keys(types).map((name) => ref(name))),
-    ...types,
-    'pat*': or(ref('pattern spread'), ...Object.keys(pats).map((name) => ref(name))),
-};
-
-export const ctx: Ctx = {
-    rules,
-    ref(name) {
-        if (!this.scope) throw new Error(`no  scope`);
-        return this.scope[name];
-    },
-    kwds: kwds,
-    meta: {},
-};
-
-export const parser: TestParser<Stmt> = {
-    config: js,
-    parse(node, cursor) {
-        const c = {
-            ...ctx,
-            meta: {},
-            autocomplete: cursor != null ? { loc: cursor, concrete: [], kinds: [] } : undefined,
-        };
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, c, { nodes: [node], loc: [] }, 0);
-
-        return {
-            result: res?.value,
-            ctx: { meta: c.meta },
-            bads: [],
-            goods: [],
-        };
-    },
-    spans: stmtSpans,
-};
 
 /*
 

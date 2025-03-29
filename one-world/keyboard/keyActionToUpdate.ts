@@ -48,8 +48,18 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
             return joinInList(state.top, action.path, action.child, state.nextLoc);
         case 'toggle-multiline': {
             const node = state.top.nodes[action.loc];
-            if (node.type === 'list' || node.type === 'table') {
+            if (node.type === 'list') {
                 return { nodes: { [node.loc]: { ...node, forceMultiline: !node.forceMultiline } } };
+            }
+            if (node.type === 'table') {
+                return {
+                    nodes: {
+                        [node.loc]: {
+                            ...node,
+                            forceMultiline: node.forceMultiline === false ? true : node.forceMultiline === true ? 'indent-last' : false,
+                        },
+                    },
+                };
             }
             return;
         }

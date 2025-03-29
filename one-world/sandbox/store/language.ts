@@ -1,6 +1,7 @@
 import { Src } from '../../keyboard/handleShiftNav';
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
+import { Event } from '../../syntaxes/dsl3';
 
 // export type MatchError =
 //     | {
@@ -37,22 +38,23 @@ export type ParseResult<T> = {
 
 export type Parser<Macro, AST> = {
     config: Config;
-    parse(macros: Macro[], node: RecNode, cursor?: string): ParseResult<AST>;
+    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST>;
     spans(ast: AST): Src[];
 };
 
-export type InferResult<Type, TypeInfo> = {
-    result?: TypeInfo;
-    types: Record<string, Type>;
+type Annotation =
+    | { type: 'error'; message: string; spans?: Src[] }
+    | { type: 'warning'; message: string; spans?: Src[] }
+    | { type: 'info'; message: string; spans?: Src[] }
+    | { type: 'type'; annotation: RecNode; spans?: Src[] };
+
+export type ValidateResult<ValidationInfo> = {
+    result?: ValidationInfo;
     // hmm oh errors
     meta: Record<string, Meta>;
-    errors: Record<string, string>; // todo make this better
+    // big question here: should annotations ... need to be anchored anywhere...
+    annotations: Record<string, Annotation[]>; // todo make this better
     events?: any[]; // add this in from the stepping debugger
-};
-
-export type Inferrer<AST, Type, TypeInfo> = {
-    infer(ast: AST): InferResult<Type, TypeInfo>;
-    typeToCST(type: Type): { cst: RecNode; meta: Record<string, Meta> };
 };
 
 /*
@@ -68,15 +70,11 @@ in the first example,
 
 */
 
-// type Inferner<AST, TypeInfo, IR> = {
-//     intern?: (ast: AST, tinfo: TypeInfo) => IR;
-// };
-
-export type Language<Macro, AST, Type, TypeInfo, IR = { ast: AST; tinfo: TypeInfo }, Target = string> = {
+export type Language<Macro, AST, ValidationInfo, IR = { ast: AST; info: ValidationInfo }, Target = string> = {
     version: 1;
     parser: Parser<Macro, AST>;
-    inferrer?: Inferrer<AST, Type, TypeInfo>;
-    intern?: (ast: AST, tinfo: TypeInfo) => IR;
+    validate?(ast: AST): ValidateResult<ValidationInfo>;
+    intern?: (ast: AST, info: ValidationInfo) => IR;
     compile?(ir: IR, deps: Record<string, IR>): Target;
     eval?(ir: IR, deps: Record<string, any>): any;
 };

@@ -32,8 +32,8 @@ const tagStyle = {
 };
 
 const isSelected = (src: Src, statuses: SelectionStatuses) => {
-    const lno = src.left[0]?.idx;
-    const rno = src.right?.[0]?.idx;
+    const lno = src.left;
+    const rno = src.right;
     return Object.keys(statuses).some((key) => {
         return key.endsWith(';' + lno) || key.endsWith(',' + lno) || key.endsWith(';' + rno) || key.endsWith(',' + rno);
     });
@@ -64,6 +64,8 @@ export const XMLNode = ({
 }) => {
     const open = state.expanded.some((p) => pstartsWith(path, p, state.extra)) || state.pinned.some((p) => peq(p, path));
     const exact = state.expanded.some((p) => peq(p, path));
+
+    if (!node) return null;
 
     const selected = node.src && isSelected(node.src, statuses);
     // parentSelected ||
@@ -140,7 +142,7 @@ export const XMLNode = ({
                           value === undefined ? null : (
                               <React.Fragment key={key}>
                                   {key !== 'children' ? (
-                                      <div style={{ gridColumn: 1, fontWeight: 'bold' }}>
+                                      <div style={{ gridColumn: 1, fontWeight: '400' }}>
                                           {key}
                                           {Array.isArray(value) ? `[${value.length}]` : ''}
                                       </div>

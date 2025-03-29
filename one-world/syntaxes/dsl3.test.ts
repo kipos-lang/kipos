@@ -6,7 +6,8 @@ import { root } from '../keyboard/root';
 import { init, js } from '../keyboard/test-utils';
 import { keyUpdate } from '../keyboard/ui/keyUpdate';
 import { cread } from '../shared/creader';
-import { ctx, Ctx, id, kwd, list, match, or, rules, seq, star, tx } from './dsl3';
+import { Ctx, id, kwd, list, match, or, seq, star, tx } from './dsl3';
+import { ctx } from './one';
 import { Expr, Stmt } from './ts-types';
 
 /*
@@ -37,8 +38,8 @@ const fixes = {
 
 const run = (input: string, matcher: string, mctx = ctx) => {
     const state = cread(splitGraphemes(input), js);
-    const rt = root(state, (idx) => [{ id: '', idx }]);
-    const res = match({ type: 'ref', name: matcher }, mctx, { nodes: [rt], loc: [] }, 0);
+    const rt = root(state, (idx) => idx);
+    const res = match({ type: 'ref', name: matcher }, mctx, { nodes: [rt], loc: '' }, 0);
     return res;
 };
 
@@ -52,7 +53,7 @@ Object.entries(fixes).forEach(([key, values]) => {
 
 test.skip('meta from one path doesnt pollute another', () => {
     const state = cread(splitGraphemes('(1,2)'), js);
-    const rt = root(state, (idx) => [{ id: '', idx }]);
+    const rt = root(state, (idx) => idx);
     const mctx: Ctx = {
         meta: {},
         kwds: [],
@@ -66,7 +67,7 @@ test.skip('meta from one path doesnt pollute another', () => {
             ),
         },
     };
-    const res = match({ type: 'ref', name: 'top' }, mctx, { nodes: [rt], loc: [] }, 0);
+    const res = match({ type: 'ref', name: 'top' }, mctx, { nodes: [rt], loc: '' }, 0);
     expect(res?.value).toEqual({ which: 2 });
     expect(mctx.meta).toEqual({});
 });
@@ -284,8 +285,8 @@ test('stmt', () => {
 //     values.forEach((value) => {
 //         test(`${key} + ${value}`, () => {
 //             const state = cread(splitGraphemes(value), js);
-//             const rt = root(state, (idx) => [{ id: '', idx }]);
-//             const res = match({ type: 'ref', name: key }, ctx, { nodes: [rt], loc: [] }, 0);
+//             const rt = root(state, (idx) => idx);
+//             const res = match({ type: 'ref', name: key }, ctx, { nodes: [rt], loc: '' }, 0);
 //             expect(res?.consumed).toEqual(1);
 //         });
 //     });
