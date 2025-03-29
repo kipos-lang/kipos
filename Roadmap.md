@@ -30,10 +30,23 @@ because it incorporates linting & type checking?
 # Next up:
 
 - [x] get tables parsing
+- [x] all the fancy; named args, constructors, multi-bops, spreads
+- [ ] in a table, need to be able to do a 'drop-table' mode.
+  where right right column is below + indented from the left column.
+  for large switch patterns & bodies.
+  This should be triggerable by:
+  - cmd-return in a non-left cell, or
+  - return at the start of a non-blank non-left cell
 - [ ] show parse errors better...
 - [ ] have a button to turn on "debug the parse"
 - [ ] do we then go for evaluation?
 - [ ] or type inference? wait no we're gonna be loosy goosy for js--
+
+hello(one)
+hello(:one:two; three:four:)
+hello[one]
+hello[:one:two:]
+hello[:one:two; three:four:]
 
 # Thoughts about locs being strings
 

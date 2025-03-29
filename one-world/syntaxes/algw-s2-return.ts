@@ -4,7 +4,7 @@ import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, nu
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
-import { Block, Expr, Pat, Spread, Stmt } from './algw-s2-types';
+import { Block, CallArgs, Expr, ObjectRow, Pat, Spread, Stmt } from './algw-s2-types';
 
 export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'case', 'else', 'let', 'const', '=', '..', '.', 'fn'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
@@ -44,8 +44,9 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
 };
 
 export type Suffix =
-    | { type: 'index'; index: Expr; src: Src }
-    | { type: 'call'; items: Expr[]; src: Src }
+    | { type: 'index'; index: Expr[]; src: Src }
+    // | { type: 'call'; items: (Expr | Spread<Expr>)[]; src: Src }
+    | CallArgs
     | { type: 'attribute'; attribute: Id<Loc>; src: Src };
 
 const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
@@ -53,30 +54,25 @@ const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
-                // base = { type: 'attribute', target: base, attribute: suffix.attribute, src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
+                base = { type: 'attribute', target: base, attribute: suffix.attribute, src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
+                // base = {
+                //     type: 'app',
+                //     target: { type: 'var', name: suffix.attribute.text, src: nodesSrc(suffix.attribute) },
+                //     args: [base],
+                //     src: mergeSrc(base.src, suffix.src),
+                // };
+                return;
+            case 'named':
+            case 'unnamed':
                 base = {
                     type: 'app',
-                    target: { type: 'var', name: suffix.attribute.text, src: nodesSrc(suffix.attribute) },
-                    args: [base],
+                    target: base,
+                    args: suffix,
                     src: mergeSrc(base.src, suffix.src),
                 };
-                return;
-            case 'call':
-                if (i > 0 && suffixes[i - 1].type === 'attribute' && base.type === 'app') {
-                    base.args.push(...suffix.items);
-                    base.src = mergeSrc(base.src, suffix.src);
-                } else {
-                    base = { type: 'app', target: base, args: suffix.items, src: mergeSrc(base.src, suffix.src) };
-                }
                 return;
             case 'index':
-                // base = { type: 'index', target: base, index: suffix.index, src: mergeSrc(base.src, suffix.src) };
-                base = {
-                    type: 'app',
-                    target: { type: 'var', name: 'index', src: suffix.src },
-                    args: [base, suffix.index],
-                    src: mergeSrc(base.src, suffix.src),
-                };
+                base = { type: 'index', target: base, index: suffix.index, src: mergeSrc(base.src, suffix.src) };
                 return;
             // default:
             //     throw new Error(`not doing ${(suffix as any).type} right now`);
@@ -102,39 +98,25 @@ const exprs: Record<string, Rule<Expr>> = {
         src,
         value: textString(ctx.ref<TextSpan<string>[]>('spans')),
     })),
-    'expr object': tx<Expr>(
-        group(
-            'rows',
-            table(
-                'curly',
-                or(
-                    ref('spread'),
-                    tx(seq(ref('expr', 'name'), ref('expr', 'value')), (ctx, src) => ({
-                        type: 'row',
-                        name: ctx.ref<Expr>('name'),
-                        value: ctx.ref<Expr>('value'),
-                        src,
-                    })),
-                ),
-            ),
-        ),
-        (ctx, src) => ({ type: 'object', rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'), src }),
-    ),
-    // ({ type:'str', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
-    'expr tuple': tx<Expr>(list('round', group('items', star(ref('expr')))), (ctx, src) => {
-        const items = ctx.ref<Expr[]>('items');
-        if (items.length === 0) {
-            return { type: 'var', name: 'null', src };
-        }
-        if (items.length === 1) return items[0];
-        return items.reduceRight((right, left) => ({
-            type: 'app',
-            target: { type: 'var', name: ',', src },
-            args: [left, right],
+    'expr constructor': tx(
+        list('smooshed', seq(kwd('.'), group('id', meta(id(null), 'constructor')), group('args', opt(ref('call-args'))))),
+        (ctx, src) => ({
+            type: 'constructor',
+            name: ctx.ref<Id<Loc>>('id'),
+            args: ctx.ref<CallArgs | null>('args') ?? undefined,
             src,
-        }));
+        }),
+    ),
+    'expr object': tx<Expr>(group('rows', table('curly', or(ref('spread'), ref('object row')))), (ctx, src) => ({
+        type: 'object',
+        rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'),
+        src,
+    })),
+    // ({ type:'str', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
+    'expr tuple': tx<Expr>(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
+        return { type: 'tuple', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
-    'expr array': tx(list('square', group('items', star(or(or(ref('spread'), ref('expr')))))), (ctx, src) => {
+    'expr array': tx(list('square', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
         return { type: 'array', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
     // 'expr table': tx(
@@ -161,6 +143,24 @@ const rules = {
         // tx(kwd('return'), (_, src) => ({ type: 'return', value: null, src })),
         // kwd('continue'),
         tx(ref('expr', 'expr'), (ctx, src) => ({ type: 'expr', expr: ctx.ref<Expr>('expr'), src })),
+    ),
+    'object row': tx<ObjectRow>(seq(ref('expr', 'name'), ref('expr', 'value')), (ctx, src) => ({
+        type: 'row',
+        name: ctx.ref<Expr>('name'),
+        value: ctx.ref<Expr>('value'),
+        src,
+    })),
+    'call-args': or<CallArgs>(
+        tx<CallArgs>(list('round', group('args', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
+            type: 'unnamed',
+            args: ctx.ref<(Expr | Spread<Expr>)[]>('args'),
+            src,
+        })),
+        tx<CallArgs>(group('args', table('round', star(or(ref('spread'), ref('object row'))))), (ctx, src) => ({
+            type: 'named',
+            args: ctx.ref<ObjectRow[]>('args'),
+            src,
+        })),
     ),
     pat: or<Pat>(
         tx(kwd('_'), (ctx, src) => ({ type: 'any', src })),
@@ -242,16 +242,17 @@ const rules = {
                             attribute: ctx.ref<Id<Loc>>('attribute'),
                             src,
                         })),
-                        tx(list('square', ref('expr', 'index')), (ctx, src) => ({
+                        tx(list('square', group('index', star(ref('expr')))), (ctx, src) => ({
                             type: 'index',
-                            index: ctx.ref<Expr>('index'),
+                            index: ctx.ref<Expr[]>('index'),
                             src,
                         })),
-                        tx(list('round', group('items', star(ref('expr')))), (ctx, src) => ({
-                            type: 'call',
-                            items: ctx.ref<Expr[]>('items'),
-                            src,
-                        })),
+                        ref('call-args'),
+                        // tx(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
+                        //     type: 'call',
+                        //     items: ctx.ref<(Expr | Spread<Expr>)[]>('items'),
+                        //     src,
+                        // })),
                     ),
                 ),
             ),
@@ -307,12 +308,22 @@ const rules = {
                 src,
             }),
         ),
-        tx<Expr>(seq(ref('expr', 'left'), ref('bop', 'op'), ref('expr', 'right')), (ctx, src) => ({
-            type: 'app',
-            target: { type: 'var', name: ctx.ref<Id<Loc>>('op').text, src },
-            args: [ctx.ref<Expr>('left'), ctx.ref<Expr>('right')],
-            src,
-        })),
+        tx<Expr>(
+            seq(
+                ref('expr', 'left'),
+                group(
+                    'rights',
+                    star(tx(seq(ref('bop', 'op'), ref('expr', 'right')), (ctx, src) => ({ op: ctx.ref('op'), right: ctx.ref('right') }))),
+                ),
+            ),
+            (ctx, src) => ({
+                type: 'bop',
+                op: ctx.ref<Id<Loc>>('op'),
+                left: ctx.ref<Expr>('left'),
+                rights: ctx.ref<{ op: { text: string; loc: string }; right: Expr }[]>('rights'),
+                src,
+            }),
+        ),
         ref('expr'),
     ),
 };

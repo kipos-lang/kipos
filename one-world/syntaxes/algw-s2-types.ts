@@ -8,17 +8,24 @@ export type Stmt =
     | { type: 'expr'; expr: Expr; src: Src }
     | { type: 'return'; value?: Expr; src: Src };
 export type Spread<T> = { type: 'spread'; inner: T; src: Src };
+export type ObjectRow = { type: 'row'; name: Expr; value: Expr; src: Src } | Spread<Expr>;
+export type CallArgs = { type: 'named'; args: ObjectRow[]; src: Src } | { type: 'unnamed'; args: (Expr | Spread<Expr>)[]; src: Src };
 export type Expr =
     | Block
     | { type: 'if'; cond: Expr; yes: Block; no?: Expr; src: Src }
     | { type: 'match'; target: Expr; cases: { pat: Pat; body: Expr }[]; src: Src }
     | { type: 'array'; items: (Expr | Spread<Expr>)[]; src: Src }
-    | { type: 'object'; rows: ({ type: 'row'; name: Expr; value: Expr; src: Src } | Spread<Expr>)[]; src: Src }
     | { type: 'prim'; prim: Prim; src: Src }
     | { type: 'var'; name: string; src: Src }
     | { type: 'str'; value: string; src: Src }
+    | { type: 'bop'; left: Expr; rights: { op: { text: string; loc: string }; right: Expr }[]; src: Src }
     | { type: 'lambda'; args: Pat[]; body: Expr; src: Src }
-    | { type: 'app'; target: Expr; args: Expr[]; src: Src };
+    | { type: 'tuple'; items: (Expr | Spread<Expr>)[]; src: Src }
+    | { type: 'app'; target: Expr; args: CallArgs; src: Src }
+    | { type: 'object'; rows: ObjectRow[]; src: Src }
+    | { type: 'attribute'; target: Expr; attribute: { text: string; loc: string }; src: Src }
+    | { type: 'index'; target: Expr; index: Expr[]; src: Src }
+    | { type: 'constructor'; name: { text: string; loc: string }; args?: CallArgs; src: Src };
 export type Pat =
     | { type: 'any'; src: Src }
     | { type: 'var'; name: string; src: Src }
@@ -118,8 +125,19 @@ export function traverseExpr(
             break;
         case 'app':
             traverseExpr(expr.target, visitors);
-            for (const arg of expr.args) {
-                traverseExpr(arg, visitors);
+            if (expr.args.type === 'named') {
+                for (const arg of expr.args.args) {
+                    if (arg.type === 'spread') traverseExpr(arg.inner, visitors);
+                    else {
+                        traverseExpr(arg.name, visitors);
+                        traverseExpr(arg.value, visitors);
+                    }
+                }
+            } else {
+                for (const arg of expr.args.args) {
+                    if (arg.type === 'spread') traverseExpr(arg.inner, visitors);
+                    else traverseExpr(arg, visitors);
+                }
             }
             break;
     }

@@ -61,13 +61,16 @@ export const RenderTable = ({ node, sel, self }: { node: Node & { type: 'table' 
     return (
         <span ref={drag.ref(node.loc)} style={style}>
             {has('before') ? <Cursor /> : null}
-            {opener[node.kind]}:{has('inside') ? <Cursor /> : null}
+            {opener[node.kind]}
+            <span style={{ marginLeft: -5, marginRight: 5 }}>:</span>
+            {has('inside') ? <Cursor /> : null}
             {node.forceMultiline ? (
                 <div style={{ display: 'grid', marginLeft: 32, gridAutoColumns: 'max-content', columnGap: 8 }}>{rows}</div>
             ) : (
                 interleaveF(rows, (k) => <span key={k}>; </span>)
             )}
-            :{closer[node.kind]}
+            <span style={{ marginRight: -5, marginLeft: 5 }}>:</span>
+            {closer[node.kind]}
             {has('after') ? <Cursor /> : null}
         </span>
     );
