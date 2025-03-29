@@ -28,11 +28,11 @@ export type TestState = {
     nextLoc: () => string;
 };
 
-export type TestParser<T> = {
-    config: Config;
-    parse(node: RecNode, cursor?: NodeID): any;
-    spans(ast: any): Src[];
-};
+// export type TestParser<T> = {
+//     config: Config;
+//     parse(node: RecNode, cursor?: NodeID): any;
+//     spans(ast: any): Src[];
+// };
 
 export const nloc = () => {
     let id = 1;

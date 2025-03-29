@@ -6,7 +6,8 @@ import { root } from '../keyboard/root';
 import { init, js } from '../keyboard/test-utils';
 import { keyUpdate } from '../keyboard/ui/keyUpdate';
 import { cread } from '../shared/creader';
-import { ctx, Ctx, id, kwd, list, match, or, rules, seq, star, tx } from './dsl3';
+import { Ctx, id, kwd, list, match, or, seq, star, tx } from './dsl3';
+import { ctx } from './one';
 import { Expr, Stmt } from './ts-types';
 
 /*
