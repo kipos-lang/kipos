@@ -226,7 +226,7 @@ const DebugSidebar = () => {
     return (
         <div style={{ width: 600 }}>
             <div>Debug sidebar</div>
-            <div>{results[top] ? <ParseTrace trace={results[top].trace} /> : null}</div>
+            <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
         </div>
     );
 };

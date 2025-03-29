@@ -5,7 +5,7 @@ import React from 'react';
 export const EditIcon = () => (
     <svg
         style={{
-            color: 'black',
+            color: 'currentColor',
         }}
         aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"

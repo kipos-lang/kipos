@@ -1,7 +1,39 @@
 
 # Ok now parsing is in the picture, and guess what??
+
 I want a sidebar debugger.
 Suprisesee
+
+- [x] have a basic thing
+
+# Imagining a type checker for my js--
+
+Honestly this is for like a js-+
+because it would have tagged unions,
+which work normally
+but it would also have object literals,
+which would be completely opaque
+
+WAIT ok.
+I could actually still do this for js--
+it would just be "objects are all equivalent"
+and "attribute access produces a new type variable".
+
+in order to have tagged unions, we'd need ast-level support
+for them. which I think I can manage.
+
+yeah, then we can have nice things.
+ALSO so I'll want to be able to represent warnings too.
+should 'infer' be called 'validate'?
+because it incorporates linting & type checking?
+
+# Next up:
+
+- [ ] get tables parsing
+- [ ] show parse errors better...
+- [ ] have a button to turn on "debug the parse"
+- [ ] do we then go for evaluation?
+- [ ] or type inference? wait no we're gonna be loosy goosy for js--
 
 # Thoughts about locs being strings
 
