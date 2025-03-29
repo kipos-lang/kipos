@@ -2,7 +2,6 @@ import equal from 'fast-deep-equal';
 import { isTag } from '../keyboard/handleNav';
 import { js, TestParser } from '../keyboard/test-utils';
 import { Id, ListKind, Loc, NodeID, RecNode, TableKind, Text, TextSpan } from '../shared/cnodes';
-import { MatchParent } from './dsl';
 import {
     binops,
     Expr,
@@ -22,6 +21,13 @@ import {
     Type,
     unops,
 } from './ts-types';
+
+export type MatchParent = {
+    nodes: RecNode[];
+    loc: Loc;
+    sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
+};
+export type Span = { start: Loc; end?: Loc };
 
 /*
 
