@@ -12,7 +12,8 @@ import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStore, Evt, allIds } from './store';
 import { Event } from '../../syntaxes/dsl3';
-import { Language } from './language';
+import { Language, ValidateResult } from './language';
+import { Type } from '../../syntaxes/algw-s2-types';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -31,6 +32,8 @@ const recalcSelectionStatuses = (mod: Module) => {
     return statuses;
 };
 
+export type LangResult = ParseResult<any> & { trace: Event[]; validation?: ValidateResult<Type> | null };
+
 export const makeEditor = (
     selected: string,
     modules: Record<string, Module>,
@@ -40,7 +43,7 @@ export const makeEditor = (
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
-    const parseResults: Record<string, ParseResult<any> & { trace: Event[] }> = {};
+    const parseResults: Record<string, LangResult> = {};
 
     Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
         parseResults[key] = doParse(language, top);
@@ -48,6 +51,10 @@ export const makeEditor = (
 
     return {
         // selected,
+        useTopParseResults(top: string) {
+            useTick(`top:${top}:parse-results`);
+            return parseResults[top];
+        },
         useParseResults() {
             useTick(`module:${selected}:parse-results`);
             return parseResults;
@@ -123,6 +130,7 @@ export const makeEditor = (
                     });
                     parseResults[key] = result;
                     shout(`module:${selected}:parse-results`);
+                    shout(`top:${key}:parse-results`);
                 }
             });
 
@@ -178,7 +186,7 @@ export const makeEditor = (
     };
 };
 
-const doParse = (language: Language<any, any, any, any>, top: Toplevel) => {
+const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangResult => {
     const node = root<Loc>({ top });
     const trace: Event[] = [];
     const TRACE = false;
@@ -191,5 +199,9 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel) => {
               }
             : undefined,
     );
-    return { ...result, trace };
+    let validation = null;
+    if (result.result && language.validate) {
+        validation = language.validate(result.result);
+    }
+    return { ...result, trace, validation };
 };

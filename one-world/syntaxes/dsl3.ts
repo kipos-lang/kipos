@@ -153,7 +153,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id' });
             return { value: node, consumed: 1 };
         case 'number': {
-            if (node?.type !== 'id') return ctx.trace?.({ type: 'mismatch', message: 'not id' });
+            if (node?.type !== 'id' || !node.text) return ctx.trace?.({ type: 'mismatch', message: 'not id' });
             if (rule.just === 'float' && !node.text.includes('.')) return ctx.trace?.({ type: 'mismatch', message: 'not float: ' + node.text });
             const num = Number(node.text);
             if (!Number.isFinite(num)) return ctx.trace?.({ type: 'mismatch', message: 'NaN: ' + node.text });

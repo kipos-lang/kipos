@@ -373,13 +373,16 @@ const rules = {
                     star(tx(seq(ref('bop', 'op'), ref('expr', 'right')), (ctx, src) => ({ op: ctx.ref('op'), right: ctx.ref('right') }))),
                 ),
             ),
-            (ctx, src) => ({
-                type: 'bop',
-                op: ctx.ref<Id<Loc>>('op'),
-                left: ctx.ref<Expr>('left'),
-                rights: ctx.ref<{ op: { text: string; loc: string }; right: Expr }[]>('rights'),
-                src,
-            }),
+            (ctx, src) => {
+                const rights = ctx.ref<{ op: { text: string; loc: string }; right: Expr }[]>('rights');
+                if (!rights.length) return ctx.ref<Expr>('left');
+                return {
+                    type: 'bop',
+                    left: ctx.ref<Expr>('left'),
+                    rights,
+                    src,
+                };
+            },
         ),
         ref('expr'),
     ),

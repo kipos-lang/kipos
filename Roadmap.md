@@ -1,4 +1,14 @@
 
+# ok
+so I'm not going to do the full type system thing in ts.
+
+BUT I can try out my algw-s2-return dealio,
+and modify it to be permissive of some things.
+
+ok, so where do I put the inferred type?
+How about top right?
+let's try that.
+
 # Type thoughts
 
 Error throw/catch

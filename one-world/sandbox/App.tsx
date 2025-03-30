@@ -1,14 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Path, selStart } from '../keyboard/utils';
-import { Node } from '../shared/cnodes';
+import { lastChild, Path, selStart } from '../keyboard/utils';
+import { fromRec, Node, RecNode } from '../shared/cnodes';
 import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
 import { RenderNode } from './render/RenderNode';
 import { Editor } from './Editor';
-import { lightColor, lightColorA } from '../keyboard/ui/colors';
 import { EditIcon } from './icons';
 import { css } from 'goober';
 import { Meta } from './store/language';
 import { zedlight } from './zedcolors';
+import { currentTheme } from './themes';
+import { genId } from '../keyboard/ui/genId';
 
 export const App = () => {
     return (
@@ -29,10 +30,8 @@ export const App = () => {
 export const Top = ({ id }: { id: string }) => {
     const store = useStore();
     const editor = store.useEditor();
-    // const module = editor.useModule()
     const top = editor.useTop(id);
 
-    // const isSelected = module.selections.some((s) => s.start.path.root.top === id || s.end?.path.root.top === id);
     const root = top.useRoot();
     const rootPath = useMemo(
         () => ({
@@ -41,6 +40,8 @@ export const Top = ({ id }: { id: string }) => {
         }),
         [id],
     );
+
+    const parseResult = editor.useTopParseResults(id);
 
     const useNode = useCallback((path: Path) => top.useNode(path), [top]);
     return (
@@ -54,8 +55,6 @@ export const Top = ({ id }: { id: string }) => {
                 borderRadius: '4px',
                 boxShadow: '1px 1px 3px #ccc',
                 fontFamily: 'Jet Brains',
-                // borderBottom: '4px dashed #eee',
-                // paddingBottom: '18px',
             })}
         >
             <button
@@ -76,11 +75,46 @@ export const Top = ({ id }: { id: string }) => {
                 &times;
             </button>
             <div style={{ flexBasis: 12 }} />
-            {/* <span style={{ fontSize: '50%', border: '1px solid red' }}>{id.slice(-5)}</span> */}
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
-            {/* {isSelected ? JSON.stringify(editor.module.selections) : null} */}
+            <div style={{ marginLeft: 24, border: `1px solid ${currentTheme.typeColors.hlColor}`, paddingInline: 4, borderRadius: 3 }}>
+                {Object.entries(parseResult?.validation?.annotations ?? {}).map(([key, items]) => (
+                    <div key={key}>
+                        {items.map((item, i) =>
+                            item.type === 'type' ? (
+                                <div key={i}>
+                                    <RenderStaticNode root={item.annotation} />
+                                </div>
+                            ) : null,
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record<string, Meta> } }) => {
+    const { map, id, meta } = useMemo(() => {
+        const map: Record<string, Node> = {};
+        const meta: Record<string, Meta> = {};
+        const id = fromRec(root.node, map, (l) => {
+            const n = genId();
+            meta[n] = root.meta[l];
+            return n;
+        });
+        return { map, id, meta };
+    }, [root]);
+    return (
+        <div>
+            <UseNodeCtx.Provider
+                value={(path: Path) => {
+                    return { node: map[lastChild(path)], meta: meta[lastChild(path)] };
+                }}
+            >
+                <RenderNode id={id} parent={{ children: [], root: { ids: [], top: '' } }} />
+            </UseNodeCtx.Provider>
         </div>
     );
 };
@@ -150,7 +184,6 @@ const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree
                     })}
                     onClick={(evt) => {
                         location.hash = '#' + tree.node!.id;
-                        // store.select(tree.node!.id)
                     }}
                 >
                     {editing != null ? (
@@ -219,7 +252,7 @@ export const ModuleSidebar = () => {
     const tree = store.useModuleTree();
     return (
         <div style={{ padding: 8, backgroundColor: zedlight['border.selected'] }}>
-            <div>Modules</div>
+            <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Modules</div>
             <ShowModuleTree selected={selected} tree={tree} />
         </div>
     );

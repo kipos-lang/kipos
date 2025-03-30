@@ -6,7 +6,7 @@ import { Module, Toplevel } from '../types';
 import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
-import { makeEditor } from './makeEditor';
+import { LangResult, makeEditor } from './makeEditor';
 import { Meta } from './language';
 import { ParseResult } from '../../syntaxes/algw-s2-return';
 import { Event } from '../../syntaxes/dsl3';
@@ -32,7 +32,8 @@ interface Store {
 }
 
 export interface EditorStore {
-    useParseResults(): Record<string, ParseResult<any> & { trace: Event[] }>;
+    useTopParseResults(top: string): LangResult;
+    useParseResults(): Record<string, LangResult>;
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;

@@ -42,11 +42,13 @@ export type Parser<Macro, AST> = {
     spans(ast: AST): Src[];
 };
 
+export type Renderable = { node: RecNode; meta: Record<string, Meta> };
+
 type Annotation =
     | { type: 'error'; message: string; spans?: Src[] }
     | { type: 'warning'; message: string; spans?: Src[] }
     | { type: 'info'; message: string; spans?: Src[] }
-    | { type: 'type'; annotation: RecNode; spans?: Src[] };
+    | { type: 'type'; annotation: Renderable; spans?: Src[]; primary?: boolean };
 
 export type ValidateResult<ValidationInfo> = {
     result?: ValidationInfo;
