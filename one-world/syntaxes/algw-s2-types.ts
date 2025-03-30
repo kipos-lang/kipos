@@ -9,8 +9,11 @@ export type Stmt =
     | { type: 'expr'; expr: Expr; src: Src }
     | { type: 'return'; value?: Expr; src: Src };
 export type Spread<T> = { type: 'spread'; inner: T; src: Src };
-export type ObjectRow = { type: 'row'; name: Expr; value: Expr; src: Src } | Spread<Expr>;
-export type CallArgs = { type: 'named'; args: ObjectRow[]; src: Src } | { type: 'unnamed'; args: (Expr | Spread<Expr>)[]; src: Src };
+export type ObjectRow = { type: 'row'; name: Expr; value?: Expr; src: Src } | Spread<Expr>;
+export type CallRow = { type: 'row'; name: { text: string; loc: string }; value?: Expr } | Spread<Expr>;
+export type PatCallRow = { type: 'row'; name: { text: string; loc: string }; value?: Pat } | Spread<Pat>;
+export type CallArgs = { type: 'named'; args: CallRow[]; src: Src } | { type: 'unnamed'; args: (Expr | Spread<Expr>)[]; src: Src };
+export type PatArgs = { type: 'named'; args: PatCallRow[]; src: Src } | { type: 'unnamed'; args: (Pat | Spread<Pat>)[]; src: Src };
 export type Quote =
     | { type: 'raw'; contents: RecNode }
     | { type: 'expr'; contents: Expr }
@@ -32,6 +35,8 @@ export type Expr =
     | { type: 'tuple'; items: (Expr | Spread<Expr>)[]; src: Src }
     | { type: 'app'; target: Expr; args: CallArgs; src: Src }
     | { type: 'object'; rows: ObjectRow[]; src: Src }
+    | { type: 'throw'; value: Expr; src: Src }
+    | { type: 'new'; value: Expr; src: Src }
     | { type: 'attribute'; target: Expr; attribute: { text: string; loc: string }; src: Src }
     | { type: 'index'; target: Expr; index: Expr[]; src: Src }
     | { type: 'constructor'; name: { text: string; loc: string }; args?: CallArgs; src: Src };
@@ -39,7 +44,8 @@ export type Pat =
     | { type: 'any'; src: Src }
     | { type: 'unquote'; src: Src; contents: Pat }
     | { type: 'var'; name: string; src: Src }
-    | { type: 'con'; name: string; args: Pat[]; src: Src }
+    | { type: 'tuple'; items: Pat[]; src: Src }
+    | { type: 'con'; name: string; args: PatArgs; src: Src }
     | { type: 'str'; value: string; src: Src }
     | { type: 'prim'; prim: Prim; src: Src };
 export type Type =
@@ -139,8 +145,7 @@ export function traverseExpr(
             if (expr.args.type === 'named') {
                 for (const arg of expr.args.args) {
                     if (arg.type === 'spread') traverseExpr(arg.inner, visitors);
-                    else {
-                        traverseExpr(arg.name, visitors);
+                    else if (arg.value) {
                         traverseExpr(arg.value, visitors);
                     }
                 }
@@ -172,9 +177,20 @@ export function traversePat(
         case 'var':
             break;
         case 'con':
-            for (const arg of pat.args) {
-                traversePat(arg, visitors);
+            if (pat.args.type === 'named') {
+                for (const arg of pat.args.args) {
+                    if (arg.type === 'spread') traversePat(arg.inner, visitors);
+                    else if (arg.value) {
+                        traversePat(arg.value, visitors);
+                    }
+                }
+            } else {
+                for (const arg of pat.args.args) {
+                    if (arg.type === 'spread') traversePat(arg.inner, visitors);
+                    else traversePat(arg, visitors);
+                }
             }
+
             break;
         case 'str':
             break;

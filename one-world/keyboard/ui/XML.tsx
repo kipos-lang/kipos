@@ -149,20 +149,22 @@ export const XMLNode = ({
                                   ) : null}
                                   <div style={key === 'children' ? { gridColumnStart: 1, gridColumnEnd: 3 } : { gridColumn: 2 }}>
                                       {Array.isArray(value) ? (
-                                          value.map((item, i) => (
-                                              <XMLNode
-                                                  key={i}
-                                                  parentSelected={selected}
-                                                  onClick={onClick}
-                                                  statuses={statuses}
-                                                  sel={sel}
-                                                  setHover={setHover}
-                                                  node={item}
-                                                  state={state}
-                                                  path={path.concat([key, i])}
-                                                  toggle={toggle}
-                                              />
-                                          ))
+                                          value
+                                              .flat()
+                                              .map((item, i) => (
+                                                  <XMLNode
+                                                      key={i}
+                                                      parentSelected={selected}
+                                                      onClick={onClick}
+                                                      statuses={statuses}
+                                                      sel={sel}
+                                                      setHover={setHover}
+                                                      node={item}
+                                                      state={state}
+                                                      path={path.concat([key, i])}
+                                                      toggle={toggle}
+                                                  />
+                                              ))
                                       ) : (
                                           <XMLNode
                                               node={value}

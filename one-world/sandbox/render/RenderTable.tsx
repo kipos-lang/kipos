@@ -12,7 +12,7 @@ import { currentTheme } from '../themes';
 import { Meta } from '../store/language';
 import { metaStyles } from './metaStyles';
 
-export const RenderTable = ({ node, sel, self, meta }: { meta: Meta; node: Node & { type: 'table' }; sel?: SelStatus; self: Path }) => {
+export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node & { type: 'table' }; sel?: SelStatus; self: Path }) => {
     const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
 
     const hl = sel?.highlight?.type === 'full' || (sel?.highlight?.type === 'list' && sel.highlight.opener && sel.highlight.closer);
@@ -45,6 +45,9 @@ export const RenderTable = ({ node, sel, self, meta }: { meta: Meta; node: Node 
                                           gridColumn: `1 / ${width + 2}`,
                                           // display: 'block',
                                           paddingLeft: 32,
+                                          paddingBottom: 8,
+                                          borderBottom: `1px dotted ${currentTheme.typeColors.accent}`,
+                                          marginBottom: 8,
                                       }
                                     : {
                                           gridColumn: j * 2 + 1,

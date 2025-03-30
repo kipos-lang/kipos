@@ -1,10 +1,77 @@
 
+# Type thoughts
+
+Error throw/catch
+- we use constraints, e.g. if you throw SomeError, then the constraint appears:
+  `*throw* is a supertype of SomeError`
+
+I'd have to think about how that vibes with generics and inference and stuff.
+
+hm because if you .. call a function...
+
+```ts
+
+const map = (ar, f, g) => {
+    let res = []
+    for (let item of ar) {
+        res.push(f(item))
+    }
+    g()
+    return res
+}
+
+// map's type would be something like
+<Input, Output, FErr>(ar: Array<Input>, f: (v: Input) ={FErr}> Output, g: () ={GErr}> void) ={MErr}> Array<Output>
+with constraints MErr is supertype of FErr, MErr is supertype of GErr
+```
+right?
+
+seems like that ought to work...
+
+how about eliminating them?
+
+```ts
+
+try {
+    throw SomeError
+} catch SomeError (err) {
+    //
+}
+
+
+````
+
+# Now on to type checking
+
+we should be able to do some type checking.
+a 'validator', as it were.
+
+things I want to do:
+
+- `.attribute` access ... hm.
+
+So, if I want nice interactions with arrays and maps, we would go one way.
+like if I want it to be well typed.
+
+on the other hand, I want arbitrary json interactions.
+
+I could do something like `one#two` means "get an arbitrary attribute"
+
+can I have something like baby traits?
+where only builtins are allowed to have traits?
+
+we might only need a couple of traits.
+
+Index<key, value>
+Attribute<"name", value>
+
 # Ok now parsing is in the picture, and guess what??
 
 I want a sidebar debugger.
 Suprisesee
 
 - [x] have a basic thing
+- [x] show AST as well
 
 # Imagining a type checker for my js--
 
