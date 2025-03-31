@@ -16,10 +16,10 @@ const findDeps = (file: string) => {
 
 const seen: Record<string, true> = {};
 Object.keys(data).forEach((name) => {
-    const parent = dirname(name);
-    if (seen[parent]) return;
+    // const parent = dirname(name);
+    // if (seen[parent]) return;
     // if (parent.startsWith('../../../')) return; // outside of one-world
-    seen[parent] = true;
+    // seen[parent] = true;
     // const tests = fs.readdirSync(`${basedir}/${parent}`).filter((n) => n.endsWith('.test.ts'));
     // tests.forEach((name) => {
     //     console.log('dest', name);
@@ -36,7 +36,7 @@ Object.keys(data).forEach((name) => {
     //     fs.mkdirSync(dirname(dest), { recursive: true });
     //     fs.copyFileSync(`${basedir}/${parent}/${name}`, dest);
     // });
-    const dest = `type-inference-debugger/${name}`;
+    const dest = `type-inference-debugger/demo/${name}`;
     if (!existsSync(dest)) {
         fs.mkdirSync(dirname(dest), { recursive: true });
         fs.copyFileSync(`${basedir}/${name}`, dest);

@@ -1,0 +1,82 @@
+{
+  "../infer/algw/Type.ts": [
+    "../lang/parse-dsl.ts"
+  ],
+  "../infer/algw/algw-s2-return.ts": [
+    "../infer/algw/Type.ts",
+    "../lang/parse-dsl.ts",
+    "interleave.ts"
+  ],
+  "../lang/algw-s2-return.ts": [
+    "../infer/algw/Type.ts",
+    "../lang/lexer.ts",
+    "../lang/nodes.ts",
+    "../lang/parse-dsl.ts",
+    "../lang/ts-types.ts"
+  ],
+  "../lang/lexer.ts": [
+    "../lang/nodes.ts"
+  ],
+  "../lang/nodes.ts": [],
+  "../lang/parse-dsl.ts": [
+    "../lang/nodes.ts"
+  ],
+  "../lang/ts-types.ts": [
+    "../lang/nodes.ts"
+  ],
+  "App.tsx": [
+    "../infer/algw/Type.ts",
+    "../infer/algw/algw-s2-return.ts",
+    "../lang/algw-s2-return.ts",
+    "../lang/lexer.ts",
+    "../lang/nodes.ts",
+    "../lang/parse-dsl.ts",
+    "Numtip.tsx",
+    "RenderEvent.tsx",
+    "RenderNode.tsx",
+    "RenderType.tsx",
+    "ShowText.tsx",
+    "colors.ts",
+    "interleave.ts",
+    "themes.ts"
+  ],
+  "Numtip.tsx": [
+    "RenderType.tsx"
+  ],
+  "RenderEvent.tsx": [
+    "../infer/algw/algw-s2-return.ts",
+    "RenderType.tsx",
+    "ShowUnify.tsx"
+  ],
+  "RenderNode.tsx": [
+    "../lang/nodes.ts",
+    "../lang/parse-dsl.ts",
+    "App.tsx",
+    "RenderType.tsx",
+    "interleave.ts"
+  ],
+  "RenderType.tsx": [
+    "../infer/algw/Type.ts",
+    "../infer/algw/algw-s2-return.ts",
+    "interleave.ts",
+    "themes.ts"
+  ],
+  "ShowText.tsx": [
+    "../infer/algw/algw-s2-return.ts",
+    "App.tsx",
+    "Numtip.tsx",
+    "RenderType.tsx",
+    "ShowUnify.tsx",
+    "themes.ts"
+  ],
+  "ShowUnify.tsx": [
+    "../infer/algw/Type.ts",
+    "../infer/algw/algw-s2-return.ts",
+    "RenderType.tsx"
+  ],
+  "colors.ts": [],
+  "interleave.ts": [],
+  "themes.ts": [
+    "colors.ts"
+  ]
+}
