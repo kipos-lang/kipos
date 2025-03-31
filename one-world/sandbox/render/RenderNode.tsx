@@ -8,6 +8,7 @@ import { RenderId } from './RenderId';
 import { RenderList } from './RenderList';
 import { RenderTable } from './RenderTable';
 import { Meta } from '../store/language';
+import { css } from 'goober';
 
 const R = ({ node, self, sel, meta }: { meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
@@ -24,7 +25,23 @@ const R = ({ node, self, sel, meta }: { meta?: Meta; node: Node; self: Path; sel
 
 export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
-    const { node, sel, meta } = useContext(UseNodeCtx)(self);
+    const { node, sel, meta, annotations } = useContext(UseNodeCtx)(self);
+
+    const errors = annotations?.filter((e) => e.type === 'error');
+
+    const r = <R node={node} self={self} meta={meta} sel={sel} />;
+
+    if (errors?.length) {
+        return (
+            <span
+                className={css({
+                    textDecoration: 'wavy red underline',
+                })}
+            >
+                {r}
+            </span>
+        );
+    }
 
     return (
         <>
@@ -32,7 +49,8 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
                 {id.slice(-5)}:{node.type}
             </span> */}
             {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
-            <R node={node} self={self} meta={meta} sel={sel} />
+            {errors?.length ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(errors)}</span> : null}
+            {r}
         </>
         // <span data-self={JSON.stringify(self)} data-id={id}>
         //     {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>

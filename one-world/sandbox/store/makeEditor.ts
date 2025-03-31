@@ -128,6 +128,12 @@ export const makeEditor = (
                             changed[key] = true;
                         }
                     });
+                    Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
+                        if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
+                        else if (!equal(value, parseResults[key].validation.annotations[key])) {
+                            changed[key] = true;
+                        }
+                    });
                     parseResults[key] = result;
                     shout(`module:${selected}:parse-results`);
                     shout(`top:${key}:parse-results`);
@@ -172,6 +178,7 @@ export const makeEditor = (
                         node: modules[selected].toplevels[top].nodes[lastChild(path)],
                         sel: selectionStatuses[pathKey(path)],
                         meta: parseResults[top]?.ctx.meta[lastChild(path)],
+                        annotations: parseResults[top]?.validation?.annotations[lastChild(path)],
                     };
                 },
                 useRoot() {

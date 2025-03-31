@@ -255,9 +255,16 @@ const hole = (active?: boolean): StackText => ({ type: 'hole', active });
 const kwd = (kwd: string): StackText => ({ type: 'kwd', kwd });
 // allowing number so that `.map(typ)` still works 🙃
 const typ = (typ: Type, noSubst: boolean | number = false): StackText => ({ type: 'type', typ, noSubst: noSubst === true });
-export type StackText = { type: 'hole'; active?: boolean } | { type: 'kwd'; kwd: string } | { type: 'type'; typ: Type; noSubst: boolean } | string;
+export type StackText = { type: 'hole'; active?: boolean } | { type: 'kwd'; kwd: string } | ErrorText;
 
 export type StackValue = StackText[];
+
+export type ErrorText = { type: 'type'; typ: Type; noSubst?: boolean } | string;
+
+const stackError = (sources: Src[], ...message: ErrorText[]) => {
+    globalState.events.push({ type: 'error', message, sources });
+    globalState.events.push({ type: 'stack-push', value: message, src: sources[0] });
+};
 
 const stackPush = (src: Src, ...value: StackText[]) => globalState.events.push({ src, type: 'stack-push', value });
 const stackReplace = (src: Src, ...value: StackText[]) => {
@@ -272,7 +279,7 @@ export type Event =
     | { type: 'scope'; scope: Tenv['scope'] }
     | { type: 'infer'; src: Src; value: Type }
     | { type: 'new-var'; name: string }
-    | { type: 'error'; message: string; sources: Src[] }
+    | { type: 'error'; message: ErrorText[]; sources: Src[] }
     | { type: 'stack-break'; title: string }
     | { type: 'stack-push'; value: StackValue; src: Src }
     | { type: 'stack-pop' };
@@ -371,16 +378,15 @@ export const unifyInner = (one: Type, two: Type): Subst => {
     }
     if (one.type === 'con' && two.type === 'con') {
         if (one.name === two.name) return {};
-        globalState.events.push({ type: 'error', message: `Incompatible concrete types: ${one.name} vs ${two.name}`, sources: [one.src, two.src] });
+        stackError([one.src, two.src], `Incompatible concrete types: `, { type: 'type', typ: one }, ` vs `, { type: 'type', typ: two });
         // throw new Error(`Incompatible concrete types: ${one.name} vs ${two.name}`);
         return {};
     }
     if (one.type === 'fn' && two.type === 'fn') {
         if (one.args.length !== two.args.length) {
-            globalState.events.push({
-                type: 'error',
-                message: `number of args is different: ${typeToString(one)} ${one.args.length} vs ${typeToString(two)} ${two.args.length}`,
-                sources: [one.src, two.src],
+            stackError([one.src, two.src], `number of args in function is different: `, { type: 'type', typ: one }, ` vs `, {
+                type: 'type',
+                typ: two,
             });
         }
         let subst = recurse(one.result, two.result);
@@ -391,10 +397,9 @@ export const unifyInner = (one: Type, two: Type): Subst => {
     }
     if (one.type === 'app' && two.type === 'app') {
         if (one.args.length !== two.args.length) {
-            globalState.events.push({
-                type: 'error',
-                message: `Generic - number of args is different: ${typeToString(one)} ${one.args.length} vs ${typeToString(two)} ${two.args.length}`,
-                sources: [one.src, two.src],
+            stackError([one.src, two.src], `number of args in generic is different: `, { type: 'type', typ: one }, ` vs `, {
+                type: 'type',
+                typ: two,
             });
         }
         let subst = recurse(one.target, two.target);
@@ -403,12 +408,7 @@ export const unifyInner = (one: Type, two: Type): Subst => {
         }
         return subst;
     }
-    globalState.events.push({
-        type: 'error',
-        message: `Incompatible types: ${typeToString(one)} vs ${typeToString(two)}`,
-        sources: [one.src, two.src],
-    });
-    // throw new Error(`incompatible types \n${JSON.stringify(one)}\n${JSON.stringify(two)}`);
+    stackError([one.src, two.src], `Incompatible types: `, { type: 'type', typ: one }, ` vs `, { type: 'type', typ: two });
     return {};
 };
 
@@ -577,7 +577,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
         case 'var':
             const got = tenv.scope[expr.name];
             if (!got) {
-                globalState.events.push({ type: 'error', message: `variable not found in scope ${expr.name}`, sources: [expr.src] });
+                stackError([expr.src], `variable not found in scope ${expr.name}`);
                 return newTypeVar({ type: 'free', prev: expr.name }, expr.src);
                 // throw new Error();
             }

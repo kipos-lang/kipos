@@ -2,6 +2,7 @@ import { Src } from '../../keyboard/handleShiftNav';
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
 import { Event } from '../../syntaxes/dsl3';
+import { StackText } from './default-lang/validate';
 
 // export type MatchError =
 //     | {
@@ -44,10 +45,11 @@ export type Parser<Macro, AST> = {
 
 export type Renderable = { node: RecNode; meta: Record<string, Meta> };
 
+export type AnnotationText = { type: 'renderable'; renderable: Renderable; src?: Src } | string;
 export type Annotation =
-    | { type: 'error'; message: string; spans?: Src[] }
-    | { type: 'warning'; message: string; spans?: Src[] }
-    | { type: 'info'; message: string; spans?: Src[] }
+    | { type: 'error'; message: AnnotationText[]; spans?: Src[] }
+    | { type: 'warning'; message: AnnotationText[]; spans?: Src[] }
+    | { type: 'info'; message: AnnotationText[]; spans?: Src[] }
     | { type: 'type'; annotation: Renderable; spans?: Src[]; primary?: boolean };
 
 export type ValidateResult<ValidationInfo> = {

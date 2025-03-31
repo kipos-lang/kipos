@@ -7,7 +7,7 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
 import { LangResult, makeEditor } from './makeEditor';
-import { Meta } from './language';
+import { Annotation, Meta } from './language';
 import { ParseResult } from '../../syntaxes/algw-s2-return';
 import { Event } from '../../syntaxes/dsl3';
 
@@ -45,7 +45,7 @@ export type SelStatus = {
     highlight?: Highlight;
 };
 
-export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta };
+export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta; annotations?: Annotation[] };
 
 interface TopStore {
     top: Toplevel;

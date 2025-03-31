@@ -1,7 +1,7 @@
 import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
-import { Annotation, Language } from '../language';
+import { Annotation, AnnotationText, Language } from '../language';
 import { builtinEnv, getGlobalState, inferStmt, resetState, typeToNode, typeToString } from './validate';
 
 type Macro = {
@@ -43,7 +43,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
 
         const annotations: Record<string, Annotation[]> = {
             [ast.src.left]: [
-                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: 'unable to infer...' },
+                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: ['unable to infer...'] },
             ],
         };
 
@@ -54,9 +54,18 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
 
         glob.events.forEach((evt) => {
             if (evt.type === 'error') {
-                evt.sources.forEach((src) => {
-                    add(src.left, { type: 'error', message: evt.message, spans: evt.sources });
+                const message: AnnotationText[] = evt.message.map((item) => {
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return { type: 'renderable', renderable: typeToNode(item.typ) };
                 });
+                evt.sources.forEach((src) => {
+                    add(src.left, { type: 'error', message, spans: evt.sources });
+                });
+            }
+            if (evt.type === 'infer') {
+                add(evt.src.left, { type: 'type', annotation: typeToNode(evt.value) });
             }
         });
 
