@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { lastChild, Path, selStart } from '../keyboard/utils';
 import { fromRec, Node, RecNode } from '../shared/cnodes';
-import { ModuleTree, newModule, SelStatus, useStore } from './store/store';
+import { ModuleTree, newModule, SelStatus, UseNode, useStore } from './store/store';
 import { RenderNode } from './render/RenderNode';
-import { Editor } from './Editor';
+import { DragCtx, Editor, noopDrag } from './Editor';
 import { EditIcon } from './icons';
 import { css } from 'goober';
 import { Meta } from './store/language';
@@ -43,7 +43,7 @@ export const Top = ({ id }: { id: string }) => {
 
     const parseResult = editor.useTopParseResults(id);
 
-    const useNode = useCallback((path: Path) => top.useNode(path), [top]);
+    const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (
         <div
             className={css({
@@ -53,7 +53,7 @@ export const Top = ({ id }: { id: string }) => {
                 padding: '12px',
                 margin: '12px',
                 borderRadius: '4px',
-                boxShadow: '1px 1px 3px #ccc',
+                boxShadow: '0px 1px 3px #ccc',
                 fontFamily: 'Jet Brains',
             })}
         >
@@ -78,11 +78,19 @@ export const Top = ({ id }: { id: string }) => {
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />
             </UseNodeCtx.Provider>
-            <div style={{ marginLeft: 24, border: `1px solid ${currentTheme.typeColors.hlColor}`, paddingInline: 4, borderRadius: 3 }}>
+            <div
+                className={css({
+                    marginLeft: '24px',
+                    // border: `1px solid ${currentTheme.typeColors.hlColor}`,
+                    boxShadow: `0px 1px 2px ${currentTheme.typeColors.hlColor}`,
+                    paddingInline: '4px',
+                    borderRadius: '3px',
+                })}
+            >
                 {Object.entries(parseResult?.validation?.annotations ?? {}).map(([key, items]) => (
                     <div key={key}>
                         {items.map((item, i) =>
-                            item.type === 'type' ? (
+                            item.type === 'type' && item.primary ? (
                                 <div key={i}>
                                     <RenderStaticNode root={item.annotation} />
                                 </div>
@@ -108,18 +116,20 @@ const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record<string
     }, [root]);
     return (
         <div>
-            <UseNodeCtx.Provider
-                value={(path: Path) => {
-                    return { node: map[lastChild(path)], meta: meta[lastChild(path)] };
-                }}
-            >
-                <RenderNode id={id} parent={{ children: [], root: { ids: [], top: '' } }} />
-            </UseNodeCtx.Provider>
+            <DragCtx.Provider value={noopDrag}>
+                <UseNodeCtx.Provider
+                    value={(path: Path) => {
+                        return { node: map[lastChild(path)], meta: meta[lastChild(path)] };
+                    }}
+                >
+                    <RenderNode id={id} parent={{ children: [], root: { ids: [], top: '' } }} />
+                </UseNodeCtx.Provider>
+            </DragCtx.Provider>
         </div>
     );
 };
 
-export const UseNodeCtx = React.createContext((path: Path): { node: Node; sel?: SelStatus; meta?: Meta } => {
+export const UseNodeCtx = React.createContext<UseNode>((path) => {
     throw new Error('n');
 });
 

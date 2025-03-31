@@ -11,7 +11,7 @@ let's try that.
 
 - [x] basic type inference
 - [x] render it next to the top
-- [ ] need to debug type inference, if only I could
+- [x] need to debug type inference, if only I could
 - [ ] render type errors really
 - [ ] get binops infering
 - [ ] get .attribute and [index] doing reasonable things

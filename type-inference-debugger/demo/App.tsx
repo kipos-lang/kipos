@@ -12,6 +12,7 @@ import {
     resetState,
     schemeApply,
     StackText,
+    State,
     Subst,
     Tenv,
     typeApply,
@@ -28,6 +29,7 @@ import { Numtip } from './Numtip';
 import { LineManager, LineNumber, RenderNode } from './RenderNode';
 import { zedcolors } from './colors';
 import { currentTheme } from './themes';
+import { Meta } from '../../one-world/sandbox/store/language';
 
 // const LEFT_WIDTH = 460
 // const LEFT_WIDTH = 360;
@@ -247,7 +249,7 @@ export const Example = ({ text }: { text: string }) => {
     const [skipFirst, setSkipFirst] = useState(false);
     const [calloutAnnot, setCalloutAnnot] = useState(false);
 
-    const { glob, res, cst, node, parsed } = useMemo(() => {
+    const { cst, parsed } = useMemo(() => {
         const cst = lex(js, text);
         // console.log(JSON.stringify(cst, null, 2));
         const node = fromMap(cst.roots[0], cst.nodes, (idx) => idx);
@@ -255,6 +257,11 @@ export const Example = ({ text }: { text: string }) => {
         const parsed = parser.parse(node);
         if (!parsed.result) throw new Error(`not parsed ${text}`);
         // console.log(parsed.result);
+
+        return { cst, parsed };
+    }, [text]);
+
+    const glob = useMemo(() => {
         resetState();
 
         const env = builtinEnv();
@@ -262,139 +269,25 @@ export const Example = ({ text }: { text: string }) => {
 
         let res;
         try {
-            res = inferStmt(env, parsed.result);
+            res = inferStmt(env, parsed.result!);
         } catch (err) {
             console.log('bad inference', err);
             res = null;
         }
 
-        return { glob, res, cst, node, parsed };
-    }, [text]);
+        return glob;
+    }, [parsed]);
 
     const [at, setAt] = useState(0);
 
     const breaks = useMemo(() => stackForEvt(glob.events.length, glob.events), [glob.events]);
+    useKeyboard(setAt, breaks);
 
-    useEffect(() => {
-        const fn = (evt: KeyboardEvent) => {
-            if (window.document.activeElement != document.body) return;
-            if (evt.key === ' ' || evt.key === 'ArrowRight') {
-                setAt((at) => Math.min(at + 1, breaks - 1));
-            }
-            if (evt.key === 'ArrowLeft') {
-                setAt((at) => Math.max(0, at - 1));
-            }
-        };
-        document.addEventListener('keydown', fn);
-        return () => document.removeEventListener('keydown', fn);
-    }, [breaks]);
+    const relevantBuiltins = useMemo(() => findRelevantBuiltins(parsed.result!), [parsed]);
 
-    const relevantBuiltins = useMemo(() => {
-        // const refs = Object.entries(parsed.ctx.meta)
-        //     .filter(([kwd, v]) => v.kind === 'ref' || v.kind === 'bop' || v.kind === 'attribute')
-        //     .map((k) => cst.nodes[k[0]])
-        //     .filter((n): n is Id<string> => n.type === 'id')
-        //     .map((id) => id.text);
-        const refs: string[] = [];
-        traverseStmt(parsed.result!, {
-            visitExpr(expr) {
-                if (expr.type === 'var') {
-                    refs.push(expr.name);
-                }
-            },
-        });
-        const builtins: Tenv['scope'] = {};
-        const tenv = builtinEnv();
-        refs.forEach((ref) => {
-            if (tenv.scope[ref]) {
-                builtins[ref] = tenv.scope[ref];
-            }
-        });
-
-        return builtins;
-    }, [parsed]);
-
-    const { byLoc, subst, types, scope, smap, stack, highlightVars, activeVbls } = useMemo(() => {
-        const activeVbls: string[] = [];
-        const byLoc: Record<string, Type | false> = {};
-        const subst: Subst[] = [];
-        const types: { src: Src; type: Type }[] = [];
-        let highlightVars: string[] = [];
-        let smap: Subst = {};
-        let scope: Tenv['scope'] = {};
-
-        const stacks: Frame[] = [];
-        const stack: OneStack[] = [];
-        top: for (let i = 0; i <= glob.events.length && at >= stacks.length; i++) {
-            const evt = glob.events[i];
-            switch (evt.type) {
-                case 'stack-push':
-                    stack.push({ text: evt.value, src: evt.src, type: 'line' });
-                    break;
-                case 'stack-pop':
-                    stack.pop();
-                    break;
-                case 'stack-break':
-                    stacks.push({ stack: stack.slice(), title: evt.title });
-                    break;
-                case 'new-var':
-                    activeVbls.push(evt.name);
-                    break;
-                case 'unify':
-                    const has = Object.keys(evt.subst).length;
-                    if (has) {
-                        stack.push({ ...evt, first: true });
-                        stacks.push({ stack: stack.slice(), title: 'Unification result' });
-                        stack.pop();
-                        if (stacks.length > at) {
-                            highlightVars = Object.keys(evt.subst);
-                            break top;
-                        }
-                        stack.push(evt);
-                        stacks.push({ stack: stack.slice(), title: 'Unification result' });
-                        stack.pop();
-                    }
-                    break;
-            }
-            if (evt.type === 'infer') {
-                if (evt.src.right) {
-                    // byLoc[evt.src.left + ':' + evt.src.right] = evt.value;
-                } else {
-                    if (!evt.src.right && (parsed.ctx.meta[evt.src.left]?.kind === 'decl' || parsed.ctx.meta[evt.src.left]?.kind === 'fn-args')) {
-                        byLoc[evt.src.left] = evt.value;
-                    }
-                }
-                if (!evt.src.right && parsed.ctx.meta[evt.src.left]?.kind === 'decl') {
-                    types.push({ src: evt.src, type: evt.value });
-                }
-            }
-            if (evt.type === 'unify' && !evt.tmp) {
-                subst.push(evt.subst);
-                smap = composeSubst(evt.subst, smap);
-            }
-            if (evt.type === 'scope') {
-                scope = evt.scope;
-            }
-        }
-        Object.entries(parsed.ctx.meta).forEach(([loc, meta]) => {
-            if (meta.kind === 'decl' || meta.kind === 'fn-args') {
-                if (!byLoc[loc]) byLoc[loc] = false;
-            }
-        });
-
-        Object.keys(byLoc).forEach((k) => {
-            if (byLoc[k]) byLoc[k] = typeApply(smap, byLoc[k]);
-        });
-
-        if (skipFirst) {
-            const k = Object.keys(byLoc)[0];
-            if (k) {
-                delete byLoc[k];
-            }
-        }
-
-        return { byLoc, subst, types, scope, smap, stack: stacks[at], highlightVars, activeVbls };
-    }, [at, skipFirst]);
+    const { byLoc, scope, smap, stack, highlightVars } = useMemo(() => {
+        return processStack(glob.events, parsed.ctx.meta, at, skipFirst);
+    }, [at, skipFirst, glob.events, parsed.ctx.meta]);
 
     const scopeToShow = useMemo(() => {
         const res: Tenv['scope'] = {};
@@ -424,41 +317,11 @@ export const Example = ({ text }: { text: string }) => {
         }
     }
 
-    const multis = useMemo(() => {
-        const multis: Record<string, true> = {};
-        cst.roots.forEach((root) =>
-            traverse(root, cst.nodes, (node, path) => {
-                if (node.type === 'list' && node.forceMultiline) {
-                    console.log('found one', node, path);
-                    path.forEach((id) => (multis[id] = true));
-                    multis[node.loc] = true;
-                }
-            }),
-        );
-        return multis;
-    }, [cst]);
-
-    const { spans } = useMemo(() => {
-        const spans: Record<string, string[]> = {};
-
-        glob.events.forEach((evt) => {
-            if (evt.type === 'infer' && evt.src.right) {
-                if (!spans[evt.src.left]) spans[evt.src.left] = [];
-                if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
-            }
-            if (evt.type === 'stack-push' && evt.src.right) {
-                if (!spans[evt.src.left]) spans[evt.src.left] = [];
-                if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
-            }
-        });
-
-        return { spans };
-    }, []);
-
-    // const esrc = eventSrc(glob.events[at]);
+    const multis = useMemo(() => findMultilineAncestors(cst), [cst]);
+    const spans = useMemo(() => findSpans(glob), [glob]);
     const allLocs: string[] = [];
-
     const srcLocs = (src: Src) => coveredLocs(cst.nodes, src.left, src.right);
+
     // TODO: Indicate somehow whether you are the "outermost" highlight, or ... one of the inner ones?
     // const srcLocs = (src: Src) => (src.right ? [`${src.left}:${src.right}`] : [src.left]);
     // const allLocs = esrc.flatMap(srcLocs);
@@ -558,18 +421,7 @@ export const Example = ({ text }: { text: string }) => {
                             ))}
                         </LineManager>
                     </div>
-                    <Sidebar
-                        stack={stack}
-                        showTips={ctx.showTips}
-                        latest={glob.events[at]}
-                        smap={smap}
-                        subst={subst}
-                        scope={scope}
-                        types={byLoc}
-                        nodes={cst.nodes}
-                        highlightVars={highlightVars}
-                        onClick={ctx.onClick}
-                    />
+                    <Sidebar stack={stack} showTips={ctx.showTips} smap={smap} highlightVars={highlightVars} onClick={ctx.onClick} />
                     <div>
                         <ShowScope smap={smap} scope={{ ...relevantBuiltins, ...scopeToShow }} highlightVars={highlightVars} ctx={ctx} />
                     </div>
@@ -606,45 +458,23 @@ export const Example = ({ text }: { text: string }) => {
 const srcKey = (src: Src) => (src.right ? `${src.left}:${src.right}` : src.left);
 
 const Sidebar = ({
-    subst,
     smap,
-    scope,
-    types,
-    nodes,
-    latest,
     stack,
     highlightVars,
     onClick,
     showTips,
 }: {
-    subst: Subst[];
     highlightVars: string[];
     stack?: Frame;
     smap: Subst;
-    scope: Tenv['scope'];
-    types: Record<string, Type | false>;
-    nodes: Nodes;
-    latest: Event;
     showTips: boolean;
     onClick(evt: NodeClick): void;
 }) => {
-    const variables: Record<string, number> = {};
-    Object.values(types).forEach((t) => {
-        if (!t) return;
-        const free = typeFree(t);
-        free.forEach((name) => {
-            variables[name] = (variables[name] || 0) + 1;
-        });
-    });
     return (
         <div style={{ width: 500, marginRight: 8 }}>
             <ShowStacks showTips={showTips} subst={smap} stack={stack} hv={highlightVars} onClick={(name) => onClick({ type: 'var', name })} />
-            {/* {latest ? <RenderEvent event={latest} /> : 'NOEV'} */}
-            {/* <pre>{JSON.stringify(variables, null, 2)}</pre> */}
         </div>
     );
-    // First: variables in scope, minus builtins
-    // Second: type annotations with type variables
 };
 
 const ShowScope = ({ smap, scope, highlightVars, ctx }: { ctx: Ctx; smap: Subst; scope: Tenv['scope']; highlightVars: string[] }) => {
@@ -868,7 +698,7 @@ const evtForStack = (at: number, events: Event[]) => {
     return i;
 };
 
-const stackForEvt = (at: number, events: Event[]) => {
+export const stackForEvt = (at: number, events: Event[]) => {
     let num = 0;
     for (let i = 0; i < at; i++) {
         const e = events[i];
@@ -906,4 +736,145 @@ const Colors = () => {
             {Object.keys(zedcolors).map((name) => square(name, zedcolors[name as 'attribute'].color))}
         </div>
     );
+};
+
+export const findSpans = (glob: State) => {
+    const spans: Record<string, string[]> = {};
+
+    glob.events.forEach((evt) => {
+        if (evt.type === 'infer' && evt.src.right) {
+            if (!spans[evt.src.left]) spans[evt.src.left] = [];
+            if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
+        }
+        if (evt.type === 'stack-push' && evt.src.right) {
+            if (!spans[evt.src.left]) spans[evt.src.left] = [];
+            if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
+        }
+    });
+
+    return spans;
+};
+
+export const findMultilineAncestors = (cst: { roots: string[]; nodes: Nodes }) => {
+    const multis: Record<string, true> = {};
+    cst.roots.forEach((root) =>
+        traverse(root, cst.nodes, (node, path) => {
+            if (node.type === 'list' && node.forceMultiline) {
+                console.log('found one', node, path);
+                path.forEach((id) => (multis[id] = true));
+                multis[node.loc] = true;
+            }
+        }),
+    );
+    return multis;
+};
+
+export const processStack = (events: State['events'], meta: Record<string, Meta>, at: number, skipFirst = false) => {
+    const byLoc: Record<string, Type | false> = {};
+    let highlightVars: string[] = [];
+    let smap: Subst = {};
+    let scope: Tenv['scope'] = {};
+
+    const stacks: Frame[] = [];
+    const stack: OneStack[] = [];
+    top: for (let i = 0; i < events.length && at >= stacks.length; i++) {
+        const evt = events[i];
+        if (!evt) {
+            console.log(events, i);
+            debugger;
+        }
+        switch (evt.type) {
+            case 'stack-push':
+                stack.push({ text: evt.value, src: evt.src, type: 'line' });
+                break;
+            case 'stack-pop':
+                stack.pop();
+                break;
+            case 'stack-break':
+                stacks.push({ stack: stack.slice(), title: evt.title });
+                break;
+            case 'new-var':
+                break;
+            case 'unify':
+                const has = Object.keys(evt.subst).length;
+                if (has) {
+                    stack.push({ ...evt, first: true });
+                    stacks.push({ stack: stack.slice(), title: 'Unification result' });
+                    stack.pop();
+                    if (stacks.length > at) {
+                        highlightVars = Object.keys(evt.subst);
+                        break top;
+                    }
+                    stack.push(evt);
+                    stacks.push({ stack: stack.slice(), title: 'Unification result' });
+                    stack.pop();
+                }
+                break;
+        }
+        if (evt.type === 'infer') {
+            if (!evt.src.right && (meta[evt.src.left]?.kind === 'decl' || meta[evt.src.left]?.kind === 'fn-args')) {
+                byLoc[evt.src.left] = evt.value;
+            }
+        }
+        if (evt.type === 'unify' && !evt.tmp) {
+            smap = composeSubst(evt.subst, smap);
+        }
+        if (evt.type === 'scope') {
+            scope = evt.scope;
+        }
+    }
+    Object.entries(meta).forEach(([loc, meta]) => {
+        if (meta.kind === 'decl' || meta.kind === 'fn-args') {
+            if (!byLoc[loc]) byLoc[loc] = false;
+        }
+    });
+
+    Object.keys(byLoc).forEach((k) => {
+        if (byLoc[k]) byLoc[k] = typeApply(smap, byLoc[k]);
+    });
+
+    if (skipFirst) {
+        const k = Object.keys(byLoc)[0];
+        if (k) {
+            delete byLoc[k];
+        }
+    }
+
+    return { byLoc, scope, smap, stack: stacks[at], highlightVars };
+};
+
+export const findRelevantBuiltins = (result: Stmt) => {
+    const refs: string[] = [];
+    traverseStmt(result, {
+        visitExpr(expr) {
+            if (expr.type === 'var') {
+                refs.push(expr.name);
+            }
+        },
+    });
+    const builtins: Tenv['scope'] = {};
+    const tenv = builtinEnv();
+    refs.forEach((ref) => {
+        if (tenv.scope[ref]) {
+            builtins[ref] = tenv.scope[ref];
+        }
+    });
+
+    return builtins;
+};
+
+const useKeyboard = (setAt: (f: (n: number) => number) => void, breaks: number) => {
+    useEffect(() => {
+        const fn = (evt: KeyboardEvent) => {
+            if (window.document.activeElement != document.body) return;
+            if (evt.key === ' ' || evt.key === 'ArrowRight') {
+                setAt((at) => Math.min(at + 1, breaks - 1));
+            }
+            if (evt.key === 'ArrowLeft') {
+                setAt((at) => Math.max(0, at - 1));
+            }
+        };
+        document.addEventListener('keydown', fn);
+        return () => document.removeEventListener('keydown', fn);
+    }, [breaks]);
 };

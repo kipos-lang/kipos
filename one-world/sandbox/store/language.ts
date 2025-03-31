@@ -44,7 +44,7 @@ export type Parser<Macro, AST> = {
 
 export type Renderable = { node: RecNode; meta: Record<string, Meta> };
 
-type Annotation =
+export type Annotation =
     | { type: 'error'; message: string; spans?: Src[] }
     | { type: 'warning'; message: string; spans?: Src[] }
     | { type: 'info'; message: string; spans?: Src[] }

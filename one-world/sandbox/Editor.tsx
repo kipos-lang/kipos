@@ -13,6 +13,8 @@ import { shape } from '../shared/shape';
 import { ShowXML } from '../keyboard/ui/XML';
 import { toXML } from '../syntaxes/xml';
 import { currentTheme } from './themes';
+import { processStack, stackForEvt } from '../../type-inference-debugger/demo/App';
+import { ShowStacks } from '../../type-inference-debugger/demo/ShowText';
 
 // type ECtx = {
 //     // drag
@@ -34,7 +36,9 @@ type DragCtxT = {
     move(sel: SelStart, ctrl?: boolean, alt?: boolean): void;
 };
 
-const DragCtx = React.createContext(null as null | DragCtxT);
+export const noopDrag: DragCtxT = { dragging: false, ref: () => () => {}, start() {}, move() {} };
+
+export const DragCtx = React.createContext(null as null | DragCtxT);
 export const useDrag = () => {
     const ctx = useContext(DragCtx);
     if (!ctx) throw new Error(`not in drag context`);
@@ -226,9 +230,41 @@ const ShowTypeInference = () => {
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
     const results = editor.useTopParseResults(top);
-    if (!results.validation) return <span>No inference results</span>;
-    if (!results.validation.events?.length) return <span>No inference trace</span>;
-    return <div>{results.validation.events.length}</div>;
+
+    const events = results?.validation?.events ?? [];
+
+    const [at, setAt] = useState(0);
+    const breaks = useMemo(() => stackForEvt(events.length - 1, events), [events]);
+
+    const { byLoc, scope, smap, stack, highlightVars } = useMemo(() => {
+        return processStack(events, results?.ctx.meta ?? {}, at, false);
+    }, [at, false, events, results?.ctx.meta]);
+
+    if (!results?.validation) return <span>No inference results</span>;
+    if (!results?.validation.events?.length) return <span>No inference trace</span>;
+
+    return (
+        <div style={{ width: 400, overflow: 'auto' }}>
+            <input
+                type="range"
+                min={0}
+                value={at}
+                max={breaks}
+                onChange={(evt) => {
+                    setAt(+evt.target.value);
+                }}
+            />
+            <ShowStacks
+                showTips={false}
+                subst={smap}
+                stack={stack}
+                hv={highlightVars}
+                onClick={(name) => {
+                    // onClick({ type: 'var', name })
+                }}
+            />
+        </div>
+    );
 };
 
 const ShowAST = () => {
@@ -270,6 +306,7 @@ const DebugSidebar = () => {
     const results = editor.useParseResults();
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
+
     return (
         <div style={{ overflow: 'auto', maxWidth: '40vw' }}>
             <div>Debug sidebar</div>

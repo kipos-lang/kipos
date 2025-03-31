@@ -45,10 +45,12 @@ export type SelStatus = {
     highlight?: Highlight;
 };
 
+export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta };
+
 interface TopStore {
     top: Toplevel;
     useRoot(): string;
-    useNode(path: Path): { node: Node; sel?: SelStatus; meta?: Meta };
+    useNode: UseNode;
 }
 
 export const newModule = (name = 'NewModule'): Module => {

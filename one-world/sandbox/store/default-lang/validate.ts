@@ -272,11 +272,18 @@ export type Event =
     | { type: 'scope'; scope: Tenv['scope'] }
     | { type: 'infer'; src: Src; value: Type }
     | { type: 'new-var'; name: string }
+    | { type: 'error'; message: string; sources: Src[] }
     | { type: 'stack-break'; title: string }
     | { type: 'stack-push'; value: StackValue; src: Src }
     | { type: 'stack-pop' };
 
-export type State = { nextId: number; subst: Subst; events: Event[]; tvarMeta: Record<string, TvarMeta>; latestScope?: Tenv['scope'] };
+export type State = {
+    nextId: number;
+    subst: Subst;
+    events: Event[];
+    tvarMeta: Record<string, TvarMeta>;
+    latestScope?: Tenv['scope'];
+};
 
 type TvarMeta =
     | { type: 'array-item'; src: Src }
@@ -364,33 +371,45 @@ export const unifyInner = (one: Type, two: Type): Subst => {
     }
     if (one.type === 'con' && two.type === 'con') {
         if (one.name === two.name) return {};
-        stackBreak(`Incompatible concrete types: ${one.name} vs ${two.name}`);
+        globalState.events.push({ type: 'error', message: `Incompatible concrete types: ${one.name} vs ${two.name}`, sources: [one.src, two.src] });
         // throw new Error(`Incompatible concrete types: ${one.name} vs ${two.name}`);
         return {};
     }
     if (one.type === 'fn' && two.type === 'fn') {
         if (one.args.length !== two.args.length) {
-            console.log(typeToString(one));
-            console.log(typeToString(two));
-            throw new Error(`number of args is different: ${one.args.length} vs ${two.args.length}`);
+            globalState.events.push({
+                type: 'error',
+                message: `number of args is different: ${typeToString(one)} ${one.args.length} vs ${typeToString(two)} ${two.args.length}`,
+                sources: [one.src, two.src],
+            });
         }
         let subst = recurse(one.result, two.result);
-        for (let i = 0; i < one.args.length; i++) {
+        for (let i = 0; i < one.args.length && i < two.args.length; i++) {
             subst = composeSubst(recurse(typeApply(subst, one.args[i]), typeApply(subst, two.args[i])), subst);
         }
         return subst;
     }
     if (one.type === 'app' && two.type === 'app') {
         if (one.args.length !== two.args.length) {
-            throw new Error(`number of args is different`);
+            globalState.events.push({
+                type: 'error',
+                message: `Generic - number of args is different: ${typeToString(one)} ${one.args.length} vs ${typeToString(two)} ${two.args.length}`,
+                sources: [one.src, two.src],
+            });
         }
         let subst = recurse(one.target, two.target);
-        for (let i = 0; i < one.args.length; i++) {
+        for (let i = 0; i < one.args.length && i < two.args.length; i++) {
             subst = composeSubst(recurse(typeApply(subst, one.args[i]), typeApply(subst, two.args[i])), subst);
         }
         return subst;
     }
-    throw new Error(`incompatible types \n${JSON.stringify(one)}\n${JSON.stringify(two)}`);
+    globalState.events.push({
+        type: 'error',
+        message: `Incompatible types: ${typeToString(one)} vs ${typeToString(two)}`,
+        sources: [one.src, two.src],
+    });
+    // throw new Error(`incompatible types \n${JSON.stringify(one)}\n${JSON.stringify(two)}`);
+    return {};
 };
 
 export const inferExpr = (tenv: Tenv, expr: Expr) => {
@@ -557,7 +576,11 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
         }
         case 'var':
             const got = tenv.scope[expr.name];
-            if (!got) throw new Error(`variable not found in scope ${expr.name}`);
+            if (!got) {
+                globalState.events.push({ type: 'error', message: `variable not found in scope ${expr.name}`, sources: [expr.src] });
+                return newTypeVar({ type: 'free', prev: expr.name }, expr.src);
+                // throw new Error();
+            }
             if (got.vars.length) {
                 stackPush(
                     expr.src,

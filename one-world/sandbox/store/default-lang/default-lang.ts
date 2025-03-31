@@ -1,7 +1,7 @@
 import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
-import { Language } from '../language';
+import { Annotation, Language } from '../language';
 import { builtinEnv, getGlobalState, inferStmt, resetState, typeToNode, typeToString } from './validate';
 
 type Macro = {
@@ -41,16 +41,31 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             res = null;
         }
 
+        const annotations: Record<string, Annotation[]> = {
+            [ast.src.left]: [
+                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: 'unable to infer...' },
+            ],
+        };
+
+        const add = (src: string, annotation: Annotation) => {
+            if (!annotations[src]) annotations[src] = [annotation];
+            else annotations[src].push(annotation);
+        };
+
+        glob.events.forEach((evt) => {
+            if (evt.type === 'error') {
+                evt.sources.forEach((src) => {
+                    add(src.left, { type: 'error', message: evt.message, spans: evt.sources });
+                });
+            }
+        });
+
         // return { glob, res, cst, node, parsed };
         return {
             result: res?.value,
             meta: {},
             events: glob.events,
-            annotations: {
-                [ast.src.left]: [
-                    res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: 'unable to infer...' },
-                ],
-            },
+            annotations,
         };
     },
 };
