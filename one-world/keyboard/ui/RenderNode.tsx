@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { NodeID, Style } from '../../shared/cnodes';
 import { TestState } from '../test-utils';
-import { Path, pathKey, pathWithChildren, SelectionStatuses, Top, Update } from '../utils';
+import { Cursor, Highlight, Path, pathKey, pathWithChildren, SelectionStatuses, Top, Update } from '../utils';
 
 import { asStyle } from '../../shared/shape';
 import { lightColor } from './colors';
@@ -203,8 +203,8 @@ function nodeStyle(
     loc: NodeID,
     readOnly: boolean | undefined,
     status: {
-        cursors: import('/Users/jared/clone/exploration/j3/one-world/keyboard/utils').Cursor[];
-        highlight?: import('/Users/jared/clone/exploration/j3/one-world/keyboard/utils').Highlight;
+        cursors: Cursor[];
+        highlight?: Highlight;
     },
     key: string,
 ) {

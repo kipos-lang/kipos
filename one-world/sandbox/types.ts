@@ -36,8 +36,21 @@ export type LanguageConfiguration = {
     id: string;
     name: string;
     artifact: Artifact;
-    built: number; // timestamp
-    hash: string; // TODO maybe the ID should just be a hash? orrr maybe this will be the HEAD commit hash
+    // Gonna go evergreen for now
+    // built: number; // timestamp
+    // hash: string; // TODO maybe the ID should just be a hash? orrr maybe this will be the HEAD commit hash
+    ffi: {
+        [foreignLanguage: string]: {
+            module: string;
+            // this will be ... a function, that takes a JSON blob of that other language's
+            // type definition and stuff, and produces .. a local ... AST ... of a local type definition.
+            exportedName: string;
+            // it's also possible that there would ... like need to be some setup & teardown
+            // of the foreign function. like for memory management or something.
+            // so we'll probably want an exportedName for a wrapper too ...
+            // potentially.
+        };
+    };
 };
 
 // hm

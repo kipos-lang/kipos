@@ -11,6 +11,7 @@ import { interleave, interleaveF } from '../../../keyboard/interleave';
 import { Meta, Renderable } from '../language';
 import { RecNode } from '../../../shared/cnodes';
 import { id, list } from '../../../keyboard/test-utils';
+import { partition } from './binops';
 // import { Src } from '../../lang/parse-dsl';
 // import { interleave } from '../../demo/interleave';
 // import { Type, Expr, Stmt, Pat } from './Type';
@@ -45,6 +46,7 @@ export const builtinEnv = () => {
     // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc));
     builtinEnv.scope['void'] = concrete({ type: 'con', name: 'void', src: builtinSrc });
     builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc));
+    builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc));
@@ -264,6 +266,13 @@ export type ErrorText = { type: 'type'; typ: Type; noSubst?: boolean } | string;
 const stackError = (sources: Src[], ...message: ErrorText[]) => {
     globalState.events.push({ type: 'error', message, sources });
     globalState.events.push({ type: 'stack-push', value: message, src: sources[0] });
+    globalState.events.push({ type: 'stack-break', title: 'error' });
+};
+
+const stackWarning = (sources: Src[], ...message: ErrorText[]) => {
+    globalState.events.push({ type: 'warning', message, sources });
+    globalState.events.push({ type: 'stack-push', value: message, src: sources[0] });
+    globalState.events.push({ type: 'stack-break', title: 'warning' });
 };
 
 const stackPush = (src: Src, ...value: StackText[]) => globalState.events.push({ src, type: 'stack-push', value });
@@ -279,7 +288,7 @@ export type Event =
     | { type: 'scope'; scope: Tenv['scope'] }
     | { type: 'infer'; src: Src; value: Type }
     | { type: 'new-var'; name: string }
-    | { type: 'error'; message: ErrorText[]; sources: Src[] }
+    | { type: 'error' | 'warning'; message: ErrorText[]; sources: Src[] }
     | { type: 'stack-break'; title: string }
     | { type: 'stack-push'; value: StackValue; src: Src }
     | { type: 'stack-pop' };
@@ -303,6 +312,7 @@ type TvarMeta =
       }
     | { type: 'lambda-return'; src: Src }
     | { type: 'apply-result'; src: Src }
+    | { type: 'unsafe'; src: Src }
     | { type: 'pat-any'; src: Src };
 
 let globalState: State = { nextId: 0, subst: {}, events: [], tvarMeta: {} };
@@ -657,6 +667,37 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 expr.src,
                 // bodyType.value ?? bodyType.return ?? { type: 'con', name: 'void' },
             );
+        }
+        case 'bop': {
+            // const src = expr.src;
+
+            const bop = partition(expr.left, expr.rights);
+            return inferExprInner(tenv, bop);
+
+            // stackPush(src, hole(), hole(), hole());
+            // stackBreak(`function call with ${expr.args.args.length} ${n(expr.args.args.length, 'argument', 'arguments')}`);
+            // stackReplace(src, ...pre, hole(true), '(', ...commas(expr.args.args.map(() => hole())), ') -> ', typ(resultVar));
+
+            // return
+        }
+
+        case 'index': {
+            stackWarning([expr.src], `indexes are entirely unchecked`);
+            inferExpr(tenv, expr.target);
+            return newTypeVar({ type: 'unsafe', src: expr.src }, expr.src);
+        }
+
+        case 'attribute': {
+            stackWarning([expr.src], `attributes are entirely unchecked`);
+            inferExpr(tenv, expr.target);
+            return newTypeVar({ type: 'unsafe', src: expr.src }, expr.src);
+        }
+
+        case 'tuple': {
+            if (expr.items.length === 1 && expr.items[0].type !== 'spread') {
+                return inferExpr(tenv, expr.items[0]);
+            }
+            throw new Error(`tuples not yet`);
         }
 
         case 'app': {

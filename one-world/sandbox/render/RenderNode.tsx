@@ -28,6 +28,7 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
     const { node, sel, meta, annotations } = useContext(UseNodeCtx)(self);
 
     const errors = annotations?.filter((e) => e.type === 'error');
+    const warnings = annotations?.filter((e) => e.type === 'warning');
 
     const r = <R node={node} self={self} meta={meta} sel={sel} />;
 
@@ -37,6 +38,20 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
                 className={css({
                     textDecoration: 'wavy red underline',
                 })}
+                title={JSON.stringify(errors.map((e) => e.message))}
+            >
+                {r}
+            </span>
+        );
+    }
+
+    if (warnings?.length) {
+        return (
+            <span
+                className={css({
+                    textDecoration: 'wavy orange underline',
+                })}
+                title={JSON.stringify(warnings.map((e) => e.message))}
             >
                 {r}
             </span>

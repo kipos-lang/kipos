@@ -1,4 +1,42 @@
 
+# Typed FFI
+
+Ok y'all, we're gonna need to talk about typed ffi.
+when doing FFI, I don't want to be stuck with redefining all of the types if I can help it.
+If the source language has any concept of type definitions, I want to be able to automatically
+transform those definitions into the language's type definitions if at all possible.
+
+I imagine that will look like:
+- the source language has type annotations for stuff, which are [in a certain format] (that boils doing to JSON)
+- the target language provides local type definitions for [the format of the source type definitions], and
+  {a function for producing local type definitions from source type definitions}
+
+when ~exposing something for ffi (might be automatic), we also expose (a) the type definitions and (b) recursively
+any type definitions that are depended, pontentially including automatically generated ffi type definitions from
+other languages.
+
+I WANT to be able to provide typescript-defined functions (including the dsl3.ts) to my runtime, so I need an automated
+way to produce JSON for their type definitions.
+
+OK SO
+what we do is: use a bundler to turn (dsl3) into a bundle.js and a types.d.ts
+as if it were any old npm package
+and then we have a way to turn types.d.ts into [json blob], which would be "part of typescript language support".
+and then,
+yeah, so there would be a "very-foreign" kinda thing that would let a (bundle.ts + types.d.ts) masquerade as
+a ~normal-foreign module.
+
+like we could have a languageConfig id='go' that's ... I mean I guess it could be defined in-world at some point,
+but probably not for the moment. it would be defined in typescript.
+And it would accept like a go package as a .zip file.
+
+sooooo we would want to have a (once and for all) way to define the FFI cababilities between any two languages,.
+so you'd need to have a ... module ... that is the "ts-to-js--" module
+and there would be a registry somewhere.
+I guess in the language configuration for js--
+
+
+
 # ok
 so I'm not going to do the full type system thing in ts.
 
@@ -12,7 +50,8 @@ let's try that.
 - [x] basic type inference
 - [x] render it next to the top
 - [x] need to debug type inference, if only I could
-- [ ] render type errors really
+- [x] render type errors really
+- [x] hover for annotations plssss
 - [ ] get binops infering
 - [ ] get .attribute and [index] doing reasonable things
 

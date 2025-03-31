@@ -34,16 +34,18 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
         const glob = getGlobalState();
 
         let res;
+        let error: string | null = null;
         try {
             res = inferStmt(env, ast);
         } catch (err) {
             console.log('bad inference', err);
+            error = (err as Error).message;
             res = null;
         }
 
         const annotations: Record<string, Annotation[]> = {
             [ast.src.left]: [
-                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: ['unable to infer...'] },
+                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: ['unable to infer...', error!] },
             ],
         };
 
@@ -53,7 +55,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
         };
 
         glob.events.forEach((evt) => {
-            if (evt.type === 'error') {
+            if (evt.type === 'error' || evt.type === 'warning') {
                 const message: AnnotationText[] = evt.message.map((item) => {
                     if (typeof item === 'string') {
                         return item;
@@ -61,7 +63,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
                     return { type: 'renderable', renderable: typeToNode(item.typ) };
                 });
                 evt.sources.forEach((src) => {
-                    add(src.left, { type: 'error', message, spans: evt.sources });
+                    add(src.left, { type: evt.type, message, spans: evt.sources });
                 });
             }
             if (evt.type === 'infer') {

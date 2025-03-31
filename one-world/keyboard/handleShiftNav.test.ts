@@ -4,7 +4,7 @@ import { handleKey } from './handleKey';
 import { handleShiftNav, handleSpecial, handleTab } from './handleShiftNav';
 import { asTop, asTopAndPaths, id, idc, lisp, listc, round, Sels, smoosh, spaced, square, TestState, text, textc, tspan } from './test-utils';
 import { selUpdate } from './update/updaters';
-import { Top } from './utils';
+import { NodeSelection, Top } from './utils';
 
 test('id shift-left', () => {
     let state = asTop(id('hi', true), idc(0));
@@ -143,7 +143,7 @@ function checkTabs(
         nextLoc,
     }: {
         top: Top;
-        sels: Record<number, import('/Users/jared/clone/exploration/j3/one-world/keyboard/utils').NodeSelection>;
+        sels: Record<number, NodeSelection>;
         nextLoc(): string;
     },
     shift = false,

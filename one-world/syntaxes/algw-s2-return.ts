@@ -319,7 +319,7 @@ const rules = {
     ...exprs,
     bop: or(...binops.map((m) => kwd(m, 'bop'))),
     if: tx<Expr>(
-        seq(kwd('if'), ref('expr', 'cond'), ref('block', 'yes'), opt(seq(kwd('else'), group('no', or(ref('if'), ref('block')))))),
+        seq(kwd('if'), list('round', ref('expr', 'cond')), ref('block', 'yes'), opt(seq(kwd('else'), group('no', or(ref('if'), ref('block')))))),
         (ctx, src) => ({
             type: 'if',
             cond: ctx.ref<Expr>('cond'),
