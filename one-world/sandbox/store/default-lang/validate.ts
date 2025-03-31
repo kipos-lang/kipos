@@ -539,21 +539,21 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             return t;
         case 'array': {
             let t = newTypeVar({ type: 'array-item', src: expr.src }, expr.src);
-            let at: Type = { type: 'app', args: [t], src: expr.src, target: { type: 'con', name: 'Array', src: expr.src } };
-            stackPush(expr.src, '[', ...commas(expr.items.map(() => hole())), '] -> ', typ(at));
+            let arrayType: Type = { type: 'app', args: [t], src: expr.src, target: { type: 'con', name: 'Array', src: expr.src } };
+            stackPush(expr.src, '[', ...commas(expr.items.map(() => hole())), '] -> ', typ(arrayType));
             stackBreak(`array literal with ${expr.items.length} ${n(expr.items.length, 'item', 'items')}`);
             for (let item of expr.items) {
-                stackReplace(expr.src, '[', ...commas(expr.items.map((it) => hole(it === item))), '] -> ', typ(at));
+                stackReplace(expr.src, '[', ...commas(expr.items.map((it) => hole(it === item))), '] -> ', typ(arrayType));
                 if (item.type === 'spread') {
                     const v = inferExpr(tenv, item.inner);
-                    unify(gtypeApply(at), v, item.src, 'array type', 'inferred spread');
+                    unify(gtypeApply(arrayType), v, item.src, 'array type', 'inferred spread');
                 } else {
                     const v = inferExpr(tenv, item);
                     unify(gtypeApply(t), v, item.src, 'array item type', 'inferred item');
                 }
             }
             stackPop();
-            return gtypeApply(at);
+            return gtypeApply(arrayType);
         }
         case 'var':
             const got = tenv.scope[expr.name];

@@ -9,6 +9,13 @@ ok, so where do I put the inferred type?
 How about top right?
 let's try that.
 
+- [x] basic type inference
+- [x] render it next to the top
+- [ ] need to debug type inference, if only I could
+- [ ] render type errors really
+- [ ] get binops infering
+- [ ] get .attribute and [index] doing reasonable things
+
 # Type thoughts
 
 Error throw/catch

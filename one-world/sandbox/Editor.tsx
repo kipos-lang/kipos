@@ -221,15 +221,25 @@ const ruleSummary = (rule: Rule<any>): string => {
     }
 };
 
-const ShowAST = () => {
+const ShowTypeInference = () => {
     const editor = useEditor();
-    const results = editor.useParseResults();
     const sel = editor.useSelection();
     const top = sel[0].start.path.root.top;
-    if (!results[top]) return null;
+    const results = editor.useTopParseResults(top);
+    if (!results.validation) return <span>No inference results</span>;
+    if (!results.validation.events?.length) return <span>No inference trace</span>;
+    return <div>{results.validation.events.length}</div>;
+};
+
+const ShowAST = () => {
+    const editor = useEditor();
+    const sel = editor.useSelection();
+    const top = sel[0].start.path.root.top;
+    const results = editor.useTopParseResults(top);
+    if (!results) return null;
     return (
         <div>
-            <ShowXML root={toXML(results[top].result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
+            <ShowXML root={toXML(results.result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
         </div>
     );
 };
@@ -266,6 +276,9 @@ const DebugSidebar = () => {
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
             <Collapsible title="AST">
                 <ShowAST />
+            </Collapsible>
+            <Collapsible title="Type Inference">
+                <ShowTypeInference />
             </Collapsible>
         </div>
     );
