@@ -51,75 +51,75 @@ const useEditor = () => {
     return store.useEditor();
 };
 
-type HoverCtxT = { onHover(path: Path, hasHover: boolean): boolean; setHover(path: Path | null): void };
-const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {} });
-export const useHover = (path: Path, hasHover: boolean) => {
-    const hover = useContext(HoverCtx);
-    const isHovered = hover.onHover(path, hasHover);
-    return { isHovered, setHover: hover.setHover };
-};
+// type HoverCtxT = { onHover(key?: string): boolean; setHover(key?: string | null): void };
+// const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {} });
 
-export const useProvideHover = () => {
-    const hover = useMakeHover();
-    return useCallback(
-        ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
-        [hover],
-    );
-};
+// export const useHover = (key?: string) => {
+//     const hover = useContext(HoverCtx);
+//     const isHovered = hover.onHover(key);
+//     return { isHovered, setHover: useCallback((yes: boolean) => hover.setHover(yes ? key : null), [key]) };
+// };
 
-const useMakeHover = () => {
-    return useMemo((): HoverCtxT => {
-        let hover: null | { path: Path; notified: string | null } = null;
-        const listeners: Record<string, (v: boolean) => void> = {};
+// export const useProvideHover = () => {
+//     const hover = useMakeHover();
+//     return useCallback(
+//         ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
+//         [hover],
+//     );
+// };
 
-        const bestFor = (path: Path) => {
-            for (let i = path.children.length - 1; i >= 0; i--) {
-                const k = path.children[i];
-                if (listeners[k]) return k;
-            }
-            return null;
-        };
+// const useMakeHover = () => {
+//     return useMemo((): HoverCtxT => {
+//         let hover: null | { path: Path; notified: string | null } = null;
+//         const listeners: Record<string, (v: boolean) => void> = {};
 
-        const tell = (k: string | null | undefined, v: boolean) => {
-            if (k && listeners[k]) {
-                listeners[k](v);
-            }
-        };
+//         const bestFor = (path: Path) => {
+//             for (let i = path.children.length - 1; i >= 0; i--) {
+//                 const k = path.children[i];
+//                 if (listeners[k]) return k;
+//             }
+//             return null;
+//         };
 
-        return {
-            onHover(path, hasHover) {
-                const [isHovered, setHover] = useState(false);
-                useEffect(() => {
-                    if (!hasHover) return; // don't register
-                    const k = lastChild(path);
-                    listeners[k] = setHover;
+//         const tell = (k: string | null | undefined, v: boolean) => {
+//             if (k && listeners[k]) {
+//                 listeners[k](v);
+//             }
+//         };
 
-                    // TODO: determine if this is the best one now
-                    if (hover?.notified !== k && hover?.path.children.includes(k) && bestFor(hover.path) === k) {
-                        tell(hover.notified, false);
-                        hover.notified = k;
-                        tell(hover.notified, true);
-                    }
+//         return {
+//             onHover(key) {
+//                 const [isHovered, setHover] = useState(false);
+//                 useEffect(() => {
+//                     if (!key) return; // don't register
+//                     listeners[key] = setHover;
 
-                    return () => {
-                        if (listeners[k] === setHover) {
-                            delete listeners[k];
-                        }
-                    };
-                }, [path, hasHover]);
-                return isHovered;
-            },
-            setHover(path) {
-                const old = hover?.notified;
-                hover = path ? { path, notified: bestFor(path) } : null;
-                if (old !== hover?.notified) {
-                    tell(old, false);
-                    tell(hover?.notified, true);
-                }
-            },
-        };
-    }, []);
-};
+//                     // TODO: determine if this is the best one now
+//                     if (hover?.notified !== k && hover?.path.children.includes(k) && bestFor(hover.path) === k) {
+//                         tell(hover.notified, false);
+//                         hover.notified = k;
+//                         tell(hover.notified, true);
+//                     }
+
+//                     return () => {
+//                         if (listeners[k] === setHover) {
+//                             delete listeners[k];
+//                         }
+//                     };
+//                 }, [path, hasHover]);
+//                 return isHovered;
+//             },
+//             setHover(path) {
+//                 const old = hover?.notified;
+//                 hover = path ? { path, notified: bestFor(path) } : null;
+//                 if (old !== hover?.notified) {
+//                     tell(old, false);
+//                     tell(hover?.notified, true);
+//                 }
+//             },
+//         };
+//     }, []);
+// };
 
 export const useProvideDrag = () => {
     const drag = useMakeDrag();
@@ -174,7 +174,7 @@ export const Editor = () => {
     const store = useStore();
     const editor = store.useEditor();
     const Drag = useProvideDrag();
-    const Hover = useProvideHover();
+    // const Hover = useProvideHover();
     const module = editor.useModule();
 
     return (
@@ -182,15 +182,13 @@ export const Editor = () => {
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 Editor here
                 <KeyHandler />
-                <Hover>
-                    <Drag>
-                        {module.roots.map(
-                            (id): React.ReactNode => (
-                                <Top id={id} key={id} />
-                            ),
-                        )}
-                    </Drag>
-                </Hover>
+                <Drag>
+                    {module.roots.map(
+                        (id): React.ReactNode => (
+                            <Top id={id} key={id} />
+                        ),
+                    )}
+                </Drag>
                 <button
                     className={css({ marginBlock: '12px' })}
                     onClick={() => {

@@ -689,6 +689,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
         case 'index': {
             stackWarning([expr.src], `indexes are entirely unchecked`);
             inferExpr(tenv, expr.target);
+            expr.index.forEach((item) => inferExpr(tenv, item));
             return newTypeVar({ type: 'unsafe', src: expr.src }, expr.src);
         }
 

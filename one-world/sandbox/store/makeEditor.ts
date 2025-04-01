@@ -263,7 +263,7 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
     return { ...result, trace, validation, spans };
 };
 
-type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
+export type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
 
 export const partition = (better: string[][], children: string[]) => {
     // const groups: Grouped = {children: []}
