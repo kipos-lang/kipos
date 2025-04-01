@@ -57,7 +57,7 @@ export type ValidateResult<ValidationInfo> = {
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...
-    annotations: Annotation[]; // todo make this better
+    annotations: Record<string, Annotation[]>; // todo make this better
     events?: any[]; // add this in from the stepping debugger
 };
 

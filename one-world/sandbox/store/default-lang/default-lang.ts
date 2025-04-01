@@ -2,6 +2,7 @@ import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Annotation, AnnotationText, Language } from '../language';
+import { srcKey } from '../makeEditor';
 import { builtinEnv, getGlobalState, inferStmt, resetState, typeApply, typeToNode, typeToString } from './validate';
 
 type Macro = {
@@ -43,15 +44,18 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             res = null;
         }
 
-        const annotations: Annotation[] = [
+        const annotations: Record<string, Annotation[]> = {};
+
+        const add = (annotation: Annotation) => {
+            const key = srcKey(annotation.src);
+            if (!annotations[key]) annotations[key] = [annotation];
+            else annotations[key].push(annotation);
+        };
+        add(
             res
                 ? { type: 'type', annotation: typeToNode(res.value), src: ast.src, primary: true }
                 : { type: 'error', message: ['unable to infer...', error!], src: ast.src },
-        ];
-
-        const add = (annotation: Annotation) => {
-            annotations.push(annotation);
-        };
+        );
 
         glob.events.forEach((evt) => {
             if (evt.type === 'error' || evt.type === 'warning') {

@@ -33,13 +33,13 @@ const recalcSelectionStatuses = (mod: Module) => {
     return statuses;
 };
 
-export const findSpans = (items: { src: Src }[]) => {
+export const findSpans = (items: Src[]) => {
     const spans: Record<string, string[]> = {};
 
-    items.forEach((evt) => {
-        if (evt.src.right) {
-            if (!spans[evt.src.left]) spans[evt.src.left] = [];
-            if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
+    items.forEach((src) => {
+        if (src.right) {
+            if (!spans[src.left]) spans[src.left] = [];
+            if (!spans[src.left].includes(src.right)) spans[src.left].push(src.right);
         }
     });
 
@@ -144,8 +144,11 @@ export const makeEditor = (
                     });
                     if (result.validation) {
                         const keys: Record<string, true> = {};
-                        result.validation.annotations.forEach((ann) => {
-                            keys[srcKey(ann.src)] = true;
+
+                        Object.entries(result.validation.annotations).forEach(([k, ann]) => {
+                            if (!parseResults[key] || !equal(ann, parseResults[key].validation?.annotations[k])) {
+                                keys[k] = true;
+                            }
                         });
                         Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
 
@@ -200,7 +203,7 @@ export const makeEditor = (
                 useAnnotations(key: string) {
                     const tick = useTick(`annotation:${key}`);
                     return useMemo(() => {
-                        return parseResults[top].validation?.annotations.filter((ann) => srcKey(ann.src) === key);
+                        return parseResults[top]?.validation?.annotations[key];
                     }, [tick]);
                 },
                 useNode(path: Path) {
@@ -244,7 +247,7 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
     }
     const spans: Record<string, string[][]> = {};
     if (validation) {
-        const simpleSpans = findSpans(validation.annotations);
+        const simpleSpans = findSpans(Object.values(validation.annotations).flatMap((a) => a.map((a) => a.src)));
         Object.entries(top.nodes).forEach(([key, node]) => {
             if (node.type === 'list') {
                 spans[key] = node.children.map((child) => {

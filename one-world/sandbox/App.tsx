@@ -10,7 +10,6 @@ import { Meta } from './store/language';
 import { zedlight } from './zedcolors';
 import { currentTheme } from './themes';
 import { genId } from '../keyboard/ui/genId';
-import { srcKey } from './store/makeEditor';
 
 export const App = () => {
     return (
@@ -88,13 +87,15 @@ export const Top = ({ id }: { id: string }) => {
                     borderRadius: '3px',
                 })}
             >
-                {parseResult?.validation?.annotations.map((item, i) => (
-                    <div key={i}>
-                        {item.type === 'type' && item.primary ? (
-                            <div key={i}>
-                                <RenderStaticNode root={item.annotation} />
-                            </div>
-                        ) : null}
+                {Object.entries(parseResult?.validation?.annotations ?? {}).map(([key, items]) => (
+                    <div key={key}>
+                        {items.map((item, i) =>
+                            item.type === 'type' && item.primary ? (
+                                <div key={i}>
+                                    <RenderStaticNode root={item.annotation} />
+                                </div>
+                            ) : null,
+                        )}
                     </div>
                 ))}
             </div>

@@ -112,6 +112,7 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
                 {id.slice(-5)}:{node.type}
             </span> */}
             {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
+            {/* {annotations ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(annotations)}</span> : null} */}
             {r}
             {overlay}
         </span>

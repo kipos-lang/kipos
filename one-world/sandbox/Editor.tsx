@@ -116,7 +116,6 @@ const useMakeHover = () => {
                     tell(old, false);
                     tell(hover?.notified, true);
                 }
-                console.log('hover', hover?.path);
             },
         };
     }, []);
