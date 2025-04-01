@@ -2,7 +2,7 @@ import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Annotation, AnnotationText, Language } from '../language';
-import { builtinEnv, getGlobalState, inferStmt, resetState, typeToNode, typeToString } from './validate';
+import { builtinEnv, getGlobalState, inferStmt, resetState, typeApply, typeToNode, typeToString } from './validate';
 
 type Macro = {
     parent: string;
@@ -67,7 +67,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
                 });
             }
             if (evt.type === 'infer') {
-                add(evt.src.left, { type: 'type', annotation: typeToNode(evt.value) });
+                add(evt.src.left, { type: 'type', annotation: typeToNode(typeApply(glob.subst, evt.value)) });
             }
         });
 

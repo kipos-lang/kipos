@@ -330,7 +330,12 @@ const rules = {
     ),
     'expr ': or(
         tx<Expr>(
-            seq(meta(list('round', group('args', star(ref('pat')))), 'fn-args'), kwd('=>'), group('body', or(ref('block'), ref('expr ')))),
+            seq(
+                // or(group('args', table('round', seq(id(null), opt(ref('pat'))))),
+                meta(list('round', group('args', star(ref('pat')))), 'fn-args'),
+                kwd('=>'),
+                group('body', or(ref('block'), ref('expr '))),
+            ),
             (ctx, src) => ({
                 type: 'lambda',
                 args: ctx.ref<Pat[]>('args'),

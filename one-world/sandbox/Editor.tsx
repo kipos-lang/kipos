@@ -15,6 +15,7 @@ import { toXML } from '../syntaxes/xml';
 import { currentTheme } from './themes';
 import { processStack, stackForEvt } from '../../type-inference-debugger/demo/App';
 import { ShowStacks } from '../../type-inference-debugger/demo/ShowText';
+import { lastChild, Path } from '../keyboard/utils';
 
 // type ECtx = {
 //     // drag
@@ -48,6 +49,85 @@ export const useDrag = () => {
 const useEditor = () => {
     const store = useStore();
     return store.useEditor();
+};
+
+type HoverCtxT = { onHover(path: Path, hasHover: boolean): boolean; setHover(path: Path | null): void };
+const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {} });
+export const useHover = (path: Path, hasHover: boolean) => {
+    const hover = useContext(HoverCtx);
+    const isHovered = hover.onHover(path, hasHover);
+    return { isHovered, setHover: hover.setHover };
+};
+
+export const useProvideHover = () => {
+    const hover = useMakeHover();
+    return useCallback(
+        ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
+        [hover],
+    );
+};
+
+const useMakeHover = () => {
+    return useMemo((): HoverCtxT => {
+        let hover: null | { path: Path; notified: string | null } = null;
+        const listeners: Record<string, (v: boolean) => void> = {};
+
+        const bestFor = (path: Path) => {
+            for (let i = path.children.length - 1; i >= 0; i--) {
+                const k = path.children[i];
+                if (listeners[k]) return k;
+            }
+            return null;
+        };
+
+        const tell = (k: string | null | undefined, v: boolean) => {
+            if (k && listeners[k]) {
+                listeners[k](v);
+            }
+        };
+
+        return {
+            onHover(path, hasHover) {
+                const [isHovered, setHover] = useState(false);
+                useEffect(() => {
+                    if (!hasHover) return; // don't register
+                    const k = lastChild(path);
+                    listeners[k] = setHover;
+
+                    // TODO: determine if this is the best one now
+                    if (hover?.notified !== k && hover?.path.children.includes(k) && bestFor(hover.path) === k) {
+                        tell(hover.notified, false);
+                        hover.notified = k;
+                        tell(hover.notified, true);
+                    }
+
+                    return () => {
+                        if (listeners[k] === setHover) {
+                            delete listeners[k];
+                        }
+                    };
+                }, [path, hasHover]);
+                return isHovered;
+            },
+            setHover(path) {
+                const old = hover?.notified;
+                hover = path ? { path, notified: bestFor(path) } : null;
+                if (old !== hover?.notified) {
+                    tell(old, false);
+                    tell(hover?.notified, true);
+                }
+                console.log('hover', hover?.path);
+            },
+        };
+    }, []);
+};
+
+export const useProvideDrag = () => {
+    const drag = useMakeDrag();
+    return useCallback(
+        ({ children }: { children: React.ReactNode }): React.ReactNode => <DragCtx.Provider value={drag}>{children}</DragCtx.Provider>,
+        [drag],
+    );
 };
 
 export const useMakeDrag = (): DragCtxT => {
@@ -89,10 +169,13 @@ export const useMakeDrag = (): DragCtxT => {
     }, [editor]);
 };
 
+// const useMake
+
 export const Editor = () => {
     const store = useStore();
     const editor = store.useEditor();
-    const drag = useMakeDrag();
+    const Drag = useProvideDrag();
+    const Hover = useProvideHover();
     const module = editor.useModule();
 
     return (
@@ -100,11 +183,15 @@ export const Editor = () => {
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 Editor here
                 <KeyHandler />
-                <DragCtx.Provider value={drag}>
-                    {module.roots.map((id) => (
-                        <Top id={id} key={id} />
-                    ))}
-                </DragCtx.Provider>
+                <Hover>
+                    <Drag>
+                        {module.roots.map(
+                            (id): React.ReactNode => (
+                                <Top id={id} key={id} />
+                            ),
+                        )}
+                    </Drag>
+                </Hover>
                 <button
                     className={css({ marginBlock: '12px' })}
                     onClick={() => {

@@ -103,7 +103,7 @@ export const Top = ({ id }: { id: string }) => {
     );
 };
 
-const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record<string, Meta> } }) => {
+export const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record<string, Meta> } }) => {
     const { map, id, meta } = useMemo(() => {
         const map: Record<string, Node> = {};
         const meta: Record<string, Meta> = {};

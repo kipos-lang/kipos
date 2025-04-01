@@ -681,6 +681,11 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             // return
         }
 
+        // hmm.
+        case 'constructor': {
+            throw new Error(`constructorr`);
+        }
+
         case 'index': {
             stackWarning([expr.src], `indexes are entirely unchecked`);
             inferExpr(tenv, expr.target);
@@ -697,7 +702,15 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             if (expr.items.length === 1 && expr.items[0].type !== 'spread') {
                 return inferExpr(tenv, expr.items[0]);
             }
-            throw new Error(`tuples not yet`);
+            const types: Type[] = [];
+            expr.items.forEach((item) => {
+                if (item.type === 'spread') {
+                    stackError([item.src], `spread in tuples not supported yet`);
+                    return;
+                }
+                types.push(inferExpr(tenv, item));
+            });
+            return { type: 'app', target: { type: 'con', name: `,${types.length}`, src: expr.src }, args: types, src: expr.src };
         }
 
         case 'app': {

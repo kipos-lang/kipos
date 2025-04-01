@@ -1,4 +1,11 @@
 
+# Named Arguments
+
+tale as old as time, what do you do about lambdas.
+I say, that directly calling a toplevel function puts you in magic territory.
+So if the target resolves to a `var`, and that `var` resolves to a named-function-type,
+then we're good.
+
 # Typed FFI
 
 Ok y'all, we're gonna need to talk about typed ffi.
@@ -54,6 +61,8 @@ let's try that.
 - [x] hover for annotations plssss
 - [ ] get binops infering
 - [ ] get .attribute and [index] doing reasonable things
+
+- [ ] I HSOULD DO SPANS.. like the <Wrap> that I had going.
 
 # Type thoughts
 
