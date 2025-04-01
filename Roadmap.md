@@ -5,6 +5,9 @@ and it's just the spans for the children. of the node.
 so it could be like a list of spans.
 and it could be a string[][], one for each child.
 
+spans are great. wraps are great.
+IFF there's an expr that spans multiple items of a non-smoosh non-space list, we will need
+to fix the RenderList to make spans for it. just fyi
 
 # I had a thought
 about mutability

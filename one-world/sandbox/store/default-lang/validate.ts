@@ -510,7 +510,7 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['
             const value = inferExpr(tenv, stmt.expr);
             return { value: value };
         case 'for': {
-            console.error('not stacking yet');
+            // console.error('not stacking yet');
             const letter = inferStmt(tenv, stmt.init);
             const bound = letter.scope ? tenvWithScope(tenvApply(globalState.subst, tenv), letter.scope) : tenv;
             const upter = inferExpr(bound, stmt.cond);

@@ -266,7 +266,6 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
 export type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
 
 export const partition = (better: string[][], children: string[]) => {
-    // const groups: Grouped = {children: []}
     const stack: Grouped[] = [{ children: [] }];
 
     for (let i = 0; i < children.length; i++) {
@@ -289,8 +288,9 @@ export const partition = (better: string[][], children: string[]) => {
         stack[stack.length - 1].children.push(child);
     }
     if (stack.length !== 1) {
-        console.log(stack);
-        console.error('didnt clen up all stacks');
+        // So... this happens when the /end/ of a span isn't actually within the children, right?
+        // or when things are out of order somehow?
+        // I'll just ignore for the moment.
     }
     return stack[0];
 };
