@@ -11,9 +11,10 @@ import { defaultLang } from './default-lang/default-lang';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStore, Evt, allIds } from './store';
-import { Event } from '../../syntaxes/dsl3';
+import { Event, Src } from '../../syntaxes/dsl3';
 import { Language, ValidateResult } from './language';
 import { Type } from '../../syntaxes/algw-s2-types';
+import { useMemo } from 'react';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -32,12 +33,25 @@ const recalcSelectionStatuses = (mod: Module) => {
     return statuses;
 };
 
-export type LangResult = ParseResult<any> & { trace: Event[]; validation?: ValidateResult<Type> | null };
+export const findSpans = (items: { src: Src }[]) => {
+    const spans: Record<string, string[]> = {};
+
+    items.forEach((evt) => {
+        if (evt.src.right) {
+            if (!spans[evt.src.left]) spans[evt.src.left] = [];
+            if (!spans[evt.src.left].includes(evt.src.right)) spans[evt.src.left].push(evt.src.right);
+        }
+    });
+
+    return spans;
+};
+
+export type LangResult = ParseResult<any> & { trace: Event[]; validation?: ValidateResult<Type> | null; spans: Record<string, string[][]> };
 
 export const makeEditor = (
     selected: string,
     modules: Record<string, Module>,
-    useTick: (evt: Evt) => void,
+    useTick: (evt: Evt) => number,
     shout: (evt: Evt) => void,
 ): EditorStore => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
@@ -122,18 +136,34 @@ export const makeEditor = (
 
                 if (nodesChanged) {
                     const result = doParse(language, mod.toplevels[key]);
-                    Object.entries(result.ctx.meta).forEach(([key, value]) => {
-                        if (!parseResults[key]) changed[key] = true;
-                        else if (!equal(value, parseResults[key].ctx.meta[key])) {
-                            changed[key] = true;
+                    Object.entries(result.ctx.meta).forEach(([loc, value]) => {
+                        if (!parseResults[key]) changed[loc] = true;
+                        else if (!equal(value, parseResults[key].ctx.meta[loc])) {
+                            changed[loc] = true;
                         }
                     });
-                    Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
-                        if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
-                        else if (!equal(value, parseResults[key].validation.annotations[key])) {
-                            changed[key] = true;
-                        }
-                    });
+                    if (result.validation) {
+                        const keys: Record<string, true> = {};
+                        result.validation.annotations.forEach((ann) => {
+                            keys[srcKey(ann.src)] = true;
+                        });
+                        Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
+
+                        Object.entries(result.spans).forEach(([loc, spans]) => {
+                            if (!parseResults[key] || !parseResults[key].spans[loc]) changed[key] = true;
+                            else if (!equal(spans, parseResults[key].spans[loc])) {
+                                changed[key] = true;
+                            }
+                        });
+
+                        // const spans = findSpans(result.validation.annotations)
+                        // Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
+                        //     if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
+                        //     else if (!equal(value, parseResults[key].validation.annotations[key])) {
+                        //         changed[key] = true;
+                        //     }
+                        // });
+                    }
                     parseResults[key] = result;
                     shout(`module:${selected}:parse-results`);
                     shout(`top:${key}:parse-results`);
@@ -162,23 +192,25 @@ export const makeEditor = (
                 }
             });
 
-            Object.keys(result.tops).forEach((tid) => {
-                const top = mod.toplevels[tid];
-                // parser
-            });
-
             saveModule(mod);
         },
         useTop(top: string) {
             useTick(`top:${top}`);
             return {
+                useAnnotations(key: string) {
+                    const tick = useTick(`annotation:${key}`);
+                    return useMemo(() => {
+                        return parseResults[top].validation?.annotations.filter((ann) => srcKey(ann.src) === key);
+                    }, [tick]);
+                },
                 useNode(path: Path) {
                     useTick(`node:${lastChild(path)}`);
                     return {
                         node: modules[selected].toplevels[top].nodes[lastChild(path)],
                         sel: selectionStatuses[pathKey(path)],
                         meta: parseResults[top]?.ctx.meta[lastChild(path)],
-                        annotations: parseResults[top]?.validation?.annotations[lastChild(path)],
+                        spans: parseResults[top].spans[lastChild(path)],
+                        // annotations: parseResults[top]?.validation?.annotations[lastChild(path)],
                     };
                 },
                 useRoot() {
@@ -210,5 +242,54 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
     if (result.result && language.validate) {
         validation = language.validate(result.result);
     }
-    return { ...result, trace, validation };
+    const spans: Record<string, string[][]> = {};
+    if (validation) {
+        const simpleSpans = findSpans(validation.annotations);
+        Object.entries(top.nodes).forEach(([key, node]) => {
+            if (node.type === 'list') {
+                spans[key] = node.children.map((child) => {
+                    if (!simpleSpans[child]) return [];
+                    return simpleSpans[child]
+                        .map((id) => ({ id, idx: node.children.indexOf(id) }))
+                        .sort((a, b) => b.idx - a.idx)
+                        .map((s) => s.id);
+                });
+            }
+        });
+    }
+    return { ...result, trace, validation, spans };
 };
+
+type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
+
+export const partition = (better: string[][], children: string[]) => {
+    // const groups: Grouped = {children: []}
+    const stack: Grouped[] = [{ children: [] }];
+
+    for (let i = 0; i < children.length; i++) {
+        const current = stack[stack.length - 1];
+        const spans = better[i];
+        const child = children[i];
+        if (!spans.length) {
+            current.children.push(child);
+            while (stack[stack.length - 1].end === child) {
+                stack.pop();
+            }
+            continue;
+        }
+
+        spans.forEach((id) => {
+            const inner: Grouped = { end: id, children: [], id: `${child}:${id}` };
+            stack[stack.length - 1].children.push(inner);
+            stack.push(inner);
+        });
+        stack[stack.length - 1].children.push(child);
+    }
+    if (stack.length !== 1) {
+        console.log(stack);
+        console.error('didnt clen up all stacks');
+    }
+    return stack[0];
+};
+
+export const srcKey = (src: Src) => (src.right ? `${src.left}:${src.right}` : src.left);

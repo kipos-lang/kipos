@@ -43,15 +43,14 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             res = null;
         }
 
-        const annotations: Record<string, Annotation[]> = {
-            [ast.src.left]: [
-                res ? { type: 'type', annotation: typeToNode(res.value), primary: true } : { type: 'error', message: ['unable to infer...', error!] },
-            ],
-        };
+        const annotations: Annotation[] = [
+            res
+                ? { type: 'type', annotation: typeToNode(res.value), src: ast.src, primary: true }
+                : { type: 'error', message: ['unable to infer...', error!], src: ast.src },
+        ];
 
-        const add = (src: string, annotation: Annotation) => {
-            if (!annotations[src]) annotations[src] = [annotation];
-            else annotations[src].push(annotation);
+        const add = (annotation: Annotation) => {
+            annotations.push(annotation);
         };
 
         glob.events.forEach((evt) => {
@@ -63,11 +62,11 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
                     return { type: 'renderable', renderable: typeToNode(item.typ) };
                 });
                 evt.sources.forEach((src) => {
-                    add(src.left, { type: evt.type, message, spans: evt.sources });
+                    add({ type: evt.type, message, spans: evt.sources, src });
                 });
             }
             if (evt.type === 'infer') {
-                add(evt.src.left, { type: 'type', annotation: typeToNode(typeApply(glob.subst, evt.value)) });
+                add({ type: 'type', annotation: typeToNode(typeApply(glob.subst, evt.value)), src: evt.src });
             }
         });
 

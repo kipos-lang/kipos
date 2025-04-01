@@ -2,7 +2,7 @@ import React, { useMemo, useContext } from 'react';
 import { Path, pathWithChildren } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
 import { RenderStaticNode, UseNodeCtx } from '../App';
-import { SelStatus } from '../store/store';
+import { SelStatus, useStore } from '../store/store';
 import { RenderText } from './RenderText';
 import { RenderId } from './RenderId';
 import { RenderList } from './RenderList';
@@ -27,7 +27,9 @@ const R = ({ node, self, sel, meta }: { meta?: Meta; node: Node; self: Path; sel
 
 export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
-    const { node, sel, meta, annotations } = useContext(UseNodeCtx)(self);
+    const { node, sel, meta } = useContext(UseNodeCtx)(self);
+    const top = useStore().useEditor().useTop(parent.root.top);
+    const annotations = top.useAnnotations(id);
 
     const errors = annotations?.filter((e) => e.type === 'error');
     const warnings = annotations?.filter((e) => e.type === 'warning');

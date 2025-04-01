@@ -45,12 +45,13 @@ export type SelStatus = {
     highlight?: Highlight;
 };
 
-export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta; annotations?: Annotation[] };
+export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta; spans?: string[][] };
 
 interface TopStore {
     top: Toplevel;
     useRoot(): string;
     useNode: UseNode;
+    useAnnotations(key: string): undefined | Annotation[];
 }
 
 export const newModule = (name = 'NewModule'): Module => {
@@ -98,7 +99,14 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-export type Evt = 'modules' | 'selected' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
+export type Evt =
+    | 'modules'
+    | 'selected'
+    | `annotation:${string}`
+    | `top:${string}`
+    | `node:${string}`
+    | `module:${string}`
+    | `module:${string}:roots`;
 
 // const makeLanguage = (configurations: Record<string, LanguageConfiguration>) => {
 //     const languages = {};
@@ -135,10 +143,11 @@ const createStore = (): Store => {
     const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
 
     const useTick = (evt: Evt) => {
-        const [_, setTick] = useState(0);
+        const [ticker, setTick] = useState(0);
         useEffect(() => {
             return listen(evt, () => setTick((t) => t + 1));
         }, [evt]);
+        return ticker;
     };
 
     const editors: Record<string, EditorStore> = {};

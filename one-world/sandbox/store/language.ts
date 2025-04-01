@@ -47,17 +47,17 @@ export type Renderable = { node: RecNode; meta: Record<string, Meta> };
 
 export type AnnotationText = { type: 'renderable'; renderable: Renderable; src?: Src } | string;
 export type Annotation =
-    | { type: 'error'; message: AnnotationText[]; spans?: Src[] }
-    | { type: 'warning'; message: AnnotationText[]; spans?: Src[] }
-    | { type: 'info'; message: AnnotationText[]; spans?: Src[] }
-    | { type: 'type'; annotation: Renderable; spans?: Src[]; primary?: boolean };
+    | { type: 'error'; message: AnnotationText[]; src: Src; spans?: Src[] }
+    | { type: 'warning'; message: AnnotationText[]; src: Src; spans?: Src[] }
+    | { type: 'info'; message: AnnotationText[]; src: Src; spans?: Src[] }
+    | { type: 'type'; annotation: Renderable; src: Src; spans?: Src[]; primary?: boolean };
 
 export type ValidateResult<ValidationInfo> = {
     result?: ValidationInfo;
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...
-    annotations: Record<string, Annotation[]>; // todo make this better
+    annotations: Annotation[]; // todo make this better
     events?: any[]; // add this in from the stepping debugger
 };
 

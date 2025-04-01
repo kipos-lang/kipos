@@ -620,19 +620,28 @@ type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
 export const partition = (ctx: Ctx, children: string[]) => {
     // const groups: Grouped = {children: []}
     const stack: Grouped[] = [{ children: [] }];
+
+    const better = children.map((child) => {
+        if (!ctx.spans[child]) return [];
+        return ctx.spans[child]
+            .map((id) => ({ id, idx: children.indexOf(id) }))
+            .sort((a, b) => b.idx - a.idx)
+            .map((s) => s.id);
+    });
+
     for (let i = 0; i < children.length; i++) {
         const current = stack[stack.length - 1];
+        const spans = better[i];
         const child = children[i];
-        if (!ctx.spans[child]) {
+        if (!spans.length) {
             current.children.push(child);
             while (stack[stack.length - 1].end === child) {
                 stack.pop();
             }
             continue;
         }
-        const spans = ctx.spans[child].map((id) => ({ id, idx: children.indexOf(id) })).sort((a, b) => b.idx - a.idx);
 
-        spans.forEach(({ id, idx }) => {
+        spans.forEach((id) => {
             const inner: Grouped = { end: id, children: [], id: `${child}:${id}` };
             stack[stack.length - 1].children.push(inner);
             stack.push(inner);

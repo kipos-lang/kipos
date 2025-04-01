@@ -1,4 +1,21 @@
 
+# Wpans
+we need to ... have `useNode` respond with `spans` that we get from parsing.
+and it's just the spans for the children. of the node.
+so it could be like a list of spans.
+and it could be a string[][], one for each child.
+
+
+# I had a thought
+about mutability
+
+for js--, where mutability might lurk around every corner,
+we just say "cache nothing. re-evaluate literally everything all the time".
+
+For a hypothetical js-, where we have really good mutability tracking, we might
+be able to label toplevels as "safe to cache" and "unsafe to cache".
+
+
 # Named Arguments
 
 tale as old as time, what do you do about lambdas.
