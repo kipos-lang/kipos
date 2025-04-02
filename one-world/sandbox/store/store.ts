@@ -150,6 +150,13 @@ const createStore = (): Store => {
         return ticker;
     };
 
+    const f = () => {
+        const id = location.hash.slice(1);
+        selected = id;
+        shout('selected');
+    };
+    window.addEventListener('hashchange', f);
+
     const editors: Record<string, EditorStore> = {};
 
     return {
@@ -200,15 +207,6 @@ const StoreCtx = createContext({ store: null } as { store: null | Store });
 export const useStore = (): Store => {
     const v = useContext(StoreCtx);
     if (!v.store) v.store = createStore();
-
-    useEffect(() => {
-        const f = () => {
-            const id = location.hash.slice(1);
-            v.store!.select(id);
-        };
-        window.addEventListener('hashchange', f);
-        return () => window.removeEventListener('hashchange', f);
-    }, []);
 
     return v.store;
 };

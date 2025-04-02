@@ -12,7 +12,7 @@ import { css } from 'goober';
 // import { useHover } from '../Editor';
 // import { ShowText } from '../../../type-inference-debugger/demo/ShowText';
 
-const R = ({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
+const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
         case 'id':
             return <RenderId node={node} meta={meta} sel={sel} self={self} />;
@@ -23,7 +23,7 @@ const R = ({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; 
         case 'table':
             return <RenderTable node={node} meta={meta} sel={sel} self={self} />;
     }
-};
+});
 
 export const Wrap = ({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) => {
     const top = useStore().useEditor().useTop(parent.root.top);
@@ -112,10 +112,10 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
     );
 };
 
-export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
+export const RenderNode = React.memo(({ id, parent }: { id: string; parent: Path }) => {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
     const { node, sel, meta, spans } = useContext(UseNodeCtx)(self);
-    const top = useStore().useEditor().useTop(parent.root.top);
+    // const top = useStore().useEditor().useTop(parent.root.top);
     // const annotations = top.useAnnotations(id);
     // const errors = annotations?.filter((e) => e.type === 'error');
     // const warnings = annotations?.filter((e) => e.type === 'warning');
@@ -213,4 +213,4 @@ export const RenderNode = ({ id, parent }: { id: string; parent: Path }) => {
     //     //     {JSON.stringify(sel)} */}
     //     // {/* </span> */}
     // );
-};
+});

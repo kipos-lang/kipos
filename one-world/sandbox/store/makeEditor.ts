@@ -212,8 +212,7 @@ export const makeEditor = (
                         node: modules[selected].toplevels[top].nodes[lastChild(path)],
                         sel: selectionStatuses[pathKey(path)],
                         meta: parseResults[top]?.ctx.meta[lastChild(path)],
-                        spans: parseResults[top].spans[lastChild(path)],
-                        // annotations: parseResults[top]?.validation?.annotations[lastChild(path)],
+                        spans: parseResults[top]?.spans[lastChild(path)],
                     };
                 },
                 useRoot() {
