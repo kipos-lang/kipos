@@ -3,7 +3,9 @@
 
 - [ ] when I .. have my cursor over a node, and it is a definition
   or a reference, the other paired things should be highlighted.
-- [ ] also indicate unused variablers htanks
+- [x] also indicate unused variablers htanks
+
+... sooo ... toplevel lack of use is a nonlocal property.
 
 - [ ] OH can we have an up/down please?
 - [ ] I guess we'll need click-to-select overall as well...

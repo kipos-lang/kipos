@@ -125,7 +125,7 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
     ctx.trace?.({
         type: 'stack-push',
         loc: parent.nodes[at]?.loc,
-        text: ['> ', { type: 'rule', rule }],
+        text: ['> ' + ctx.scopes.length, ' ', { type: 'rule', rule }],
     });
     // console.log(`> `.padStart(2 + indent), show(rule));
     // indent++;
@@ -168,6 +168,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
+            console.log('how many', ctx.scopes.length);
             ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
             ctx.usages[node.loc] = { name: node.text, kind: rule.kind, usages: [] };
             return { value: node, consumed: 1 };
@@ -281,12 +282,13 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         case 'any':
             if (!node) return;
             return { consumed: 1, value: node };
+
         case 'scope': {
             const inner = match(
                 rule.inner,
                 {
                     ...ctx,
-                    scopes: ctx.scopes.concat([]),
+                    scopes: ctx.scopes.concat([[]]),
                 },
                 parent,
                 at,

@@ -23,7 +23,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
                 internalReferences: result.ctx.usages,
                 ffiReferences: [],
                 result: result.result,
-                provides: [],
+                provides: result.ctx.scopes[0],
             };
         },
         spans(ast) {

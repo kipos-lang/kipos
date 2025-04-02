@@ -219,7 +219,7 @@ export const makeEditor = (
                     let meta = parseResults[top]?.ctx.meta[loc];
                     const refs = results.internalReferences[loc];
                     if (refs) {
-                        if (refs.usages.length === 0) {
+                        if (refs.usages.length === 0 && !results.provides.some((r) => r.loc === loc)) {
                             meta = { kind: 'unused' };
                         } else {
                             meta = { kind: 'used' };

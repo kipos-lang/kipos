@@ -363,7 +363,7 @@ const rules = {
     ),
     'expr ': or(
         tx<Expr>(
-            seq(meta(list('round', group('args', star(ref('pat')))), 'fn-args'), kwd('=>'), group('body', or(ref('block'), ref('expr ')))),
+            scope(seq(meta(list('round', group('args', star(ref('pat')))), 'fn-args'), kwd('=>'), group('body', or(ref('block'), ref('expr '))))),
             (ctx, src) => ({
                 type: 'lambda',
                 args: ctx.ref<Pat[]>('args'),
@@ -485,6 +485,7 @@ export const parser = {
         const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         console.log(myctx.usages, myctx.externalUsages);
         // if (res?.value?.type === 'let')
+        console.log('provides', myctx.scopes);
         return { result: res?.value, ctx: myctx };
     },
 };
