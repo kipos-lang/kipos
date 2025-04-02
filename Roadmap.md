@@ -8,6 +8,14 @@
 - [ ] OH can we have an up/down please?
 - [ ] I guess we'll need click-to-select overall as well...
 
+...
+so, first off:
+...
+let's override the `Meta`
+of nodes that are declarations.
+...
+and unused ones, let's make that clear too
+
 # ALRIGHT
 so, now we get to the part of the show
 where toplevels can depend on each other

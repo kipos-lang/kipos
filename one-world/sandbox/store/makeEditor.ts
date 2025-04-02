@@ -5,14 +5,13 @@ import { genId } from '../../keyboard/ui/genId';
 import { SelectionStatuses, mergeHighlights, Path, lastChild, pathKey } from '../../keyboard/utils';
 import { validate } from '../../keyboard/validate';
 import { Loc } from '../../shared/cnodes';
-import { ParseResult } from '../../syntaxes/algw-s2-return';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStore, Evt, allIds } from './store';
 import { Event, Src } from '../../syntaxes/dsl3';
-import { Language, ValidateResult } from './language';
+import { Language, ParseResult, ValidateResult } from './language';
 import { Type } from '../../syntaxes/algw-s2-types';
 import { useMemo } from 'react';
 
@@ -214,12 +213,23 @@ export const makeEditor = (
                     }, [tick, key]);
                 },
                 useNode(path: Path) {
-                    useTick(`node:${lastChild(path)}`);
+                    const loc = lastChild(path);
+                    useTick(`node:${loc}`);
+                    const results = parseResults[top];
+                    let meta = parseResults[top]?.ctx.meta[loc];
+                    const refs = results.internalReferences[loc];
+                    if (refs) {
+                        if (refs.usages.length === 0) {
+                            meta = { kind: 'unused' };
+                        } else {
+                            meta = { kind: 'used' };
+                        }
+                    }
                     return {
-                        node: modules[selected].toplevels[top].nodes[lastChild(path)],
+                        node: modules[selected].toplevels[top].nodes[loc],
                         sel: selectionStatuses[pathKey(path)],
-                        meta: parseResults[top]?.ctx.meta[lastChild(path)],
-                        spans: parseResults[top]?.spans[lastChild(path)],
+                        meta,
+                        spans: parseResults[top]?.spans[loc],
                     };
                 },
                 useRoot() {

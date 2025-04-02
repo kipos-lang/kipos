@@ -19,8 +19,8 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             const result = parser.parse(macros, node, trace);
             return {
                 ctx: { meta: result.ctx.meta },
-                externalReferences: [],
-                internalReferences: {},
+                externalReferences: result.ctx.externalUsages,
+                internalReferences: result.ctx.usages,
                 ffiReferences: [],
                 result: result.result,
                 provides: [],

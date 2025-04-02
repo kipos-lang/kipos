@@ -485,6 +485,6 @@ export const parser = {
         const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         console.log(myctx.usages, myctx.externalUsages);
         // if (res?.value?.type === 'let')
-        return { result: res?.value, ctx: { meta: myctx.meta } };
+        return { result: res?.value, ctx: myctx };
     },
 };

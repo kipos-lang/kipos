@@ -45,7 +45,13 @@ export type SelStatus = {
     highlight?: Highlight;
 };
 
-export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta; spans?: string[][] };
+export type UseNode = (path: Path) => {
+    //
+    node: Node;
+    sel?: SelStatus;
+    meta?: Meta;
+    spans?: string[][];
+};
 
 interface TopStore {
     top: Toplevel;
