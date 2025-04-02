@@ -7,6 +7,16 @@ export type Stmt =
     | { type: 'for'; init: Stmt; cond: Expr; update: Expr; body: Block; src: Src }
     | { type: 'let'; pat: Pat; init: Expr; src: Src }
     | { type: 'expr'; expr: Expr; src: Src }
+    | {
+          type: 'type';
+          name: { text: string; loc: string };
+          src: Src;
+          constructors: {
+              type: 'constructor';
+              name: { text: string; loc: string };
+              args: { name: { text: string; loc: string }; value: Type; default?: Expr }[];
+          }[];
+      }
     | { type: 'return'; value?: Expr; src: Src };
 export type Spread<T> = { type: 'spread'; inner: T; src: Src };
 export type ObjectRow = { type: 'row'; name: Expr; value?: Expr; src: Src } | Spread<Expr>;

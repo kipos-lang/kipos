@@ -132,7 +132,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: node, consumed: 1 };
         case 'id':
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
-            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             return { value: node, consumed: 1 };
         case 'number': {
             if (node?.type !== 'id' || !node.text) return ctx.trace?.({ type: 'mismatch', message: 'not id' });
@@ -164,6 +164,9 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'table') return;
             const res: any[] = [];
             for (let i = 0; i < node.rows.length; i++) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['table(', node.rows.map((_, j) => (j === i ? '*' : '_')), ')'] });
+
                 const m = match(
                     rule.row,
                     { ...ctx, scope: null },
@@ -172,6 +175,10 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                 );
                 if (m) {
                     res.push(m.value);
+                } else {
+                    node.rows[i].forEach((node) => {
+                        ctx.meta[node.loc] = { kind: 'unparsed' };
+                    });
                 }
             }
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a table' });
@@ -222,7 +229,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         }
 
         case 'opt': {
-            // if (!node) return { consumed: 0 };
+            if (!node) return { consumed: 0 };
             const inner = match(rule.inner, ctx, parent, at);
             // console.log('matching opt', inner, rule.inner);
             if (!inner) return { consumed: 0 };

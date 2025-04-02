@@ -1,4 +1,10 @@
 
+# Ok I need constructors
+which means I need deftypes?
+
+- [ ] parse errors don't really show up...
+
+
 # Wpans
 we need to ... have `useNode` respond with `spans` that we get from parsing.
 and it's just the spans for the children. of the node.

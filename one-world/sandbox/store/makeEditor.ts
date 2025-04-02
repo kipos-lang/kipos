@@ -150,6 +150,13 @@ export const makeEditor = (
                                 keys[k] = true;
                             }
                         });
+
+                        Object.keys(parseResults[key]?.validation?.annotations ?? {}).forEach((k) => {
+                            if (!result.validation?.annotations[k]) {
+                                keys[k] = true;
+                            }
+                        });
+
                         Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
 
                         Object.entries(result.spans).forEach(([loc, spans]) => {
@@ -230,7 +237,7 @@ export const makeEditor = (
 const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangResult => {
     const node = root<Loc>({ top });
     const trace: Event[] = [];
-    const TRACE = false;
+    const TRACE = true;
     const result = language.parser.parse(
         [],
         node,

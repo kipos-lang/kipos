@@ -54,7 +54,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
         add(
             res
                 ? { type: 'type', annotation: typeToNode(res.value), src: ast.src, primary: true }
-                : { type: 'error', message: ['unable to infer...', error!], src: ast.src },
+                : { type: 'error', message: ['unable to infer: ', error!], src: ast.src },
         );
 
         glob.events.forEach((evt) => {

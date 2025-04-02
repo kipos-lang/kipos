@@ -467,6 +467,8 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['
             stackPop();
             return { value };
         }
+        case 'type':
+            return { value: { type: 'con', name: 'void', src: stmt.src } };
         case 'let': {
             const { pat, init, src } = stmt;
             stackPush(src, kwd('let'), ' ', hole(), ' = ', hole());
@@ -683,7 +685,28 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
 
         // hmm.
         case 'constructor': {
-            throw new Error(`constructorr`);
+            switch (expr.args?.type) {
+                case 'unnamed':
+                    expr.args.args.map((arg) => {
+                        inferExpr(tenv, arg.type === 'spread' ? arg.inner : arg);
+                    });
+                    break;
+                case 'named':
+                    expr.args.args.forEach((row) => {
+                        if (row.type === 'row') {
+                            if (row.value) {
+                                inferExpr(tenv, row.value);
+                            } else {
+                                inferExpr(tenv, { type: 'var', name: row.name.text, src: { type: 'src', left: row.name.loc } });
+                            }
+                        } else {
+                            inferExpr(tenv, row.inner);
+                        }
+                    });
+                    break;
+            }
+            // throw new Error(`constructors not yet checked`);
+            return newTypeVar({ type: 'free', prev: 'lol' }, expr.src);
         }
 
         case 'index': {

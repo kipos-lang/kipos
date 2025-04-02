@@ -228,7 +228,7 @@ const ParseTrace = ({ trace }: { trace: Event[] }) => {
     return (
         <div>
             <div>Parse Trace</div>
-            <input value={at} type="range" min={0} max={trace.length} onChange={(evt) => setAt(+evt.target.value)} />
+            <input value={at} type="range" min={0} max={trace.length} onChange={(evt) => setAt(+evt.target.value)} /> {at}
             <div>
                 {stack.map((stack, i) => (
                     <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>

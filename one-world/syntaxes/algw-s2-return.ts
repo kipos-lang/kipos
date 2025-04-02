@@ -6,10 +6,50 @@ import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, Type } from './algw-s2-types';
 
-export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'case', 'else', 'let', 'const', '=', '..', '.', 'fn'];
+export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
 
 const stmts_spaced: Record<string, Rule<Stmt>> = {
+    type_stmt: tx<Stmt>(
+        seq(
+            kwd('type'),
+            group('name', id(null)),
+            kwd('=', 'punct'),
+            group(
+                'constructors',
+                table(
+                    'curly',
+                    tx(
+                        seq(
+                            group('name', id(null)),
+                            group(
+                                'args',
+                                table(
+                                    'round',
+                                    tx(seq(group('name', id(null)), ref('type', 'value'), opt(ref('expr', 'default'))), (ctx, src) => ({
+                                        name: textLoc(ctx.ref<Id<string>>('name')),
+                                        value: ctx.ref<Type>('value'),
+                                        default: ctx.ref<Expr | undefined>('default'),
+                                    })),
+                                ),
+                            ),
+                        ),
+                        (ctx, src) => ({
+                            type: 'constructor',
+                            name: textLoc(ctx.ref<Id<string>>('name')),
+                            args: ctx.ref<{}[]>('args'),
+                        }),
+                    ),
+                ),
+            ),
+        ),
+        (ctx, src) => ({
+            type: 'type',
+            src,
+            name: textLoc(ctx.ref<Id<string>>('name')),
+            constructors: ctx.ref('constructors'),
+        }),
+    ),
     let: tx<Stmt>(seq(kwd('let'), ref('pat', 'pat'), kwd('=', 'punct'), ref('expr ', 'value')), (ctx, src) => ({
         type: 'let',
         pat: ctx.ref<Pat>('pat'),
@@ -152,10 +192,10 @@ const rules = {
         value: ctx.ref<Pat>('value'),
         src,
     })),
-    'call row': tx<CallRow>(seq(group('name', id(null)), ref('expr', 'value')), (ctx, src) => ({
+    'call row': tx<CallRow>(seq(group('name', id(null)), opt(ref('expr', 'value'))), (ctx, src) => ({
         type: 'row',
         name: textLoc(ctx.ref<Id<Loc>>('name')),
-        value: ctx.ref<Expr>('value'),
+        value: ctx.ref<Expr | undefined>('value'),
         src,
     })),
     'object row': tx<ObjectRow>(seq(ref('expr', 'name'), ref('expr', 'value')), (ctx, src) => ({
@@ -170,7 +210,7 @@ const rules = {
             args: ctx.ref<(Pat | Spread<Pat>)[]>('args'),
             src,
         })),
-        tx<PatArgs>(group('args', table('round', star(or(ref('spread pat'), ref('pat call row'))))), (ctx, src) => ({
+        tx<PatArgs>(group('args', table('round', or(ref('spread pat'), ref('pat call row')))), (ctx, src) => ({
             type: 'named',
             args: ctx.ref<PatCallRow[]>('args'),
             src,
@@ -182,9 +222,25 @@ const rules = {
             args: ctx.ref<(Expr | Spread<Expr>)[]>('args'),
             src,
         })),
-        tx<CallArgs>(group('args', table('round', star(or(ref('spread'), ref('call row'))))), (ctx, src) => ({
+        tx<CallArgs>(group('args', table('round', or(ref('spread'), ref('call row')))), (ctx, src) => ({
             type: 'named',
             args: ctx.ref<CallRow[]>('args'),
+            src,
+        })),
+    ),
+    type: or<Type>(
+        tx(group('id', meta(id(null), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+        tx(list('smooshed', seq(group('name', meta(id(null), 'constructor')), list('round', group('args', star(ref('type')))))), (ctx, src) => ({
+            type: 'app',
+            target: {
+                type: 'con',
+                name: ctx.ref<Id<Loc>>('name').text,
+                src: {
+                    type: 'src',
+                    left: ctx.ref<Id<Loc>>('name').loc,
+                },
+            },
+            args: ctx.ref<Type[]>('args'),
             src,
         })),
     ),
