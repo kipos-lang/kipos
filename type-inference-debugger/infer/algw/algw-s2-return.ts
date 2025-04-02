@@ -497,7 +497,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
         }
         case 'var':
             const got = tenv.scope[expr.name];
-            if (!got) throw new Error(`variable not found in scope ${expr.name}`);
+            if (!got) throw new Error(`variable not found in scope: ${expr.name}`);
             if (got.vars.length) {
                 stackPush(
                     expr.src,

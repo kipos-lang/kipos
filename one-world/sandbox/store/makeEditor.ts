@@ -211,7 +211,7 @@ export const makeEditor = (
                     const tick = useTick(`annotation:${key}`);
                     return useMemo(() => {
                         return parseResults[top]?.validation?.annotations[key];
-                    }, [tick]);
+                    }, [tick, key]);
                 },
                 useNode(path: Path) {
                     useTick(`node:${lastChild(path)}`);

@@ -72,15 +72,6 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
             src,
         }),
     ),
-    // throw: tx<Stmt>(seq(kwd('throw'), ref('expr ', 'value')), (ctx, src) => ({
-    //     type: 'throw',
-    //     value: ctx.ref<Expr>('value'),
-    //     src,
-    // })),
-    // // just for show, not going to be part of js--
-    // switch: tx<Stmt>(seq(kwd('switch'), list('round', ref('expr', 'target')), table('curly', seq(ref('expr'), ref('stmt')))), (_, __) => ({
-    //     type: 'show',
-    // })),
 };
 
 export type Suffix =
@@ -95,12 +86,6 @@ const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
         switch (suffix.type) {
             case 'attribute':
                 base = { type: 'attribute', target: base, attribute: textLoc(suffix.attribute), src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
-                // base = {
-                //     type: 'app',
-                //     target: { type: 'var', name: suffix.attribute.text, src: nodesSrc(suffix.attribute) },
-                //     args: [base],
-                //     src: mergeSrc(base.src, suffix.src),
-                // };
                 return;
             case 'named':
             case 'unnamed':
@@ -154,26 +139,12 @@ const exprs: Record<string, Rule<Expr>> = {
         rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'),
         src,
     })),
-    // ({ type:'str', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
     'expr tuple': tx<Expr>(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
         return { type: 'tuple', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
     'expr array': tx(list('square', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
         return { type: 'array', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
-    // 'expr table': tx(
-    //     group(
-    //         'rows',
-    //         table(
-    //             'curly',
-    //             tx(seq(group('key', id(null)), ref('expr', 'value')), (ctx, src) => ({
-    //                 name: ctx.ref<Id<Loc>>('key').text,
-    //                 value: ctx.ref<Expr>('value'),
-    //             })),
-    //         ),
-    //     ),
-    //     (ctx, src) => ({ type: 'object', items: ctx.ref<{ name: Id<Loc>; value: Expr }[]>('rows'), src }),
-    // ),
     'expr!': list('smooshed', ref('expr..')),
     'expr wrap': tx(list('round', ref('expr', 'inner')), (ctx, _) => ctx.ref<Expr>('inner')),
 };
@@ -285,25 +256,6 @@ const rules = {
             ),
         ),
         (ctx, src) => {
-            // let result = null as null | Expr;
-            // const items = ctx.ref<(BareLet | Expr | true)[]>('contents').filter((x) => x !== true);
-            // if (!items.length) {
-            //     return { type: 'var', name: 'null', src };
-            // }
-            // while (items.length) {
-            //     const last = items.pop()!;
-            //     if (last.type === 'bare-let') {
-            //         result = {
-            //             type: 'let',
-            //             vbls: [{ pat: last.pat, init: last.init }],
-            //             body: result ?? { type: 'var', name: 'void', src: last.src },
-            //             src: last.src,
-            //         };
-            //     } else {
-            //         result = result ?? last;
-            //     }
-            // }
-            // return result ?? { type: 'var', name: 'empty-block', src };
             return { type: 'block', stmts: ctx.ref<Stmt[]>('contents'), src };
         },
     ),
@@ -329,7 +281,6 @@ const rules = {
         ref('unquote'),
         ref('raw_quote'),
         ref('pat_quote'),
-        // ref('typ_quote'),
         ref('quote'),
         tx<Expr>(
             seq(
@@ -349,11 +300,6 @@ const rules = {
                                 src,
                             })),
                             ref('call-args'),
-                            // tx(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
-                            //     type: 'call',
-                            //     items: ctx.ref<(Expr | Spread<Expr>)[]>('items'),
-                            //     src,
-                            // })),
                         ),
                     ),
                 ),
@@ -386,12 +332,7 @@ const rules = {
     ),
     'expr ': or(
         tx<Expr>(
-            seq(
-                // or(group('args', table('round', seq(id(null), opt(ref('pat'))))),
-                meta(list('round', group('args', star(ref('pat')))), 'fn-args'),
-                kwd('=>'),
-                group('body', or(ref('block'), ref('expr '))),
-            ),
+            seq(meta(list('round', group('args', star(ref('pat')))), 'fn-args'), kwd('=>'), group('body', or(ref('block'), ref('expr ')))),
             (ctx, src) => ({
                 type: 'lambda',
                 args: ctx.ref<Pat[]>('args'),
@@ -508,6 +449,7 @@ export const parser = {
             }
         });
         const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        // if (res?.value?.type === 'let')
         return { result: res?.value, ctx: { meta: myctx.meta } };
     },
 };

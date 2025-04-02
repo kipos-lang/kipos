@@ -1,7 +1,7 @@
 import React, { useMemo, useContext, useState, useRef } from 'react';
 import { Path, pathWithChildren } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
-import { RenderStaticNode, UseNodeCtx } from '../App';
+import { RenderStaticNode, UseNodeCtx } from '../Top';
 import { SelStatus, useStore } from '../store/store';
 import { RenderText } from './RenderText';
 import { RenderId } from './RenderId';
@@ -39,6 +39,7 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
                         style={{
                             width: 400,
                             position: 'absolute',
+                            opacity: 0.8,
                             pointerEvents: 'none',
                             display: 'inline-block',
                             // top: '100%',

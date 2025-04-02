@@ -1,4 +1,76 @@
 
+# ALRIGHT
+so, now we get to the part of the show
+where toplevels can depend on each other
+for type information.
+
+- [x] we have some persistence-of-errors issues here
+
+And thennnn I'll look into the ... dependency stuff?
+questions include:
+do I ... enforce a single namespace on everything.
+that seems a bit reductive.
+
+ok so I guess ... what we'd do is say:
+'your toplevel depended on [these things],
+and [these toplevels] claimed to provide them,
+do now I've given you [the infos] from those
+toplevels, and you get to work things out.`
+
+That feels like a good match of flexibility & structure.
+
+# Other interesting runtime-representation-things
+
+- having builtin support for CRDTs. in some interesting way.
+  like make it really easy to say "this type is crdt'd"
+
+# Debuggging values like we mean it
+
+What would it mean for a language to provide unexpectedly helpful value debugging?
+- make it really easy to pull up a graph of the code, and to trace
+  "where are all of the places this data could have originated"
+- make it really easy to attach a stack trace to an object...
+  like a `getTrace()` function that gives you a uuid that the
+  debugger can then reconnect with the trace of how you got to where
+  you were
+- automatically track runtime provenance of ... all values? or something.
+  or be able to mark a ~type as provenance-tracking.
+
+# DSL should handle references & products for me
+at least somewhat.
+
+// so, some understanding of ... scopes ...
+
+Kinds of scopes that there can be:
+- [ ] nonrecursive: things can only be used /after/ they are defined, and cannot be recursive
+- [ ] unordered: anything within a scope can use anything else
+- [ ] ordered: things can be used after *or within* their definition
+
+In order of "how much of a hassle is this",
+- ordered definitely wins
+- unordered requires some bookkeeping for "this might be defined later
+  and we'll match them up"
+- nonrecursive requires you to be able to /defer/ the resolution of something
+  until after the value, which seems annoying.
+
+So I think I'll just do ordered for now.
+
+
+I want something like `this is a scope, it makes a new scope`
+and I would do it at the:
+- `block` (maybe)
+- `lambda`
+- `the case of a switch`
+
+SCOPES can be `ordered` or `unordered` or `nonrecursive`.
+
+a nonrecursive scope would need ... some extra mucking about
+to be able to say "patterns after this
+
+
+OK but I also need something like a `recursive-scope` or maybe
+a `self-scope`.
+
 # Ok I need constructors
 which means I need deftypes?
 

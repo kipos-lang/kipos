@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { js } from '../keyboard/test-utils';
-import { Top, Showsel } from './App';
+import { Showsel } from './App';
+import { Top } from './Top';
 import { useStore } from './store/store';
 import { zedlight } from './zedcolors';
 import { SelStart } from '../keyboard/handleShiftNav';
@@ -289,12 +290,15 @@ const ruleSummary = (rule: Rule<any>): string => {
         case 'ref':
             return `ref(${rule.name})`;
         case 'text':
+        case 'declaration':
+        case 'reference':
         case 'tx':
         case 'star':
         case 'seq':
         case 'or':
         case 'opt':
         case 'group':
+        case 'scope':
             return `${rule.type}(...)`;
         case 'meta':
             return `${rule.type}(...,${rule.meta})`;

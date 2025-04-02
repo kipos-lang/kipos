@@ -22,7 +22,8 @@ export type Meta = { kind?: string; placeholder?: string };
 
 export type ParseResult<T> = {
     result: T | undefined;
-    externalReferences: { loc: string; name: string; namespace?: string[] }[];
+    provides: { loc: string; name: string; kind: string }[];
+    externalReferences: { loc: string; name: string; kind: string; namespace?: string[] }[];
     ffiReferences: { loc: string; namespace: string[]; name: string }[];
     // hmmm do I really need the `goods` at this point...
     // goods: RecNode[];

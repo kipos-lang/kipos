@@ -24,6 +24,8 @@ export type Event =
 
 export type Ctx = {
     ref<T>(name: string): T;
+    scopes: { name: string; kind: string; loc: string }[][];
+    usages: { name: string; kind: string; loc: string; src?: string }[];
     rules: Record<string, Rule<any>>;
     trace?: (evt: Event) => undefined;
     scope?: null | Record<string, any>;
@@ -47,6 +49,10 @@ export type Rule<T> =
     | { type: 'star'; inner: Rule<unknown> }
     | { type: 'opt'; inner: Rule<unknown> }
     | { type: 'any' }
+    // usage tracking : TODO: support "unordered" scope, and maybe nonrecursive
+    | { type: 'scope'; inner: Rule<T> }
+    | { type: 'declaration'; kind: string }
+    | { type: 'reference'; kind: string }
     //
     | { type: 'id'; kind?: string | null }
     | { type: 'number'; just?: 'int' | 'float' }
@@ -56,6 +62,12 @@ export type Rule<T> =
 
 const show = (rule: Rule<unknown>): string => {
     switch (rule.type) {
+        case 'scope':
+            return `scope(${show(rule.inner)})`;
+        case 'reference':
+            return `reference(${rule.kind})`;
+        case 'declaration':
+            return `declaration(${rule.kind})`;
         case 'kwd':
             return rule.kwd;
         case 'ref':
