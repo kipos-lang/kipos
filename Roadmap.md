@@ -79,10 +79,14 @@ let's try that.
 - [x] need to debug type inference, if only I could
 - [x] render type errors really
 - [x] hover for annotations plssss
-- [ ] get binops infering
-- [ ] get .attribute and [index] doing reasonable things
+- [x] get binops infering
+- [x] get .attribute and [index] doing reasonable things
+- [x] I HSOULD DO SPANS.. like the <Wrap> that I had going.
+- [ ] and now objects
 
-- [ ] I HSOULD DO SPANS.. like the <Wrap> that I had going.
+ok trying to figure out types for ... dsl3.
+
+- [ ] ok and before I do real good imports, I can make some builtins, its fine
 
 # Type thoughts
 

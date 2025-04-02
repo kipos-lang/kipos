@@ -16,7 +16,7 @@ import { partition } from './binops';
 // import { interleave } from '../../demo/interleave';
 // import { Type, Expr, Stmt, Pat } from './Type';
 
-export const builtinSrc: Src = { left: 'builtin' };
+export const builtinSrc: Src = { type: 'src', left: 'builtin' };
 
 export const builtinEnv = () => {
     const builtinEnv: Tenv = {
@@ -640,7 +640,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             scope.return = { vars: [], body: returnVar, src };
             stackPush(src, typ(returnVar));
             stackBreak(`Create a type variable for tracking early returns`);
-            globalState.events.push({ type: 'infer', src: { left: expr.src.left }, value: returnVar });
+            globalState.events.push({ type: 'infer', src: { type: 'src', left: expr.src.left }, value: returnVar });
             stackPop();
             let boundEnv = { ...tenv, scope: { ...tenv.scope, ...scope } };
             stackReplace(src, '(', ...commas(args.map(typ)), '): ', typ(returnVar), ' => ', hole());

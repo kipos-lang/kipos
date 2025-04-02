@@ -3,31 +3,13 @@ import { isTag } from '../keyboard/handleNav';
 import { ListKind, Loc, NodeID, RecNode, TableKind, TextSpan } from '../shared/cnodes';
 
 export type MatchParent = {
+    type: 'match_parent';
     nodes: RecNode[];
     loc: Loc;
     sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
 };
-export type Span = { start: Loc; end?: Loc };
 
-/*
-
-ok, I tried some things
-but
-
-now i'm back to thinking I want objects, not functions.
-
-+
-*
-?
-| or
-seq
-ref
-^
-$
-
-*/
-
-export type Src = { left: Loc; right?: Loc };
+export type Src = { type: 'src'; left: Loc; right?: Loc };
 
 type AutoComplete = string;
 
@@ -168,7 +150,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             for (let i = 0; i < node.spans.length; i++) {
                 const span = node.spans[i];
                 if (span.type === 'embed') {
-                    const m = match(rule.embed, ctx, { nodes: [span.item], loc: node.loc, sub: { type: 'text', index: i } }, 0);
+                    const m = match(rule.embed, ctx, { type: 'match_parent', nodes: [span.item], loc: node.loc, sub: { type: 'text', index: i } }, 0);
                     if (!m) return; // recovery
                     spans.push({ ...span, item: m.value });
                 } else {
@@ -182,7 +164,12 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'table') return;
             const res: any[] = [];
             for (let i = 0; i < node.rows.length; i++) {
-                const m = match(rule.row, { ...ctx, scope: null }, { nodes: node.rows[i], loc: node.loc, sub: { type: 'table', row: i } }, 0);
+                const m = match(
+                    rule.row,
+                    { ...ctx, scope: null },
+                    { type: 'match_parent', nodes: node.rows[i], loc: node.loc, sub: { type: 'table', row: i } },
+                    0,
+                );
                 if (m) {
                     res.push(m.value);
                 }
@@ -195,13 +182,23 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'list') return;
             if (isTag(node.kind)) {
                 if (!isTag(rule.kind)) return;
-                const tag = match(rule.kind.node, ctx, { nodes: [node.kind.node], loc: node.loc, sub: { type: 'xml', which: 'tag' } }, 0);
+                const tag = match(
+                    rule.kind.node,
+                    ctx,
+                    { type: 'match_parent', nodes: [node.kind.node], loc: node.loc, sub: { type: 'xml', which: 'tag' } },
+                    0,
+                );
                 if (!tag) return; // TODO recovery?
                 if (rule.kind.attributes) {
                     const attributes = match(
                         rule.kind.attributes,
                         ctx,
-                        { nodes: node.kind.attributes ? [node.kind.attributes] : [], loc: node.loc, sub: { type: 'xml', which: 'attributes' } },
+                        {
+                            type: 'match_parent',
+                            nodes: node.kind.attributes ? [node.kind.attributes] : [],
+                            loc: node.loc,
+                            sub: { type: 'xml', which: 'attributes' },
+                        },
                         0,
                     );
                     // console.log('rule kind', attributes, node.kind.attributes);
@@ -214,7 +211,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                 return;
             }
 
-            const res = match(rule.item, ctx, { nodes: node.children, loc: node.loc }, 0);
+            const res = match(rule.item, ctx, { type: 'match_parent', nodes: node.children, loc: node.loc }, 0);
             if (res && res.consumed < node.children.length) {
                 for (let i = res.consumed; i < node.children.length; i++) {
                     const child = node.children[i];
@@ -300,7 +297,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (rat >= parent.nodes.length) throw new Error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             // if (rat >= parent.nodes.length) console.error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             const right = m.consumed > 1 && rat < parent.nodes.length ? parent.nodes[at + m.consumed - 1].loc : undefined;
-            return { value: rule.f(ictx, { left, right }), consumed: m.consumed };
+            return { value: rule.f(ictx, { type: 'src', left, right }), consumed: m.consumed };
         }
         case 'group': {
             if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);

@@ -9,7 +9,7 @@ import { getCurrent, ltCursor } from './selections';
 import { TestState } from './test-utils';
 import { lastChild, NodeSelection, parentLoc, parentPath, Path, pathKey, pathWithChildren, selStart, Top } from './utils';
 
-export type Src = { left: Loc; right?: Loc };
+export type Src = { type: 'src'; left: Loc; right?: Loc };
 
 export const nextLargerSpan = (sel: NodeSelection, spans: Src[], top: Top) => {
     const multi = { parent: parentPath(sel.start.path), children: [lastChild(sel.start.path)] };

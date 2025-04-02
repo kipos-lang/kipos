@@ -25,23 +25,24 @@ const dataToExpr = (data: Data | Expr): Expr => {
     const right = dataToExpr(data.right);
     return {
         type: 'app',
-        target: { type: 'var', name: data.op.text, src: { left: data.op.loc } },
+        target: { type: 'var', name: data.op.text, src: { type: 'src', left: data.op.loc } },
         args: { type: 'unnamed', src: data.src, args: [left, right] },
         src: data.src,
     };
 };
 
-const mergeSrc = (one: Src, two?: Src): Src => ({ left: one.left, right: two?.right ?? two?.left ?? one.right });
+const mergeSrc = (one: Src, two?: Src): Src => ({ type: 'src', left: one.left, right: two?.right ?? two?.left ?? one.right });
 
 export const nodesSrc = (nodes: RecNode | RecNode[]): Src =>
     Array.isArray(nodes)
         ? nodes.length === 1
-            ? { left: nodes[0].loc }
+            ? { type: 'src', left: nodes[0].loc }
             : {
+                  type: 'src',
                   left: nodes[0].loc,
                   right: nodes[nodes.length - 1].loc,
               }
-        : { left: nodes.loc };
+        : { type: 'src', left: nodes.loc };
 
 // This is probably the same algorithm as the simple precedence parser
 // https://en.wikipedia.org/wiki/Simple_precedence_parser

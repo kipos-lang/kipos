@@ -43,27 +43,31 @@ export const attrs = (v: Record<string, any>, max = 20) => {
 export const textSpanToXML = <T>(span: TextSpan<T, any>, toXML: (t: T) => XML): XML => {
     switch (span.type) {
         case 'text':
-            return { tag: 'span:' + span.type, src: { left: '' }, attrs: { text: span.text, style: span.style, link: span.link } };
+            return { tag: 'span:' + span.type, src: { type: 'src', left: '' }, attrs: { text: span.text, style: span.style, link: span.link } };
         case 'embed':
             return {
                 tag: 'span:' + span.type,
-                src: { left: '' },
+                src: { type: 'src', left: '' },
                 attrs: { style: span.style, link: span.link },
                 children: { children: toXML(span.item) },
             };
         default:
-            return { tag: 'span:' + span.type, src: { left: '' } };
+            return { tag: 'span:' + span.type, src: { type: 'src', left: '' } };
     }
 };
 
 export const nodeToXML = (node: RecNode): XML => {
     switch (node.type) {
         case 'id':
-            return { tag: node.type, src: { left: node.loc }, attrs: { text: node.text, ref: node.ref, ccls: node.ccls, loc: node.loc } };
+            return {
+                tag: node.type,
+                src: { type: 'src', left: node.loc },
+                attrs: { text: node.text, ref: node.ref, ccls: node.ccls, loc: node.loc },
+            };
         case 'list':
             return {
                 tag: node.type,
-                src: { left: node.loc },
+                src: { type: 'src', left: node.loc },
                 attrs: { kind: isTag(node.kind) ? undefined : node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     tag: isTag(node.kind) ? nodeToXML(node.kind.node) : undefined,
@@ -74,7 +78,7 @@ export const nodeToXML = (node: RecNode): XML => {
         case 'table':
             return {
                 tag: node.type,
-                src: { left: node.loc },
+                src: { type: 'src', left: node.loc },
                 attrs: { kind: node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     children: node.rows.map((row) => ({
@@ -82,14 +86,14 @@ export const nodeToXML = (node: RecNode): XML => {
                         children: {
                             children: row.map(nodeToXML),
                         },
-                        src: { left: row[0].loc, right: row.length > 1 ? row[row.length - 1].loc : undefined },
+                        src: { type: 'src', left: row[0].loc, right: row.length > 1 ? row[row.length - 1].loc : undefined },
                     })),
                 },
             };
         case 'text':
             return {
                 tag: node.type,
-                src: { left: node.loc },
+                src: { type: 'src', left: node.loc },
                 attrs: { loc: node.loc },
                 children: { children: node.spans.map((span) => textSpanToXML(span, nodeToXML)) },
             };

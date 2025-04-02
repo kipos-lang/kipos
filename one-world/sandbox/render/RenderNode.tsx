@@ -9,8 +9,6 @@ import { RenderList } from './RenderList';
 import { RenderTable } from './RenderTable';
 import { Meta } from '../store/language';
 import { css } from 'goober';
-// import { useHover } from '../Editor';
-// import { ShowText } from '../../../type-inference-debugger/demo/ShowText';
 
 const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
@@ -28,11 +26,9 @@ const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; me
 export const Wrap = ({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) => {
     const top = useStore().useEditor().useTop(parent.root.top);
     const annotations = top.useAnnotations(id);
-    // const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
 
     const errors = annotations?.filter((e) => e.type === 'error');
     const warnings = annotations?.filter((e) => e.type === 'warning');
-    // const hover = useHover(self, !!annotations?.length);
     const [hover, setHover] = useState(false);
 
     const overlay = //hover ? (

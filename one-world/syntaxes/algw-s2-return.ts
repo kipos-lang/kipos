@@ -451,7 +451,7 @@ export const parser = {
                 myctx.rules[macro.parent] = or(macro.body, ref(macro.id));
             }
         });
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { nodes: [node], loc: '' }, 0);
+        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         return { result: res?.value, ctx: { meta: myctx.meta } };
     },
 };
