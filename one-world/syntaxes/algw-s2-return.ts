@@ -1,6 +1,29 @@
 // import { js, TestParser } from '../keyboard/test-utils';
 import { Id, Loc, NodeID, RecNode, TextSpan } from '../shared/cnodes';
-import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, number, text, table, opt, meta, Event } from './dsl3';
+import {
+    Ctx,
+    list,
+    match,
+    or,
+    Rule,
+    ref,
+    tx,
+    seq,
+    kwd,
+    group,
+    id,
+    star,
+    Src,
+    number,
+    text,
+    table,
+    opt,
+    meta,
+    Event,
+    declaration,
+    reference,
+    scope,
+} from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
@@ -13,7 +36,7 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
     type_stmt: tx<Stmt>(
         seq(
             kwd('type'),
-            group('name', id(null)),
+            group('name', declaration('type')),
             kwd('=', 'punct'),
             group(
                 'constructors',
@@ -21,7 +44,7 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
                     'curly',
                     tx(
                         seq(
-                            group('name', id(null)),
+                            group('name', declaration('constructor')),
                             group(
                                 'args',
                                 table(
@@ -119,7 +142,7 @@ const textLoc = (id: Id<Loc>): { text: string; loc: Loc } => ({ text: id.text, l
 
 const exprs: Record<string, Rule<Expr>> = {
     'expr num': tx(group('value', number), (ctx, src) => ({ type: 'prim', prim: { type: 'int', value: ctx.ref<number>('value') }, src })),
-    'expr var': tx(group('id', meta(id(null), 'ref')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+    'expr var': tx(group('id', meta(reference('value'), 'ref')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
     'expr text': tx(group('spans', meta(text(ref('expr')), 'text')), (ctx, src) => ({
         type: 'str',
         src,
@@ -200,20 +223,23 @@ const rules = {
         })),
     ),
     type: or<Type>(
-        tx(group('id', meta(id(null), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
-        tx(list('smooshed', seq(group('name', meta(id(null), 'constructor')), list('round', group('args', star(ref('type')))))), (ctx, src) => ({
-            type: 'app',
-            target: {
-                type: 'con',
-                name: ctx.ref<Id<Loc>>('name').text,
-                src: {
-                    type: 'src',
-                    left: ctx.ref<Id<Loc>>('name').loc,
+        tx(group('id', meta(reference('type'), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+        tx(
+            list('smooshed', seq(group('name', meta(reference('type'), 'constructor')), list('round', group('args', star(ref('type')))))),
+            (ctx, src) => ({
+                type: 'app',
+                target: {
+                    type: 'con',
+                    name: ctx.ref<Id<Loc>>('name').text,
+                    src: {
+                        type: 'src',
+                        left: ctx.ref<Id<Loc>>('name').loc,
+                    },
                 },
-            },
-            args: ctx.ref<Type[]>('args'),
-            src,
-        })),
+                args: ctx.ref<Type[]>('args'),
+                src,
+            }),
+        ),
     ),
     pat: or<Pat>(
         tx(kwd('_'), (ctx, src) => ({ type: 'any', src })),
@@ -229,13 +255,16 @@ const rules = {
             prim: { type: 'bool', value: ctx.ref<Id<Loc>>('value').text === 'true' },
             src,
         })),
-        tx(group('id', meta(id(null), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
-        tx(list('smooshed', seq(kwd('.'), group('name', meta(id(null), 'constructor')), ref('pat-call-args', 'args'))), (ctx, src) => ({
-            type: 'con',
-            name: ctx.ref<Id<Loc>>('name').text,
-            args: ctx.ref<PatArgs>('args'),
-            src,
-        })),
+        tx(group('id', meta(declaration('value'), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+        tx(
+            list('smooshed', seq(kwd('.'), group('name', meta(reference('constructor'), 'constructor')), ref('pat-call-args', 'args'))),
+            (ctx, src) => ({
+                type: 'con',
+                name: ctx.ref<Id<Loc>>('name').text,
+                args: ctx.ref<PatArgs>('args'),
+                src,
+            }),
+        ),
         tx<Pat>(list('round', group('items', star(ref('pat')))), (ctx, src) => {
             const items = ctx.ref<Pat[]>('items');
             return { type: 'tuple', items, src };
@@ -243,14 +272,16 @@ const rules = {
     ),
     comment: meta(list('smooshed', seq(kwd('//', 'comment'), star(meta({ type: 'any' }, 'comment')))), 'comment'),
     block: tx<Block>(
-        list(
-            'curly',
-            group(
-                'contents',
-                star(
-                    or(
-                        tx(list({ type: 'plain' }, star({ type: 'any' })), (_, __) => true),
-                        ref('stmt'),
+        scope(
+            list(
+                'curly',
+                group(
+                    'contents',
+                    star(
+                        or(
+                            tx(list({ type: 'plain' }, star({ type: 'any' })), (_, __) => true),
+                            ref('stmt'),
+                        ),
                     ),
                 ),
             ),
@@ -392,6 +423,9 @@ const rules = {
 
 export const ctx: Ctx = {
     rules,
+    scopes: [],
+    usages: {},
+    externalUsages: [],
     ref(name) {
         if (!this.scope) throw new Error(`no  scope`);
         return this.scope[name];
@@ -439,7 +473,7 @@ export const parser = {
     },
     spans: () => [],
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {
-        const myctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace };
+        const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
         macros.forEach((macro) => {
             if (!myctx.rules[macro.parent]) {
                 console.warn(`Specified macro parent ${macro.parent} not found`);
@@ -449,6 +483,7 @@ export const parser = {
             }
         });
         const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        console.log(myctx.usages, myctx.externalUsages);
         // if (res?.value?.type === 'let')
         return { result: res?.value, ctx: { meta: myctx.meta } };
     },

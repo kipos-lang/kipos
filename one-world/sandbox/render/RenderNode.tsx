@@ -31,6 +31,9 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
     const warnings = annotations?.filter((e) => e.type === 'warning');
     const [hover, setHover] = useState(false);
 
+    const hasOverlay = annotations?.length;
+    // errors?.length || warnings?.length;
+
     const overlay = //hover ? (
         (
             <span style={{ position: 'relative' }}>
@@ -70,21 +73,35 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
     // ) : (
     //     <span />
     // );
+    const t = useRef(null as null | Timer);
+
+    const DELAY = 200;
 
     return (
         <span
             onMouseOver={
-                annotations
+                hasOverlay
                     ? (evt) => {
                           evt.stopPropagation();
-                          setHover(true);
+                          t.current = setTimeout(() => setHover(true), DELAY);
+                          // setHover(true);
+                      }
+                    : undefined
+            }
+            onMouseMove={
+                hasOverlay
+                    ? (evt) => {
+                          evt.stopPropagation();
+                          clearTimeout(t.current!);
+                          t.current = setTimeout(() => setHover(true), DELAY);
                       }
                     : undefined
             }
             onMouseOut={
-                annotations
+                hasOverlay
                     ? (evt) => {
                           evt.stopPropagation();
+                          clearTimeout(t.current!);
                           setHover(false);
                       }
                     : undefined

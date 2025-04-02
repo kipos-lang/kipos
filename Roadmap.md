@@ -1,4 +1,13 @@
 
+# Scopings
+
+- [ ] when I .. have my cursor over a node, and it is a definition
+  or a reference, the other paired things should be highlighted.
+- [ ] also indicate unused variablers htanks
+
+- [ ] OH can we have an up/down please?
+- [ ] I guess we'll need click-to-select overall as well...
+
 # ALRIGHT
 so, now we get to the part of the show
 where toplevels can depend on each other

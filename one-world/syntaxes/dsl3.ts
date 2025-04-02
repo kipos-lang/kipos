@@ -25,7 +25,10 @@ export type Event =
 export type Ctx = {
     ref<T>(name: string): T;
     scopes: { name: string; kind: string; loc: string }[][];
-    usages: { name: string; kind: string; loc: string; src?: string }[];
+    usages: {
+        [src: string]: { name: string; kind: string; usages: string[] };
+    };
+    externalUsages: { name: string; kind: string; loc: string }[];
     rules: Record<string, Rule<any>>;
     trace?: (evt: Event) => undefined;
     scope?: null | Record<string, any>;
@@ -142,6 +145,33 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
+        case 'reference': {
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
+            let src = undefined;
+            for (let i = ctx.scopes.length - 1; i >= 0; i--) {
+                const got = ctx.scopes[i].findLast((d) => d.name === node.text && d.kind === rule.kind);
+                if (got) {
+                    src = got.loc;
+                    break;
+                }
+            }
+
+            if (src) {
+                ctx.usages[src].usages.push(node.loc);
+            } else {
+                ctx.externalUsages.push({ name: node.text, kind: rule.kind, loc: node.loc });
+            }
+            return { value: node, consumed: 1 };
+        }
+        case 'declaration': {
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
+            if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
+            ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
+            ctx.usages[node.loc] = { name: node.text, kind: rule.kind, usages: [] };
+            return { value: node, consumed: 1 };
+        }
         case 'id':
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
@@ -251,6 +281,18 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         case 'any':
             if (!node) return;
             return { consumed: 1, value: node };
+        case 'scope': {
+            const inner = match(
+                rule.inner,
+                {
+                    ...ctx,
+                    scopes: ctx.scopes.concat([]),
+                },
+                parent,
+                at,
+            );
+            return inner;
+        }
         case 'meta': {
             const inner = match(rule.inner, ctx, parent, at);
             if (inner) ctx.meta[node.loc] = { kind: rule.meta };
@@ -382,6 +424,10 @@ const float: Rule<number> = { type: 'number', just: 'float' };
 export const number: Rule<number> = { type: 'number' };
 export const list = <T>(kind: ListKind<Rule<unknown>>, item: Rule<T>): Rule<T> => ({ type: 'list', kind, item });
 export const table = <T>(kind: TableKind, row: Rule<T>): Rule<T> => ({ type: 'table', kind, row });
+
+export const scope = (inner: Rule<unknown>): Rule<unknown> => ({ type: 'scope', inner });
+export const declaration = (kind: string): Rule<unknown> => ({ type: 'declaration', kind });
+export const reference = (kind: string): Rule<unknown> => ({ type: 'reference', kind });
 
 /*
 

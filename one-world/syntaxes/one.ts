@@ -258,6 +258,9 @@ export const rules = {
 
 export const ctx: Ctx = {
     rules,
+    externalUsages: [],
+    usages: {},
+    scopes: [],
     ref(name) {
         if (!this.scope) throw new Error(`no  scope`);
         return this.scope[name];

@@ -20,8 +20,10 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             return {
                 ctx: { meta: result.ctx.meta },
                 externalReferences: [],
+                internalReferences: {},
                 ffiReferences: [],
                 result: result.result,
+                provides: [],
             };
         },
         spans(ast) {

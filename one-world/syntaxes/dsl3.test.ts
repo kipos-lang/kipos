@@ -57,6 +57,9 @@ test.skip('meta from one path doesnt pollute another', () => {
     const mctx: Ctx = {
         meta: {},
         kwds: [],
+        externalUsages: [],
+        scopes: [],
+        usages: {},
         ref(name) {
             throw new Error('no');
         },
