@@ -76,6 +76,10 @@ export const makeEditor = (
             };
             // return parseResults[top];
         },
+        useDependencyGraph() {
+            useTick(`module:${selected}:dependency-graph`);
+            return store.state.dependencies;
+        },
         useParseResults() {
             useTick(`module:${selected}:parse-results`);
             return store.state.parseResults;
@@ -151,6 +155,7 @@ export const makeEditor = (
             if (changedTops.length) {
                 const keys: Record<string, true> = {};
                 store.updateTops(changedTops, changed, keys);
+                shout(`module:${selected}:dependency-graph`);
                 Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
                 shout(`module:${selected}:parse-results`);
                 changedTops.forEach((key) => {

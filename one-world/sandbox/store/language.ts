@@ -21,6 +21,7 @@ import { StackText } from './default-lang/validate';
 export type Meta = { kind?: string; placeholder?: string };
 
 export type ParseResult<T> = {
+    input: RecNode;
     result: T | undefined;
     kind:
         | {

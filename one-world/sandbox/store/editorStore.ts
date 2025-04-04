@@ -20,10 +20,12 @@ export type EditorState<AST, TypeInfo, IR> = {
     // deepDependencies: Record<string, string[]>;
     dependencies: Dependencies;
 };
-type Dependencies = {
+
+export type Dependencies = {
     components: Components;
     headDeps: Record<string, string[]>;
     deepDeps: Record<string, string[]>;
+    dependents: Record<string, string[]>;
     traversalOrder: string[];
 };
 
@@ -42,6 +44,7 @@ export class EditorStore<AST, TypeInfo, IR> {
                 headDeps: {},
                 deepDeps: {},
                 traversalOrder: [],
+                dependents: {},
             },
             irResults: {},
         };
@@ -75,8 +78,19 @@ export class EditorStore<AST, TypeInfo, IR> {
         });
 
         // TODO: do some caching so we don't recalc this on every update.
-        this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
-        this.runValidation(this.state.dependencies, this.state.validationResults, ids, changedKeys);
+        const newDeps = this.calculateDependencyGraph(this.state.parseResults);
+        const otherNotified: string[] = [];
+        // If we /leave/ a mutually recursive group, we need to notify the ones that were left
+        ids.forEach((id) => {
+            const prevhid = this.state.dependencies.components.pointers[id];
+            const nowhid = newDeps.components.pointers[id];
+            if (prevhid !== nowhid) {
+                otherNotified.push(...(this.state.dependencies.components.entries[prevhid] ?? []));
+            }
+        });
+        // console.log('other notified', ids, otherNotified);
+        this.state.dependencies = newDeps;
+        this.runValidation(this.state.dependencies, this.state.validationResults, ids.concat(otherNotified), changedKeys);
     }
 
     runValidation(
@@ -97,6 +111,7 @@ export class EditorStore<AST, TypeInfo, IR> {
         }
         // Ok, so.
         for (let id of dependencies.traversalOrder) {
+            console.log('validate id');
             if (onlyUpdate) {
                 if (!onlyUpdate.includes(id)) continue;
             }
@@ -164,7 +179,7 @@ export class EditorStore<AST, TypeInfo, IR> {
             // TODO: here's where we would determine whether the `results[id]` had meaningfully changed
             // from the previous one, and only then would we add dependencies to the onlyUpdate list.
             if (onlyUpdate) {
-                onlyUpdate.push(...dependencies.headDeps[id].filter((id) => !onlyUpdate.includes(id)));
+                onlyUpdate.push(...(dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
             }
         }
         // return results;
@@ -187,7 +202,7 @@ export class EditorStore<AST, TypeInfo, IR> {
         return spans;
     }
 
-    calculateDependencyGraph(parseResults: Record<string, ParseResult<AST>>) {
+    calculateDependencyGraph(parseResults: Record<string, ParseResult<AST>>): Dependencies {
         const available: { [kind: string]: { [name: string]: string[] } } = {};
         Object.entries(parseResults).forEach(([tid, results]) => {
             if (results.kind.type === 'definition') {
@@ -258,7 +273,15 @@ export class EditorStore<AST, TypeInfo, IR> {
             deep[k].sort(sortHeads);
         });
 
-        return { components, headDeps, deepDeps: deep, traversalOrder: fullSort };
+        const dependents: Record<string, string[]> = {};
+        Object.entries(headDeps).forEach(([hid, deps]) => {
+            deps.forEach((did) => {
+                if (!dependents[did]) dependents[did] = [hid];
+                else dependents[did].push(hid);
+            });
+        });
+
+        return { components, headDeps, deepDeps: deep, traversalOrder: fullSort, dependents };
     }
 }
 

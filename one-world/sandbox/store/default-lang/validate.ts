@@ -350,7 +350,7 @@ export const makeSubstForFree = (vars: string[], src: Src) => {
 
 export const instantiate = (scheme: Scheme, src: Src) => {
     const subst = makeSubstForFree(scheme.vars, src);
-    return typeApply(subst, scheme.body);
+    return { ...typeApply(subst, scheme.body), src };
 };
 
 export const varBind = (name: string, type: Type) => {

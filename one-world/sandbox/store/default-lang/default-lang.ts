@@ -43,6 +43,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                     : undefined,
             );
             return {
+                input: node,
                 trace,
                 ctx: { meta: result.ctx.meta },
                 externalReferences: result.ctx.externalUsages,
@@ -86,7 +87,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                     Object.assign(scope, result.scope);
                 }
                 res = [result.value];
-                eventsByTop.push(glob.events);
+                eventsByTop.push(glob.events.slice());
             }
         } catch (err) {
             console.log('bad inference', err);
@@ -122,6 +123,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                         return { type: 'renderable', renderable: typeToNode(item.typ) };
                     });
                     evt.sources.forEach((src) => {
+                        console.log('marking an error for', src, evt);
                         add({ type: evt.type, message, spans: evt.sources, src });
                     });
                 }

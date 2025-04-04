@@ -8,8 +8,9 @@ import { RenderNode } from './render/RenderNode';
 import { Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
+import { TopGrab } from './TopGrab';
 
-export const Top = React.memo(({ id }: { id: string }) => {
+export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
     const store = useStore();
     const editor = store.useEditor();
     const top = editor.useTop(id);
@@ -39,23 +40,7 @@ export const Top = React.memo(({ id }: { id: string }) => {
                 fontFamily: 'Jet Brains',
             })}
         >
-            <button
-                onClick={() => {
-                    editor.update({ type: 'rm-tl', id });
-                }}
-                className={css({
-                    background: 'transparent',
-                    '&:hover': {
-                        color: 'red',
-                    },
-                    lineHeight: '18px',
-                    border: 'none',
-                    color: 'black',
-                    cursor: 'pointer',
-                })}
-            >
-                &times;
-            </button>
+            <TopGrab name={name} id={id} />
             <div style={{ flexBasis: 12 }} />
             <UseNodeCtx.Provider value={useNode}>
                 <RenderNode parent={rootPath} id={root} />

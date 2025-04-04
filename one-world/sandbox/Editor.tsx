@@ -48,7 +48,7 @@ export const useDrag = () => {
     return ctx;
 };
 
-const useEditor = () => {
+export const useEditor = () => {
     const store = useStore();
     return store.useEditor();
 };
@@ -172,12 +172,32 @@ export const useMakeDrag = (): DragCtxT => {
 
 // const useMake
 
+const alphabet = 'abcdefghjklmnopqrstuvwxyz';
+
 export const Editor = () => {
     const store = useStore();
     const editor = store.useEditor();
     const Drag = useProvideDrag();
     // const Hover = useProvideHover();
     const module = editor.useModule();
+
+    const deps = editor.useDependencyGraph();
+    const names = useMemo(() => {
+        const nums: Record<string, { at: number; count: number }> = {};
+        let at = 1;
+        return module.roots.map((id) => {
+            const hid = deps.components.pointers[id];
+            if (deps.components.entries[hid]?.length === 1) {
+                return at++ + '';
+            }
+            if (!nums[hid]) {
+                nums[hid] = { at: at++, count: 0 };
+            } else {
+                nums[hid].count++;
+            }
+            return `${nums[hid].at}${alphabet[nums[hid].count] ?? `+${nums[hid].count}`}`;
+        });
+    }, [deps, module.roots]);
 
     return (
         <>
@@ -186,8 +206,8 @@ export const Editor = () => {
                 <KeyHandler />
                 <Drag>
                     {module.roots.map(
-                        (id): React.ReactNode => (
-                            <Top id={id} key={id} />
+                        (id, i): React.ReactNode => (
+                            <Top id={id} key={id} name={names[i]} />
                         ),
                     )}
                 </Drag>
@@ -353,6 +373,48 @@ const ShowTypeInference = () => {
                 }}
             />
             <ShowScope highlightVars={highlightVars} scope={scope} smap={smap} />
+            <Collapsible title="Type Annotations">{JSON.stringify(results.validation.annotations)}</Collapsible>
+        </div>
+    );
+};
+
+const ShowErrorAnnotations = () => {
+    const editor = useEditor();
+    const sel = editor.useSelection();
+    const top = sel[0].start.path.root.top;
+    const results = editor.useTopParseResults(top);
+
+    if (!results.validation) return <span>No validation info</span>;
+
+    const byKey = Object.entries(results.validation.annotations[top])
+        .map(([key, annotations]) => {
+            return { key, errors: annotations.filter((a) => a.type === 'error') };
+        })
+        .filter((m) => m.errors.length);
+    if (!byKey.length) {
+        return <div>No errors</div>;
+    }
+    return byKey.map(({ key, errors }) => (
+        <div key={key}>
+            <div>{key}</div>
+            <div>
+                {errors.map((ann, i) => (
+                    <div key={i}>{JSON.stringify(ann)}</div>
+                ))}
+            </div>
+        </div>
+    ));
+};
+
+const ShowCST = () => {
+    const editor = useEditor();
+    const sel = editor.useSelection();
+    const top = sel[0].start.path.root.top;
+    const results = editor.useTopParseResults(top);
+    if (!results) return null;
+    return (
+        <div>
+            <ShowXML root={toXML(results.input)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
         </div>
     );
 };
@@ -401,11 +463,17 @@ const DebugSidebar = () => {
         <div style={{ overflow: 'auto', maxWidth: '40vw' }}>
             <div>Debug sidebar</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
+            <Collapsible title="CST">
+                <ShowCST />
+            </Collapsible>
             <Collapsible title="AST">
                 <ShowAST />
             </Collapsible>
             <Collapsible title="Type Inference">
                 <ShowTypeInference />
+                <Collapsible title="Error Annotations">
+                    <ShowErrorAnnotations />
+                </Collapsible>
             </Collapsible>
         </div>
     );

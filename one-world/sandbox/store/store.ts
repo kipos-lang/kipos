@@ -9,6 +9,7 @@ import { loadModules, saveModule } from './storage';
 import { LangResult, makeEditor } from './makeEditor';
 import { Annotation, Meta, ParseResult } from './language';
 import { Event } from '../../syntaxes/dsl3';
+import { Dependencies } from './editorStore';
 
 export type ModuleTree = {
     node?: Module;
@@ -33,6 +34,7 @@ interface Store {
 export interface EditorStoreI {
     useTopParseResults(top: string): LangResult;
     useParseResults(): Record<string, ParseResult<any>>;
+    useDependencyGraph(): Dependencies;
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;

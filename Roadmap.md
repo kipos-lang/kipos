@@ -12,17 +12,28 @@ this locks down that you can't both define and evaluate in the same toplevel.
 loc(something, 'name')
 ctx.ref<string>('name') <- gives you the loc of the node
 
-- [ ] we need to put the multi-stmt thing into validation inferStmts so we
+- [x] we need to put the multi-stmt thing into validation inferStmts so we
   correctly generalize stuff.
+- [x] ok, so: error reporting. gotta get the `src`s right.
 
 ...
 
-- [ ] get updates working
-- [ ] make sure errors still make sense?
+- [x] get updates working
+- [x] make sure errors still make sense?
 - [x] make parser indicate (definition | evaluation | test)
   - this is helpful for ... dependency cycle determination, right?
 - [ ] make validator ... know what's a definition vs evaluation vs test? idk if that's critical
   - or maybe just `validateGroup` vs `validate` idk
+- [x] let's indicate mutual recursion groups, pleease
+  ya know, we could just number the toplevels
+- [x] if a toplevel /leaves/ a recursion group, the other members need to be notified
+  - [ ] kinda done, not yet
+
+Test case:
+- `let x = 2; let y = x + 2; let z = x + 1`
+- change `let x = z`
+- `y` should have an error now
+
 
 annnnnd also evaluation, rite
 
