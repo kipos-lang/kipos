@@ -447,6 +447,70 @@ const tenvWithScope = (tenv: Tenv, scope: Tenv['scope']): Tenv => ({
     scope: { ...tenv.scope, ...scope },
 });
 
+export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scope: Tenv['scope']; values: Type[]; events: [number, number][] } => {
+    for (let stmt of stmts) {
+        if (stmt.type !== 'let') {
+            throw new Error(`mutual recursion must be "let"s`);
+        }
+        if (stmt.pat.type !== 'var') {
+            throw new Error(`mutual recursion must be let {var}`);
+        }
+        if (stmt.init.type !== 'lambda') {
+            throw new Error(`mutual recursion must be let {var} = {lambda}`);
+        }
+    }
+    const lets = stmts as (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[];
+
+    const recscope: Tenv['scope'] = {};
+    const names = lets.map(({ pat, src }) => {
+        const pv = newTypeVar({ type: 'pat-var', name: pat.name, src: pat.src }, pat.src);
+        stackPush(pat.src, pat.name, ' -> ', typ(pv));
+        stackBreak(`create a type variable for the name '${pat.name}'`);
+        stackPop();
+        globalState.events.push({ type: 'infer', src: pat.src, value: pv });
+        recscope[pat.name] = { body: pv, vars: [], src };
+        return pv;
+    });
+    const self = tenvWithScope(tenv, recscope);
+
+    const scope: Tenv['scope'] = {};
+
+    const events: [number, number][] = [];
+    const values = lets.map((stmt, i) => {
+        const start = globalState.events.length;
+        const { pat, init, src } = stmt;
+        stackPush(src, kwd('let'), ' ', hole(), ' = ', hole());
+        stackBreak("'let' statement");
+
+        stackReplace(src, kwd('let'), ' ', hole(true), ' = ', hole());
+        stackReplace(src, kwd('let'), ' ', typ(names[i]), ' = ', hole());
+        // globalState.events.push({ type: 'infer', src: pat.src, value: pv });
+        stackBreak("'let' statement");
+        stackReplace(src, kwd('let'), ' ', typ(names[i]), ' = ', hole(true));
+        // globalState.events.push({ type: 'stack-push', value: { type: 'let', pat: pv } });
+        // const self = tenvWithScope(tenv, { [pat.name]: { body: pv, vars: [], src } });
+        const valueType = inferExpr(self, init);
+        // stackReplace(src, typ(pv), ' -> ', typ(valueType));
+        // stackBreak();
+        unify(typeApply(globalState.subst, names[i]), valueType, stmt.src, `variable for '${pat.name}'`, `inferred type of value`);
+        stackPop();
+        const end = globalState.events.length;
+        events.push([start, end]);
+        // globalState.events.push({ type: 'stack-pop' });
+        // globalState.events.push({ type: 'infer', src: pat.src, value: valueType });
+        return valueType;
+    });
+
+    const appliedEnv = tenvApply(globalState.subst, tenv);
+    // const allFree =
+    values.forEach((value, i) => {
+        scope[lets[i].pat.name] = generalize(appliedEnv, gtypeApply(value), lets[i].src);
+    });
+    console.log('here we are', scope);
+
+    return { scope, values: values.map(gtypeApply), events };
+};
+
 export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['scope'] } => {
     switch (stmt.type) {
         case 'return': {

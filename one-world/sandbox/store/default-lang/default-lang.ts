@@ -8,6 +8,7 @@ import {
     getGlobalState,
     gtypeApply,
     inferStmt,
+    inferStmts,
     newTypeVar,
     resetState,
     Scheme,
@@ -63,55 +64,30 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
 
         deps.forEach((scope) => Object.assign(env.scope, scope));
 
-        let res: ReturnType<typeof inferStmt>[] | null = null;
+        let res: Type[] | null = null;
         let error: string | null = null;
         const eventsByTop: VEvent[][] = [];
         // NOTE: This limits us to 1 def per name, can't do static overloading in a world like this
         const scope: Record<string, Scheme> = {};
         try {
-            let names;
             if (asts.length > 1) {
-                const names = asts.map(({ ast }) => {
-                    if (ast.type === 'let' && ast.pat.type === 'var' && ast.init.type === 'lambda') {
-                        const tv = newTypeVar({ type: 'pat-var', name: ast.pat.name, src: ast.pat.src }, ast.pat.src);
-                        env.scope[ast.pat.name] = {
-                            body: tv,
-                            vars: [],
-                            src: ast.pat.src,
-                        };
-                        // return { name: ast.pat.name, src: ast.pat.src }
-                        return tv;
-                    }
+                const full = inferStmts(
+                    env,
+                    asts.map((a) => a.ast),
+                );
+                res = full.values;
+                Object.assign(scope, full.scope);
+                full.events.forEach(([start, end]) => {
+                    eventsByTop.push(glob.events.slice(start, end));
                 });
-                res = asts.map(({ ast }, i) => {
-                    let n = glob.events.length;
-                    const res = inferStmt(env, ast);
-                    if (names[i]) {
-                        unify(names[i], res.value, names[i].src, 'recursive var', 'inferred type');
-                        res.value = gtypeApply(res.value);
-                    }
-                    eventsByTop.push(glob.events.slice(n));
-                    return res;
-                });
-                names.forEach((name, i) => {
-                    if (name) {
-                        unify(name, res![i].value, name.src, 'recursive var', 'inferred type');
-                    }
-                });
-                res = res.map((r) => ({ ...r, value: gtypeApply(r.value) }));
             } else {
-                res = asts.map(({ ast }) => {
-                    let n = glob.events.length;
-                    const res = inferStmt(env, ast);
-                    eventsByTop.push(glob.events.slice(n));
-                    return res;
-                });
-            }
-            res.forEach((res) => {
-                if (res.scope) {
-                    Object.assign(scope, res.scope);
+                const result = inferStmt(env, asts[0].ast);
+                if (result.scope) {
+                    Object.assign(scope, result.scope);
                 }
-            });
+                res = [result.value];
+                eventsByTop.push(glob.events);
+            }
         } catch (err) {
             console.log('bad inference', err);
             error = (err as Error).message;
@@ -130,7 +106,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                 else annotations[key].push(annotation);
             };
             if (res) {
-                add({ type: 'type', annotation: typeToNode(res[i].value), src: ast.src, primary: true });
+                add({ type: 'type', annotation: typeToNode(res[i]), src: ast.src, primary: true });
             } else {
                 add({ type: 'error', message: ['unable to infer: ', error!], src: ast.src });
             }

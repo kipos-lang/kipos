@@ -12,6 +12,9 @@ this locks down that you can't both define and evaluate in the same toplevel.
 loc(something, 'name')
 ctx.ref<string>('name') <- gives you the loc of the node
 
+- [ ] we need to put the multi-stmt thing into validation inferStmts so we
+  correctly generalize stuff.
+
 ...
 
 - [ ] get updates working
