@@ -48,6 +48,7 @@ export const builtinEnv = () => {
     builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc));
+    builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc));
     builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc));
     builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc));
     builtinEnv.scope['<'] = concrete(tfns([tint, tint], tbool, builtinSrc));
@@ -495,7 +496,7 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['
                 // globalState.events.push({ type: 'infer', src: pat.src, value: valueType });
                 return {
                     scope: { [pat.name]: init.type === 'lambda' ? generalize(appliedEnv, valueType, src) : { vars: [], body: valueType, src } },
-                    value: { type: 'con', name: 'void', src },
+                    value: gtypeApply(valueType),
                 };
             }
             console.error('not handling yet');
@@ -506,7 +507,7 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['
             scope = scopeApply(globalState.subst, scope);
             // globalState.events.push({ type: 'stack-pop' });
             stackPop();
-            return { scope: scope, value: { type: 'con', name: 'void', src } };
+            return { scope: scope, value: gtypeApply(valueType) };
         }
         case 'expr':
             const value = inferExpr(tenv, stmt.expr);

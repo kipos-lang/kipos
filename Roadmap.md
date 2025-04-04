@@ -1,4 +1,133 @@
 
+# Ok but let's be running...
+
+Do I have a way to indicate that a toplevel should be evaluated?
+
+- definition
+- evaluation
+- test
+
+loc(something, 'name')
+ctx.ref<string>('name') <- gives you the loc of the node
+
+# THinking about fixture tests
+
+could be a input plugin?
+can input plugins do that?
+might have to be something special.
+What I'm thinking of for input plugins is:
+- it can present an alternative UI
+  - and embed CST nodes as well
+  - and it /reduces/ to CST nodes, which are passed to the parser.
+
+But a fixture tests thing would want:
+[fn under test]
+[Pass/Fail] | [name] | [input] | [expected]
+
+And if output differs from expected, want a way to
+update the [expected] with that output.
+
+(optional additions include: "a fn to convert the output to CST ndoes" and "a fn to compare output to expected")
+
+ALSO I want to be able to ... select an individual test for (tracing) and (coverage display)
+
+so it seems like that would be .. a custom toplevel somehow.
+
+OR ... I could have a special CST node type that's like ... 'this should be ... replaced at render-time
+with some output'.
+Is that possible? hm. No, it would have to be the full "compare and maybe update". Which is pretty specialized.
+OR WAIT it could be ...
+like an output-only node, right?
+yeah ok: so ... there's a ... cst node type, which is like a placehodler. And there's a ... function at runtime,
+which you can call, with ... the cst or whatever that should populate that placeholder.
+
+Thenn all we need is also a way to have an onclick function that updates the value in the [expected] column with the
+actual output.
+
+# Deep Dependencies
+
+now we want a function to go through the dependency graph, and make it deep.
+Top down? or bottom up?
+
+top down: we would ... keep a list of the places we'd come from? and add to each of them in turn.
+bottom up: we would need a reverse mapping (parents), and we'd keep a ... list of the path we'd taken so far,
+which we'd add at each spot.
+
+Ok, so now whenever we /update/ a thing (if the dependencies don't change), we:
+
+- make a
+
+
+# EditorStore
+
+Ok, so....
+there's some initial 'set everything up'
+which is maybe just 'parse everything'
+
+and then there'll be an `update` function
+which will impact 1 or more toplevels.
+
+then we'll re-parse and potentially re-graph
+things.
+
+and then we traverse the graph, doing first validation
+and then evaluation.
+
+- [ ] initial parse
+- [ ] something updates the module,
+  and determines what has changed.
+  but that's not the editor store.
+  - that thing tells the editorStore to recalculate (parse)
+    and such. and then we do it.
+
+
+
+editorStore.constructor() ...
+  .update(topIds: string[])
+    -> for each updated top, reparse
+    -> if any updated top has different external references
+       from before, (adjust the graph | rebuild the graph)
+    -> then we ... hmm ...
+       if there are multiple changed tops, we need to determine
+       the proper traversal. potentially merging deep dependencies lists.
+       but anyway, once we've made a total ordering of all the tops that
+       need to be re-type-checked & re-evaluated, we do that.
+
+  at the same time, we expose a list of ... changes.
+  like, nodes whose meta has changed, or spans[][] have changed, stuff like that.
+
+Q: we can skip re-type-checking iff all dependencies types haven't changed.
+... I'll want to expose a way to ... determine if that's the case.
+
+Other things to keep in mind:
+- [ ] supporting (trace)s
+- [ ] supporting coverage indicators
+- [ ] some kind of tests setup. probably fixtures based.
+
+
+
+#
+
+arright
+So now, parsing will do ... resolution for us, at a local level.
+the next thing, is we need to ...
+...
+ugh
+ok, we need to set up the whole like graph and stuff.
+
+ok, so, we load up a module.
+and then we parse everything in it
+and then we construct a graph
+and then we do type checking on everything
+and then evaluation on everything, presumably
+and ... through it all, we can tell react about it
+
+andddd some quantity of this wants to be happening in a webworker?
+definintely the evaluation, but probably the type cehcking as well
+and maybe parsing? idk I want parsing to be veryyy responsive
+
+Ok, hmm. The current `store` stuff feels ... too tied to react n stuff?
+
 # Scopings
 
 - [ ] when I .. have my cursor over a node, and it is a definition

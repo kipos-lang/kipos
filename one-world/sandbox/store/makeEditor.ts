@@ -9,11 +9,13 @@ import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
-import { EditorStore, Evt, allIds } from './store';
+import { EditorStoreI, Evt, allIds } from './store';
 import { Event, Src } from '../../syntaxes/dsl3';
 import { Language, ParseResult, ValidateResult } from './language';
 import { Type } from '../../syntaxes/algw-s2-types';
 import { useMemo } from 'react';
+import { EditorStore } from './editorStore';
+import { selEnd } from '../../keyboard/handleShiftNav';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -45,14 +47,14 @@ export const findSpans = (items: Src[]) => {
     return spans;
 };
 
-export type LangResult = ParseResult<any> & { trace: Event[]; validation?: ValidateResult<Type> | null; spans: Record<string, string[][]> };
+export type LangResult = ParseResult<any> & { validation?: ValidateResult<Type> | null; spans: Record<string, string[][]> };
 
 export const makeEditor = (
     selected: string,
     modules: Record<string, Module>,
     useTick: (evt: Evt) => number,
     shout: (evt: Evt) => void,
-): EditorStore => {
+): EditorStoreI => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
@@ -61,6 +63,8 @@ export const makeEditor = (
     Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
         parseResults[key] = doParse(language, top);
     });
+
+    const store = new EditorStore(modules[selected], language);
 
     return {
         // selected,
@@ -217,7 +221,7 @@ export const makeEditor = (
                     useTick(`node:${loc}`);
                     const results = parseResults[top];
                     let meta = parseResults[top]?.ctx.meta[loc];
-                    const refs = results.internalReferences[loc];
+                    const refs = results?.internalReferences[loc];
                     if (refs) {
                         if (refs.usages.length === 0 && !results.provides.some((r) => r.loc === loc)) {
                             meta = { kind: 'unused' };
@@ -259,7 +263,7 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
     );
     let validation = null;
     if (result.result && language.validate) {
-        validation = language.validate(result.result);
+        validation = language.validate([result.result], []);
     }
     const spans: Record<string, string[][]> = {};
     if (validation) {

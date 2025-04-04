@@ -168,7 +168,6 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
-            console.log('how many', ctx.scopes.length);
             ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
             ctx.usages[node.loc] = { name: node.text, kind: rule.kind, usages: [] };
             return { value: node, consumed: 1 };

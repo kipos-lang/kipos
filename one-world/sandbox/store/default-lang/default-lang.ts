@@ -2,8 +2,8 @@ import { parser } from '../../../syntaxes/algw-s2-return';
 import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Annotation, AnnotationText, Language } from '../language';
-import { srcKey } from '../makeEditor';
-import { builtinEnv, getGlobalState, inferStmt, resetState, typeApply, typeToNode, typeToString } from './validate';
+import { findSpans, srcKey } from '../makeEditor';
+import { builtinEnv, getGlobalState, inferStmt, resetState, Scheme, typeApply, typeToNode, typeToString } from './validate';
 
 type Macro = {
     parent: string;
@@ -11,13 +11,25 @@ type Macro = {
     body: Rule<any>;
 };
 
-export const defaultLang: Language<Macro, Stmt, Type> = {
+export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
     version: 1,
+    intern: (ast, info) => ({ ast, info }),
     parser: {
         config: parser.config,
-        parse(macros, node, trace?: (evt: Event) => undefined) {
-            const result = parser.parse(macros, node, trace);
+        parse(macros, node) {
+            const trace: Event[] = [];
+            const TRACE = false;
+            const result = parser.parse(
+                macros,
+                node,
+                TRACE
+                    ? (evt) => {
+                          trace.push(evt);
+                      }
+                    : undefined,
+            );
             return {
+                trace,
                 ctx: { meta: result.ctx.meta },
                 externalReferences: result.ctx.externalUsages,
                 internalReferences: result.ctx.usages,
@@ -30,16 +42,25 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             return [];
         },
     },
-    validate(ast) {
+    validate(asts, deps) {
         resetState();
 
         const env = builtinEnv();
         const glob = getGlobalState();
 
+        deps.forEach((scope) => Object.assign(env.scope, scope));
+
         let res;
         let error: string | null = null;
+        // NOTE: This limits us to 1 def per name, can't do static overloading in a world like this
+        const scope: Record<string, Scheme> = {};
         try {
-            res = inferStmt(env, ast);
+            res = asts.map((ast) => inferStmt(env, ast));
+            res.forEach((res) => {
+                if (res.scope) {
+                    Object.assign(scope, res.scope);
+                }
+            });
         } catch (err) {
             console.log('bad inference', err);
             error = (err as Error).message;
@@ -53,11 +74,15 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
             if (!annotations[key]) annotations[key] = [annotation];
             else annotations[key].push(annotation);
         };
-        add(
-            res
-                ? { type: 'type', annotation: typeToNode(res.value), src: ast.src, primary: true }
-                : { type: 'error', message: ['unable to infer: ', error!], src: ast.src },
-        );
+        if (res) {
+            res.forEach(({ value }, i) => {
+                add({ type: 'type', annotation: typeToNode(value), src: asts[i].src, primary: true });
+            });
+        } else {
+            asts.forEach((ast) => {
+                add({ type: 'error', message: ['unable to infer: ', error!], src: ast.src });
+            });
+        }
 
         glob.events.forEach((evt) => {
             if (evt.type === 'error' || evt.type === 'warning') {
@@ -78,7 +103,7 @@ export const defaultLang: Language<Macro, Stmt, Type> = {
 
         // return { glob, res, cst, node, parsed };
         return {
-            result: res?.value,
+            result: scope,
             meta: {},
             events: glob.events,
             annotations,

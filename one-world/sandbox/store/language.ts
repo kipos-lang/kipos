@@ -23,9 +23,17 @@ export type Meta = { kind?: string; placeholder?: string };
 export type ParseResult<T> = {
     result: T | undefined;
     provides: { loc: string; name: string; kind: string }[];
+    macros?: { loc: string; name: string }[];
+    // hmm. how do we communicate that a macro is happening.
+    // because, we need like a way to ... evaluate it?
+    // ok so maybe the evaluator will have a special mode that's like
+    // "evaluateMacro", and we provide the loc that we got.
+    // that sounds good to me.
+    // providesMacro
     externalReferences: { loc: string; name: string; kind: string }[];
     internalReferences: { [src: string]: { kind: string; name: string; usages: string[] } };
     ffiReferences: { loc: string; namespace: string[]; name: string }[];
+    trace?: Event[];
     // hmmm do I really need the `goods` at this point...
     // goods: RecNode[];
     // bads: MatchError[];
@@ -55,7 +63,7 @@ export type Annotation =
     | { type: 'type'; annotation: Renderable; src: Src; spans?: Src[]; primary?: boolean };
 
 export type ValidateResult<ValidationInfo> = {
-    result?: ValidationInfo;
+    result: ValidationInfo;
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...
@@ -79,8 +87,8 @@ in the first example,
 export type Language<Macro, AST, ValidationInfo, IR = { ast: AST; info: ValidationInfo }, Target = string> = {
     version: 1;
     parser: Parser<Macro, AST>;
-    validate?(ast: AST): ValidateResult<ValidationInfo>;
-    intern?: (ast: AST, info: ValidationInfo) => IR;
+    validate?(ast: AST[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
+    intern: (ast: AST, info: ValidationInfo) => IR;
     compile?(ir: IR, deps: Record<string, IR>): Target;
     eval?(ir: IR, deps: Record<string, any>): any;
 };

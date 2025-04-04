@@ -26,12 +26,12 @@ interface Store {
     addModule(module: Module): void;
     updateeModule(update: ModuleUpdate): void;
     // get selectedModule(): string
-    useEditor(): EditorStore;
+    useEditor(): EditorStoreI;
     useSelected(): string;
     useModuleTree(): ModuleTree;
 }
 
-export interface EditorStore {
+export interface EditorStoreI {
     useTopParseResults(top: string): LangResult;
     useParseResults(): Record<string, LangResult>;
     useModule(): Module;
@@ -163,7 +163,7 @@ const createStore = (): Store => {
     };
     window.addEventListener('hashchange', f);
 
-    const editors: Record<string, EditorStore> = {};
+    const editors: Record<string, EditorStoreI> = {};
 
     return {
         module(id: string) {
