@@ -217,7 +217,8 @@ export const makeEditor = (
                 useAnnotations(key: string) {
                     const tick = useTick(`annotation:${key}`);
                     return useMemo(() => {
-                        return store.state.validationResults[top]?.annotations[top][key];
+                        const hid = store.state.dependencies.components.pointers[top];
+                        return store.state.validationResults[hid]?.annotations[top][key];
                     }, [tick, key]);
                 },
                 useNode(path: Path) {
