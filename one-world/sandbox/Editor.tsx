@@ -17,6 +17,7 @@ import { currentTheme } from './themes';
 import { processStack, stackForEvt } from '../../type-inference-debugger/demo/App';
 import { ShowStacks } from '../../type-inference-debugger/demo/ShowText';
 import { lastChild, Path } from '../keyboard/utils';
+import { ShowScope } from '../../type-inference-debugger/demo/ShowScope';
 
 // type ECtx = {
 //     // drag
@@ -351,6 +352,7 @@ const ShowTypeInference = () => {
                     // onClick({ type: 'var', name })
                 }}
             />
+            <ShowScope highlightVars={highlightVars} scope={scope} smap={smap} />
         </div>
     );
 };

@@ -83,9 +83,13 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                         return tv;
                     }
                 });
-                res = asts.map(({ ast }) => {
+                res = asts.map(({ ast }, i) => {
                     let n = glob.events.length;
                     const res = inferStmt(env, ast);
+                    if (names[i]) {
+                        unify(names[i], res.value, names[i].src, 'recursive var', 'inferred type');
+                        res.value = gtypeApply(res.value);
+                    }
                     eventsByTop.push(glob.events.slice(n));
                     return res;
                 });
