@@ -9,11 +9,15 @@ import { Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
 import { TopGrab } from './TopGrab';
+import { zedlight } from './zedcolors';
 
 export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
     const store = useStore();
     const editor = store.useEditor();
     const top = editor.useTop(id);
+
+    const sel = editor.useSelection();
+    const isSelected = sel[0].start.path.root.top === id;
 
     const root = top.useRoot();
     const rootPath = useMemo(
@@ -39,6 +43,13 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                 boxShadow: '0px 1px 3px #ccc',
                 fontFamily: 'Jet Brains',
             })}
+            style={
+                isSelected
+                    ? {
+                          boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color,
+                      }
+                    : {}
+            }
         >
             <TopGrab name={name} id={id} />
             <div style={{ flexBasis: 12 }} />

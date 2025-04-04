@@ -460,9 +460,9 @@ const DebugSidebar = () => {
     const top = sel[0].start.path.root.top;
 
     return (
-        <div style={{ overflow: 'auto', maxWidth: '40vw', padding: 8 }}>
+        <div style={{ overflow: 'auto', maxWidth: '40vw', padding: '8px 16px' }}>
             <div>Debug sidebar</div>
-            <div>{top}</div>
+            <div style={{ fontSize: '80%' }}>{top}</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
             <Collapsible title="CST">
                 <ShowCST />

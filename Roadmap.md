@@ -27,12 +27,6 @@ ctx.ref<string>('name') <- gives you the loc of the node
 - [x] let's indicate mutual recursion groups, pleease
   ya know, we could just number the toplevels
 - [x] if a toplevel /leaves/ a recursion group, the other members need to be notified
-  - [ ] kinda done, not yet
-
-Test case:
-- `let x = 2; let y = x + 2; let z = x + 1`
-- change `let x = z`
-- `y` should have an error now
 
 
 annnnnd also evaluation, rite
