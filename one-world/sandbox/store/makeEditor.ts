@@ -1,21 +1,18 @@
-import equal from 'fast-deep-equal';
+import { useMemo } from 'react';
 import { root } from '../../keyboard/root';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import { genId } from '../../keyboard/ui/genId';
-import { SelectionStatuses, mergeHighlights, Path, lastChild, pathKey } from '../../keyboard/utils';
+import { Path, SelectionStatuses, lastChild, mergeHighlights, pathKey } from '../../keyboard/utils';
 import { validate } from '../../keyboard/validate';
 import { Loc } from '../../shared/cnodes';
+import { Event, Src } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
+import { EditorStore } from './editorStore';
+import { Language, ParseResult, ValidateResult } from './language';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStoreI, Evt, allIds } from './store';
-import { Event, Src } from '../../syntaxes/dsl3';
-import { Language, ParseResult, ValidateResult } from './language';
-import { Type } from '../../syntaxes/algw-s2-types';
-import { useMemo } from 'react';
-import { EditorStore } from './editorStore';
-import { selEnd } from '../../keyboard/handleShiftNav';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -227,41 +224,6 @@ export const makeEditor = (
             };
         },
     };
-};
-
-const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangResult => {
-    const node = root<Loc>({ top });
-    const trace: Event[] = [];
-    const TRACE = true;
-    const result = language.parser.parse(
-        [],
-        node,
-        TRACE
-            ? (evt) => {
-                  trace.push(evt);
-              }
-            : undefined,
-    );
-    let validation = null;
-    if (result.result && language.validate) {
-        validation = language.validate([result.result], []);
-    }
-    const spans: Record<string, string[][]> = {};
-    if (validation) {
-        const simpleSpans = findSpans(Object.values(validation.annotations[top.id]).flatMap((a) => a.map((a) => a.src)));
-        Object.entries(top.nodes).forEach(([key, node]) => {
-            if (node.type === 'list') {
-                spans[key] = node.children.map((child) => {
-                    if (!simpleSpans[child]) return [];
-                    return simpleSpans[child]
-                        .map((id) => ({ id, idx: node.children.indexOf(id) }))
-                        .sort((a, b) => b.idx - a.idx)
-                        .map((s) => s.id);
-                });
-            }
-        });
-    }
-    return { ...result, trace, validation, spans };
 };
 
 export type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };

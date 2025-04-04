@@ -3,7 +3,7 @@ import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
-import { Language, ParseResult, ValidateResult } from './language';
+import { Annotation, Language, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
 
@@ -33,6 +33,7 @@ export class EditorStore<AST, TypeInfo, IR> {
     state: EditorState<AST, TypeInfo, IR>;
     module: Module;
     language: Language<any, AST, TypeInfo, IR>;
+    prevAnnotations: Record<string, Record<string, Annotation[]>> = {};
 
     constructor(module: Module, language: Language<any, AST, TypeInfo, IR>) {
         this.state = {
@@ -111,7 +112,6 @@ export class EditorStore<AST, TypeInfo, IR> {
         }
         // Ok, so.
         for (let id of dependencies.traversalOrder) {
-            console.log('validate id');
             if (onlyUpdate) {
                 if (!onlyUpdate.includes(id)) continue;
             }
@@ -137,7 +137,7 @@ export class EditorStore<AST, TypeInfo, IR> {
                     throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
                 }
             }
-            const prev = results[id];
+            // const prev = results[id];
             results[id] = this.language.validate(
                 dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
                 dependencies.headDeps[id].map((did) => results[did].result),
@@ -147,18 +147,21 @@ export class EditorStore<AST, TypeInfo, IR> {
             // to indicate that a value exists but has type errors
             for (let cid of dependencies.components.entries[id]) {
                 if (changedKeys) {
+                    // console.log(`annotations for`, cid, results[id].annotations[cid], this.prevAnnotations[cid]);
                     Object.entries(results[id].annotations[cid]).forEach(([k, ann]) => {
-                        if (!equal(ann, prev?.annotations[cid]?.[k])) {
+                        if (!equal(ann, this.prevAnnotations[cid]?.[k])) {
                             changedKeys[k] = true;
                         }
                     });
 
-                    Object.keys(prev?.annotations[cid] ?? {}).forEach((k) => {
+                    Object.keys(this.prevAnnotations[cid] ?? {}).forEach((k) => {
                         if (!results[id].annotations[cid]?.[k]) {
                             changedKeys[k] = true;
                         }
                     });
                 }
+
+                this.prevAnnotations[cid] = results[id].annotations[cid];
 
                 this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
             }
