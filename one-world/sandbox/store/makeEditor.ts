@@ -71,7 +71,7 @@ export const makeEditor = (
             useTick(`top:${top}:parse-results`);
             return {
                 ...store.state.parseResults[top],
-                validation: store.state.validationResults[top],
+                validation: store.state.validationResults[store.state.dependencies.components.pointers[top]],
                 spans: {},
             };
             // return parseResults[top];

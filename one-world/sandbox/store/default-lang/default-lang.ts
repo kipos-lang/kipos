@@ -131,7 +131,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                 add({ type: 'error', message: ['unable to infer: ', error!], src: ast.src });
             }
 
-            console.log('events', tid, eventsByTop[i]);
+            // console.log('events', tid, eventsByTop[i]);
 
             eventsByTop[i]?.forEach((evt) => {
                 if (evt.type === 'error' || evt.type === 'warning') {
