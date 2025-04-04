@@ -4,6 +4,7 @@ import { Event } from '../../syntaxes/dsl3';
 import { Module } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
 import { Language, ParseResult, ValidateResult } from './language';
+import { findSpans } from './makeEditor';
 
 export type EditorState<AST, TypeInfo, IR> = {
     parseResults: { [top: string]: ParseResult<AST> };
@@ -56,6 +57,27 @@ export class EditorStore<AST, TypeInfo, IR> {
         this.runValidation();
     }
 
+    calculateSpans(tid: string, hid: string) {
+        this.state.spans[tid] = {};
+        const spans = this.state.spans[tid];
+        const validation = this.state.validationResults[hid];
+        const top = this.module.toplevels[tid];
+        if (validation) {
+            const simpleSpans = findSpans(Object.values(validation.annotations[tid] ?? {}).flatMap((a) => a.map((a) => a.src)));
+            Object.entries(top.nodes).forEach(([key, node]) => {
+                if (node.type === 'list') {
+                    spans[key] = node.children.map((child) => {
+                        if (!simpleSpans[child]) return [];
+                        return simpleSpans[child]
+                            .map((id) => ({ id, idx: node.children.indexOf(id) }))
+                            .sort((a, b) => b.idx - a.idx)
+                            .map((s) => s.id);
+                    });
+                }
+            });
+        }
+    }
+
     runValidation() {
         // Ok, so.
         if (this.language.validate) {
@@ -72,7 +94,7 @@ export class EditorStore<AST, TypeInfo, IR> {
                     }
                 }
                 this.state.validationResults[id] = this.language.validate(
-                    this.state.dependencies.components.entries[id].map((id) => this.state.parseResults[id].result!),
+                    this.state.dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
                     this.state.dependencies.headDeps[id].map((did) => this.state.validationResults[did].result),
                 );
                 // this.language.intern()
@@ -80,6 +102,10 @@ export class EditorStore<AST, TypeInfo, IR> {
                 // to indicate that a value exists but has type errors
                 for (let cid of this.state.dependencies.components.entries[id]) {
                     this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, this.state.validationResults[id].result);
+                }
+
+                for (let cid of this.state.dependencies.components.entries[id]) {
+                    this.calculateSpans(cid, id);
                 }
             }
         }

@@ -47,7 +47,7 @@ export const findSpans = (items: Src[]) => {
     return spans;
 };
 
-export type LangResult = ParseResult<any> & { validation?: ValidateResult<Type> | null; spans: Record<string, string[][]> };
+export type LangResult = ParseResult<any> & { validation?: ValidateResult<any> | null; spans: Record<string, string[][]> };
 
 export const makeEditor = (
     selected: string,
@@ -58,11 +58,10 @@ export const makeEditor = (
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
-    const parseResults: Record<string, LangResult> = {};
-
-    Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
-        parseResults[key] = doParse(language, top);
-    });
+    // const parseResults: Record<string, LangResult> = {};
+    // Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
+    //     parseResults[key] = doParse(language, top);
+    // });
 
     const store = new EditorStore(modules[selected], language);
 
@@ -70,11 +69,16 @@ export const makeEditor = (
         // selected,
         useTopParseResults(top: string) {
             useTick(`top:${top}:parse-results`);
-            return parseResults[top];
+            return {
+                ...store.state.parseResults[top],
+                validation: store.state.validationResults[top],
+                spans: {},
+            };
+            // return parseResults[top];
         },
         useParseResults() {
             useTick(`module:${selected}:parse-results`);
-            return parseResults;
+            return store.state.parseResults;
         },
         useModule() {
             useTick(`module:${selected}`);
@@ -137,50 +141,50 @@ export const makeEditor = (
                     shout(`top:${key}`);
                 }
 
-                if (nodesChanged) {
-                    const result = doParse(language, mod.toplevels[key]);
-                    Object.entries(result.ctx.meta).forEach(([loc, value]) => {
-                        if (!parseResults[key]) changed[loc] = true;
-                        else if (!equal(value, parseResults[key].ctx.meta[loc])) {
-                            changed[loc] = true;
-                        }
-                    });
-                    if (result.validation) {
-                        const keys: Record<string, true> = {};
+                // if (nodesChanged) {
+                //     const result = doParse(language, mod.toplevels[key]);
+                //     Object.entries(result.ctx.meta).forEach(([loc, value]) => {
+                //         if (!parseResults[key]) changed[loc] = true;
+                //         else if (!equal(value, parseResults[key].ctx.meta[loc])) {
+                //             changed[loc] = true;
+                //         }
+                //     });
+                //     if (result.validation) {
+                //         const keys: Record<string, true> = {};
 
-                        Object.entries(result.validation.annotations).forEach(([k, ann]) => {
-                            if (!parseResults[key] || !equal(ann, parseResults[key].validation?.annotations[k])) {
-                                keys[k] = true;
-                            }
-                        });
+                //         Object.entries(result.validation.annotations).forEach(([k, ann]) => {
+                //             if (!parseResults[key] || !equal(ann, parseResults[key].validation?.annotations[k])) {
+                //                 keys[k] = true;
+                //             }
+                //         });
 
-                        Object.keys(parseResults[key]?.validation?.annotations ?? {}).forEach((k) => {
-                            if (!result.validation?.annotations[k]) {
-                                keys[k] = true;
-                            }
-                        });
+                //         Object.keys(parseResults[key]?.validation?.annotations ?? {}).forEach((k) => {
+                //             if (!result.validation?.annotations[k]) {
+                //                 keys[k] = true;
+                //             }
+                //         });
 
-                        Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
+                //         Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
 
-                        Object.entries(result.spans).forEach(([loc, spans]) => {
-                            if (!parseResults[key] || !parseResults[key].spans[loc]) changed[key] = true;
-                            else if (!equal(spans, parseResults[key].spans[loc])) {
-                                changed[key] = true;
-                            }
-                        });
+                //         Object.entries(result.spans).forEach(([loc, spans]) => {
+                //             if (!parseResults[key] || !parseResults[key].spans[loc]) changed[key] = true;
+                //             else if (!equal(spans, parseResults[key].spans[loc])) {
+                //                 changed[key] = true;
+                //             }
+                //         });
 
-                        // const spans = findSpans(result.validation.annotations)
-                        // Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
-                        //     if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
-                        //     else if (!equal(value, parseResults[key].validation.annotations[key])) {
-                        //         changed[key] = true;
-                        //     }
-                        // });
-                    }
-                    parseResults[key] = result;
-                    shout(`module:${selected}:parse-results`);
-                    shout(`top:${key}:parse-results`);
-                }
+                //         // const spans = findSpans(result.validation.annotations)
+                //         // Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
+                //         //     if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
+                //         //     else if (!equal(value, parseResults[key].validation.annotations[key])) {
+                //         //         changed[key] = true;
+                //         //     }
+                //         // });
+                //     }
+                //     parseResults[key] = result;
+                //     shout(`module:${selected}:parse-results`);
+                //     shout(`top:${key}:parse-results`);
+                // }
             });
 
             if (mod.roots !== result.roots) {
@@ -213,14 +217,14 @@ export const makeEditor = (
                 useAnnotations(key: string) {
                     const tick = useTick(`annotation:${key}`);
                     return useMemo(() => {
-                        return parseResults[top]?.validation?.annotations[key];
+                        return store.state.validationResults[top]?.annotations[top][key];
                     }, [tick, key]);
                 },
                 useNode(path: Path) {
                     const loc = lastChild(path);
                     useTick(`node:${loc}`);
-                    const results = parseResults[top];
-                    let meta = parseResults[top]?.ctx.meta[loc];
+                    const results = store.state.parseResults[top];
+                    let meta = store.state.parseResults[top]?.ctx.meta[loc];
                     const refs = results?.internalReferences[loc];
                     if (refs) {
                         if (refs.usages.length === 0 && !results.provides.some((r) => r.loc === loc)) {
@@ -233,7 +237,7 @@ export const makeEditor = (
                         node: modules[selected].toplevels[top].nodes[loc],
                         sel: selectionStatuses[pathKey(path)],
                         meta,
-                        spans: parseResults[top]?.spans[loc],
+                        spans: store.state.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
                     };
                 },
                 useRoot() {
@@ -267,7 +271,7 @@ const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangRes
     }
     const spans: Record<string, string[][]> = {};
     if (validation) {
-        const simpleSpans = findSpans(Object.values(validation.annotations).flatMap((a) => a.map((a) => a.src)));
+        const simpleSpans = findSpans(Object.values(validation.annotations[top.id]).flatMap((a) => a.map((a) => a.src)));
         Object.entries(top.nodes).forEach(([key, node]) => {
             if (node.type === 'list') {
                 spans[key] = node.children.map((child) => {

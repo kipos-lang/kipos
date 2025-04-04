@@ -68,7 +68,7 @@ export const Top = React.memo(({ id }: { id: string }) => {
                     borderRadius: '3px',
                 })}
             >
-                {Object.entries(parseResult?.validation?.annotations ?? {}).map(([key, items]) => (
+                {Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
                     <div key={key}>
                         {items.map((item, i) =>
                             item.type === 'type' && item.primary ? (

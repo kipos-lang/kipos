@@ -67,7 +67,7 @@ export type ValidateResult<ValidationInfo> = {
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...
-    annotations: Record<string, Annotation[]>; // todo make this better
+    annotations: { [top: string]: Record<string, Annotation[]> }; // todo make this better
     events?: any[]; // add this in from the stepping debugger
 };
 
@@ -87,7 +87,7 @@ in the first example,
 export type Language<Macro, AST, ValidationInfo, IR = { ast: AST; info: ValidationInfo }, Target = string> = {
     version: 1;
     parser: Parser<Macro, AST>;
-    validate?(ast: AST[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
+    validate?(ast: { ast: AST; tid: string }[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
     intern: (ast: AST, info: ValidationInfo) => IR;
     compile?(ir: IR, deps: Record<string, IR>): Target;
     eval?(ir: IR, deps: Record<string, any>): any;
