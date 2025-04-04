@@ -60,7 +60,9 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
                                 {ann.type === 'type' ? (
                                     <RenderStaticNode root={ann.annotation} />
                                 ) : (
-                                    ann.message.map((item) => (typeof item === 'string' ? item : <RenderStaticNode root={item.renderable} />))
+                                    ann.message.map((item, i) =>
+                                        typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />,
+                                    )
                                 )}
                             </div>
                         ))}

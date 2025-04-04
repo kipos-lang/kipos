@@ -48,7 +48,7 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                 internalReferences: result.ctx.usages,
                 ffiReferences: [],
                 result: result.result,
-                provides: result.ctx.scopes[0],
+                kind: result.result?.type === 'expr' ? { type: 'evaluation' } : { type: 'definition', provides: result.ctx.scopes[0] },
             };
         },
         spans(ast) {
@@ -150,8 +150,6 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                 }
             });
         });
-
-        console.log('anns', allAnnotations);
 
         // return { glob, res, cst, node, parsed };
         return {

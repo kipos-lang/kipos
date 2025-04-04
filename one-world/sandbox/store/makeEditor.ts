@@ -116,6 +116,8 @@ export const makeEditor = (
             const old = selectionStatuses;
             selectionStatuses = recalcSelectionStatuses(mod);
 
+            const changedTops: string[] = [];
+
             Object.entries(result.tops).forEach(([key, top]) => {
                 if (!mod.toplevels[key]) {
                     mod.toplevels[key] = top;
@@ -141,51 +143,20 @@ export const makeEditor = (
                     shout(`top:${key}`);
                 }
 
-                // if (nodesChanged) {
-                //     const result = doParse(language, mod.toplevels[key]);
-                //     Object.entries(result.ctx.meta).forEach(([loc, value]) => {
-                //         if (!parseResults[key]) changed[loc] = true;
-                //         else if (!equal(value, parseResults[key].ctx.meta[loc])) {
-                //             changed[loc] = true;
-                //         }
-                //     });
-                //     if (result.validation) {
-                //         const keys: Record<string, true> = {};
-
-                //         Object.entries(result.validation.annotations).forEach(([k, ann]) => {
-                //             if (!parseResults[key] || !equal(ann, parseResults[key].validation?.annotations[k])) {
-                //                 keys[k] = true;
-                //             }
-                //         });
-
-                //         Object.keys(parseResults[key]?.validation?.annotations ?? {}).forEach((k) => {
-                //             if (!result.validation?.annotations[k]) {
-                //                 keys[k] = true;
-                //             }
-                //         });
-
-                //         Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
-
-                //         Object.entries(result.spans).forEach(([loc, spans]) => {
-                //             if (!parseResults[key] || !parseResults[key].spans[loc]) changed[key] = true;
-                //             else if (!equal(spans, parseResults[key].spans[loc])) {
-                //                 changed[key] = true;
-                //             }
-                //         });
-
-                //         // const spans = findSpans(result.validation.annotations)
-                //         // Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
-                //         //     if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
-                //         //     else if (!equal(value, parseResults[key].validation.annotations[key])) {
-                //         //         changed[key] = true;
-                //         //     }
-                //         // });
-                //     }
-                //     parseResults[key] = result;
-                //     shout(`module:${selected}:parse-results`);
-                //     shout(`top:${key}:parse-results`);
-                // }
+                if (nodesChanged) {
+                    changedTops.push(key);
+                }
             });
+
+            if (changedTops.length) {
+                const keys: Record<string, true> = {};
+                store.updateTops(changedTops, changed, keys);
+                Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
+                shout(`module:${selected}:parse-results`);
+                changedTops.forEach((key) => {
+                    shout(`top:${key}:parse-results`);
+                });
+            }
 
             if (mod.roots !== result.roots) {
                 mod.roots = result.roots;
@@ -228,7 +199,7 @@ export const makeEditor = (
                     let meta = store.state.parseResults[top]?.ctx.meta[loc];
                     const refs = results?.internalReferences[loc];
                     if (refs) {
-                        if (refs.usages.length === 0 && !results.provides.some((r) => r.loc === loc)) {
+                        if (refs.usages.length === 0 && (results.kind.type !== 'definition' || !results.kind.provides.some((r) => r.loc === loc))) {
                             meta = { kind: 'unused' };
                         } else {
                             meta = { kind: 'used' };

@@ -22,8 +22,18 @@ export type Meta = { kind?: string; placeholder?: string };
 
 export type ParseResult<T> = {
     result: T | undefined;
-    provides: { loc: string; name: string; kind: string }[];
-    macros?: { loc: string; name: string }[];
+    kind:
+        | {
+              type: 'definition';
+              provides: { loc: string; name: string; kind: string }[];
+              macros?: { loc: string; name: string }[];
+          }
+        | {
+              type: 'evaluation';
+          }
+        | {
+              type: 'test';
+          };
     // hmm. how do we communicate that a macro is happening.
     // because, we need like a way to ... evaluate it?
     // ok so maybe the evaluator will have a special mode that's like

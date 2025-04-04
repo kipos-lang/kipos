@@ -7,8 +7,21 @@ Do I have a way to indicate that a toplevel should be evaluated?
 - evaluation
 - test
 
+this locks down that you can't both define and evaluate in the same toplevel.
+
 loc(something, 'name')
 ctx.ref<string>('name') <- gives you the loc of the node
+
+...
+
+- [ ] get updates working
+- [ ] make sure errors still make sense?
+- [x] make parser indicate (definition | evaluation | test)
+  - this is helpful for ... dependency cycle determination, right?
+- [ ] make validator ... know what's a definition vs evaluation vs test? idk if that's critical
+  - or maybe just `validateGroup` vs `validate` idk
+
+annnnnd also evaluation, rite
 
 # THinking about fixture tests
 

@@ -1,10 +1,11 @@
 import index from 'isomorphic-git';
 import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
-import { Module } from '../types';
+import { Module, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
 import { Language, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
+import equal from 'fast-deep-equal';
 
 export type EditorState<AST, TypeInfo, IR> = {
     parseResults: { [top: string]: ParseResult<AST> };
@@ -17,12 +18,13 @@ export type EditorState<AST, TypeInfo, IR> = {
     // so we can just go down the list, validating & executing
     // each one, and things will get updated correctly.
     // deepDependencies: Record<string, string[]>;
-    dependencies: {
-        components: Components;
-        headDeps: Record<string, string[]>;
-        deepDeps: Record<string, string[]>;
-        traversalOrder: string[];
-    };
+    dependencies: Dependencies;
+};
+type Dependencies = {
+    components: Components;
+    headDeps: Record<string, string[]>;
+    deepDeps: Record<string, string[]>;
+    traversalOrder: string[];
 };
 
 export class EditorStore<AST, TypeInfo, IR> {
@@ -53,72 +55,148 @@ export class EditorStore<AST, TypeInfo, IR> {
             this.state.parseResults[top.id] = this.language.parser.parse([], root({ top }));
         });
         // START HERE
-        this.calculateDependencyGraph();
-        this.runValidation();
+        this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
+        this.runValidation(this.state.dependencies, this.state.validationResults);
     }
 
-    calculateSpans(tid: string, hid: string) {
-        this.state.spans[tid] = {};
-        const spans = this.state.spans[tid];
-        const validation = this.state.validationResults[hid];
-        const top = this.module.toplevels[tid];
-        if (validation) {
-            const simpleSpans = findSpans(Object.values(validation.annotations[tid] ?? {}).flatMap((a) => a.map((a) => a.src)));
-            Object.entries(top.nodes).forEach(([key, node]) => {
-                if (node.type === 'list') {
-                    spans[key] = node.children.map((child) => {
-                        if (!simpleSpans[child]) return [];
-                        return simpleSpans[child]
-                            .map((id) => ({ id, idx: node.children.indexOf(id) }))
-                            .sort((a, b) => b.idx - a.idx)
-                            .map((s) => s.id);
-                    });
+    updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
+        // const depsChanged = []
+
+        ids.forEach((id) => {
+            const result = this.language.parser.parse([], root({ top: this.module.toplevels[id] }));
+
+            Object.entries(result.ctx.meta).forEach(([loc, value]) => {
+                if (!equal(value, this.state.parseResults[id]?.ctx.meta[loc])) {
+                    changed[loc] = true;
                 }
             });
-        }
+
+            this.state.parseResults[id] = result;
+        });
+
+        // TODO: do some caching so we don't recalc this on every update.
+        this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
+        this.runValidation(this.state.dependencies, this.state.validationResults, ids, changedKeys);
     }
 
-    runValidation() {
+    runValidation(
+        dependencies: Dependencies,
+        results: Record<string, ValidateResult<TypeInfo>>,
+        changedTops?: string[],
+        changedKeys?: Record<string, true>,
+    ) {
+        if (!this.language.validate) return {};
+        // const results: Record<string, ValidateResult<TypeInfo>> = {};
+        let onlyUpdate = null as null | string[];
+        if (changedTops) {
+            onlyUpdate = [];
+            changedTops.forEach((id) => {
+                const hid = dependencies.components.pointers[id];
+                if (!onlyUpdate!.includes(hid)) onlyUpdate!.push(hid);
+            });
+        }
         // Ok, so.
-        if (this.language.validate) {
-            for (let id of this.state.dependencies.traversalOrder) {
-                for (let cid of this.state.dependencies.components.entries[id]) {
-                    if (!this.state.parseResults[cid]) {
-                        // This should be ... smoother.
-                        throw new Error(`something didnt get parsed: ${cid}`);
-                    }
+        for (let id of dependencies.traversalOrder) {
+            if (onlyUpdate) {
+                if (!onlyUpdate.includes(id)) continue;
+            }
+            let skip = false;
+            for (let cid of dependencies.components.entries[id]) {
+                if (!this.state.parseResults[cid]) {
+                    // This should be ... smoother.
+                    throw new Error(`something didnt get parsed: ${cid}`);
                 }
-                for (let did of this.state.dependencies.headDeps[id]) {
-                    if (!this.state.validationResults[did]) {
-                        throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
-                    }
-                }
-                this.state.validationResults[id] = this.language.validate(
-                    this.state.dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
-                    this.state.dependencies.headDeps[id].map((did) => this.state.validationResults[did].result),
-                );
-                // this.language.intern()
-                // NEED a way, if a previous thing fails,
-                // to indicate that a value exists but has type errors
-                for (let cid of this.state.dependencies.components.entries[id]) {
-                    this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, this.state.validationResults[id].result);
-                }
-
-                for (let cid of this.state.dependencies.components.entries[id]) {
-                    this.calculateSpans(cid, id);
+                if (!this.state.parseResults[cid].result) {
+                    skip = true;
+                    break;
+                    // This should be ... smoother.
+                    // throw new Error(`parse error for ${cid}`);
                 }
             }
+            if (skip) {
+                console.warn(`skipping validation for ${id} because of parse error`);
+                continue;
+            }
+            for (let did of dependencies.headDeps[id]) {
+                if (!results[did]) {
+                    throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
+                }
+            }
+            const prev = results[id];
+            results[id] = this.language.validate(
+                dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
+                dependencies.headDeps[id].map((did) => results[did].result),
+            );
+
+            // NEED a way, if a previous thing fails,
+            // to indicate that a value exists but has type errors
+            for (let cid of dependencies.components.entries[id]) {
+                if (changedKeys) {
+                    Object.entries(results[id].annotations[cid]).forEach(([k, ann]) => {
+                        if (!equal(ann, prev?.annotations[cid]?.[k])) {
+                            changedKeys[k] = true;
+                        }
+                    });
+
+                    Object.keys(prev?.annotations[cid] ?? {}).forEach((k) => {
+                        if (!results[id].annotations[cid]?.[k]) {
+                            changedKeys[k] = true;
+                        }
+                    });
+                }
+
+                this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
+            }
+
+            for (let cid of dependencies.components.entries[id]) {
+                const prev = this.state.spans[cid];
+                this.state.spans[cid] = this.calculateSpans(cid, this.module.toplevels[cid], results[id]);
+                if (changedKeys) {
+                    Object.entries(this.state.spans[cid]).forEach(([loc, spans]) => {
+                        if (!prev) changedKeys[loc] = true;
+                        else if (!equal(spans, prev[loc])) {
+                            changedKeys[loc] = true;
+                        }
+                    });
+                }
+            }
+
+            // TODO: here's where we would determine whether the `results[id]` had meaningfully changed
+            // from the previous one, and only then would we add dependencies to the onlyUpdate list.
+            if (onlyUpdate) {
+                onlyUpdate.push(...dependencies.headDeps[id].filter((id) => !onlyUpdate.includes(id)));
+            }
         }
+        // return results;
     }
 
-    calculateDependencyGraph() {
+    calculateSpans(tid: string, top: Toplevel, validation: ValidateResult<TypeInfo>) {
+        const spans: Record<string, string[][]> = {};
+        const simpleSpans = findSpans(Object.values(validation.annotations[tid] ?? {}).flatMap((a) => a.map((a) => a.src)));
+        Object.entries(top.nodes).forEach(([key, node]) => {
+            if (node.type === 'list') {
+                spans[key] = node.children.map((child) => {
+                    if (!simpleSpans[child]) return [];
+                    return simpleSpans[child]
+                        .map((id) => ({ id, idx: node.children.indexOf(id) }))
+                        .sort((a, b) => b.idx - a.idx)
+                        .map((s) => s.id);
+                });
+            }
+        });
+        return spans;
+    }
+
+    calculateDependencyGraph(parseResults: Record<string, ParseResult<AST>>) {
         const available: { [kind: string]: { [name: string]: string[] } } = {};
-        Object.entries(this.state.parseResults).forEach(([tid, results]) => {
-            results.provides.forEach((item) => {
-                if (!available[item.kind]) available[item.kind] = {};
-                if (!available[item.kind][item.name]) available[item.kind][item.name] = [];
-                available[item.kind][item.name].push(tid);
-            });
+        Object.entries(parseResults).forEach(([tid, results]) => {
+            if (results.kind.type === 'definition') {
+                results.kind.provides.forEach((item) => {
+                    if (!available[item.kind]) available[item.kind] = {};
+                    if (!available[item.kind][item.name]) available[item.kind][item.name] = [];
+                    available[item.kind][item.name].push(tid);
+                });
+            }
         });
         // NOTE: ignore external dependencies for the moment...
         // as they don't factor into dependency graph generation.
@@ -126,7 +204,7 @@ export class EditorStore<AST, TypeInfo, IR> {
         // NOTE: in some future time, exact dependencies ... may be only resolvable at inference time.
         // which means we'll have some spurious dependencies, but that's fine. you depend on everything that matches.
         const dependencies: Record<string, string[]> = {};
-        Object.entries(this.state.parseResults).forEach(([tid, results]) => {
+        Object.entries(parseResults).forEach(([tid, results]) => {
             if (!dependencies[tid]) dependencies[tid] = [];
             results.externalReferences.forEach((ref) => {
                 const sources = available[ref.kind]?.[ref.name] ?? [];
@@ -180,19 +258,11 @@ export class EditorStore<AST, TypeInfo, IR> {
             deep[k].sort(sortHeads);
         });
 
-        this.state.dependencies = { components, headDeps, deepDeps: deep, traversalOrder: fullSort };
-
-        // Ok, once we have those, we need to be able to calculate a total ordering
-        // const totalOrder = Object.keys(deep).sort(sortHeads);
-        // console.log(dependencies, components, headDeps, deep, fullSort);
-        // console.log(totalOrder);
-
-        // then we ... intern it? maybe. I'll deal with that later.
+        return { components, headDeps, deepDeps: deep, traversalOrder: fullSort };
     }
 }
 
 const toposort = (dependencies: Record<string, string[]>) => {
-    console.log('DEPS', dependencies);
     const inDegree: Record<string, number> = {};
     Object.entries(dependencies).forEach(([key, deps]) => {
         deps.forEach((v) => {
@@ -202,8 +272,6 @@ const toposort = (dependencies: Record<string, string[]>) => {
         });
         if (!inDegree[key]) inDegree[key] = 0;
     });
-
-    console.log('initial', { ...inDegree });
 
     const queue = Object.keys(inDegree).filter((k) => inDegree[k] === 0);
     const sorted: string[] = [];
@@ -219,8 +287,6 @@ const toposort = (dependencies: Record<string, string[]>) => {
             }
         }
     }
-
-    console.log('final', sorted, inDegree);
 
     return sorted;
 };
