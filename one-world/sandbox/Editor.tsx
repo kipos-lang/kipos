@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Showsel } from './App';
 import { Top } from './Top';
@@ -21,6 +21,7 @@ import { ShowScope } from '../../type-inference-debugger/demo/ShowScope';
 import { Visual } from '../keyboard/ui/keyUpdate';
 import { posDown, posUp } from '../keyboard/ui/selectionPos';
 import { genId } from '../keyboard/ui/genId';
+import { Toplevel } from './types';
 
 // type ECtx = {
 //     // drag
@@ -37,12 +38,13 @@ import { genId } from '../keyboard/ui/genId';
 // };
 type DragCtxT = {
     dragging: boolean;
+    refs: Record<string, HTMLElement>;
     ref(loc: string): (node: HTMLElement) => void;
     start(sel: SelStart, meta?: boolean): void;
     move(sel: SelStart, ctrl?: boolean, alt?: boolean): void;
 };
 
-export const noopDrag: DragCtxT = { dragging: false, ref: () => () => {}, start() {}, move() {} };
+export const noopDrag: DragCtxT = { dragging: false, ref: () => () => {}, start() {}, move() {}, refs: {} };
 
 export const DragCtx = React.createContext(null as null | DragCtxT);
 export const useDrag = () => {
@@ -144,6 +146,7 @@ export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
 
         const drag: DragCtxT = {
             dragging: false,
+            refs,
             ref(loc) {
                 return (node) => (refs[loc] = node);
             },

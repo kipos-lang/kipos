@@ -1,5 +1,5 @@
 import { css } from 'goober';
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, createContext } from 'react';
 import { genId } from '../keyboard/ui/genId';
 import { Path, lastChild } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
@@ -10,11 +10,18 @@ import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
 import { TopGrab } from './TopGrab';
 import { zedlight } from './zedcolors';
+import { Toplevel } from './types';
+
+export const GetTopCtx = createContext<() => Toplevel>(() => {
+    throw new Error('no');
+});
 
 export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
     const store = useStore();
     const editor = store.useEditor();
     const top = editor.useTop(id);
+
+    const getTop = useCallback(() => editor.getTop(id), [id]);
 
     const sel = editor.useSelection();
     const isSelected = sel[0].start.path.root.top === id;
@@ -53,9 +60,11 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
         >
             <TopGrab name={name} id={id} />
             <div style={{ flexBasis: 12 }} />
-            <UseNodeCtx.Provider value={useNode}>
-                <RenderNode parent={rootPath} id={root} />
-            </UseNodeCtx.Provider>
+            <GetTopCtx.Provider value={getTop}>
+                <UseNodeCtx.Provider value={useNode}>
+                    <RenderNode parent={rootPath} id={root} />
+                </UseNodeCtx.Provider>
+            </GetTopCtx.Provider>
             <div
                 className={css({
                     marginLeft: '24px',

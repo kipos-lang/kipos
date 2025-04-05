@@ -7,11 +7,13 @@ and also auto-importing stuff
 
 # Major usability things:
 
-- [ ] up/down arrow keys
-- [ ] click anywhere to select
+- [x] up/down arrow keys
+- [-] click anywhere to select
+  - [ ] it doesn't really work, needs some tuning
 - [ ] click + drag
 - [ ] alt / ctrl arrow
 - [ ] move between toplevels
+- [ ] enter to create a new toplevellll
 
 # Ok but let's be running...
 

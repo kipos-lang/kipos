@@ -38,6 +38,7 @@ export interface EditorStoreI {
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;
+    getTop(id: string): Toplevel;
     update(action: Action): void;
 }
 

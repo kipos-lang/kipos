@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useContext } from 'react';
 import { interleaveF } from '../../keyboard/interleave';
 import { lightColor } from '../../keyboard/ui/colors';
 import { Cursor } from '../../keyboard/ui/cursor';
@@ -11,6 +11,8 @@ import { SelStatus } from '../store/store';
 import { Meta } from '../store/language';
 import { metaStyles } from './metaStyles';
 import { Grouped, partition } from '../store/makeEditor';
+import { posInList } from '../../keyboard/ui/selectionPos';
+import { GetTopCtx } from '../Top';
 
 export const RenderList = ({
     node,
@@ -35,6 +37,7 @@ export const RenderList = ({
         style = { ...style, ...metaStyles[meta.kind as 'ref'] };
     }
 
+    const getTop = useContext(GetTopCtx);
     const drag = useDrag();
 
     if (typeof node.kind !== 'string') return 'DIFFERENT KIDN';
@@ -71,7 +74,19 @@ export const RenderList = ({
     }
     if (node.kind === 'spaced') {
         return (
-            <span ref={drag.ref(node.loc)} style={style}>
+            <span
+                ref={drag.ref(node.loc)}
+                style={style}
+                data-yes="yes"
+                onMouseDown={(evt) => {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    const sel = posInList(self, { x: evt.clientX, y: evt.clientY }, drag.refs, getTop());
+                    if (sel) {
+                        drag.start(sel);
+                    }
+                }}
+            >
                 {interleaveF(children, (k) => (
                     <span key={k}>&nbsp;</span>
                 ))}
@@ -79,7 +94,18 @@ export const RenderList = ({
         );
     }
     return (
-        <span ref={drag.ref(node.loc)} style={style}>
+        <span
+            ref={drag.ref(node.loc)}
+            style={style}
+            onMouseDown={(evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                const sel = posInList(self, { x: evt.clientX, y: evt.clientY }, drag.refs, getTop());
+                if (sel) {
+                    drag.start(sel);
+                }
+            }}
+        >
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
             {has('inside') ? <Cursor /> : null}

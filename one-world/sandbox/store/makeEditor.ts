@@ -73,6 +73,9 @@ export const makeEditor = (
             };
             // return parseResults[top];
         },
+        getTop(top: string) {
+            return modules[selected].toplevels[top];
+        },
         useDependencyGraph() {
             useTick(`module:${selected}:dependency-graph`);
             return store.state.dependencies;
