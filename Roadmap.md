@@ -1,4 +1,16 @@
 
+# Thinking about modules
+
+Ok I do think that imports should be defined outside of parseable syntax.
+
+# Major usability things:
+
+- [ ] up/down arrow keys
+- [ ] click anywhere to select
+- [ ] click + drag
+- [ ] alt / ctrl arrow
+- [ ] move between toplevels
+
 # Ok but let's be running...
 
 Do I have a way to indicate that a toplevel should be evaluated?
@@ -28,6 +40,7 @@ ctx.ref<string>('name') <- gives you the loc of the node
   ya know, we could just number the toplevels
 - [x] if a toplevel /leaves/ a recursion group, the other members need to be notified
 
+- [ ] show the dependency graph in the sidebar please
 
 annnnnd also evaluation, rite
 
