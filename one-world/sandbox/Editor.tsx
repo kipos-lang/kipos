@@ -18,6 +18,9 @@ import { processStack, stackForEvt } from '../../type-inference-debugger/demo/Ap
 import { ShowStacks } from '../../type-inference-debugger/demo/ShowText';
 import { lastChild, Path } from '../keyboard/utils';
 import { ShowScope } from '../../type-inference-debugger/demo/ShowScope';
+import { Visual } from '../keyboard/ui/keyUpdate';
+import { posDown, posUp } from '../keyboard/ui/selectionPos';
+import { genId } from '../keyboard/ui/genId';
 
 // type ECtx = {
 //     // drag
@@ -123,15 +126,15 @@ export const useEditor = () => {
 //     }, []);
 // };
 
-export const useProvideDrag = () => {
-    const drag = useMakeDrag();
+export const useProvideDrag = (refs: Record<string, HTMLElement>) => {
+    const drag = useMakeDrag(refs);
     return useCallback(
         ({ children }: { children: React.ReactNode }): React.ReactNode => <DragCtx.Provider value={drag}>{children}</DragCtx.Provider>,
         [drag],
     );
 };
 
-export const useMakeDrag = (): DragCtxT => {
+export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
     const editor = useEditor();
     return useMemo(() => {
         const up = (evt: MouseEvent) => {
@@ -139,7 +142,6 @@ export const useMakeDrag = (): DragCtxT => {
             drag.dragging = false;
         };
 
-        const refs: Record<string, HTMLElement> = {};
         const drag: DragCtxT = {
             dragging: false,
             ref(loc) {
@@ -167,7 +169,7 @@ export const useMakeDrag = (): DragCtxT => {
             },
         };
         return drag;
-    }, [editor]);
+    }, [editor, refs]);
 };
 
 // const useMake
@@ -177,7 +179,10 @@ const alphabet = 'abcdefghjklmnopqrstuvwxyz';
 export const Editor = () => {
     const store = useStore();
     const editor = store.useEditor();
-    const Drag = useProvideDrag();
+
+    const refs = useMemo((): Record<string, HTMLElement> => ({}), []);
+
+    const Drag = useProvideDrag(refs);
     // const Hover = useProvideHover();
     const module = editor.useModule();
 
@@ -203,7 +208,7 @@ export const Editor = () => {
         <>
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 Editor here
-                <KeyHandler />
+                <KeyHandler refs={refs} />
                 <Drag>
                     {module.roots.map(
                         (id, i): React.ReactNode => (
@@ -480,9 +485,22 @@ const DebugSidebar = () => {
     );
 };
 
-const KeyHandler = () => {
+const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
     const editor = useEditor();
     const sel = editor.useSelection();
+    const tid = sel[0].start.path.root.top;
+    // const pr = editor.useTopParseResults(tid)
+    const top = editor.useTop(tid);
+
+    const visual: Visual = {
+        up(sel) {
+            return posUp(sel, top.top, refs, genId);
+        },
+        down(sel) {
+            return posDown(sel, top.top, refs, genId);
+        },
+        spans: [], //cspans.current,
+    };
 
     const onKeyDown = useCallback(
         (evt: React.KeyboardEvent<Element>) => {
@@ -498,7 +516,7 @@ const KeyHandler = () => {
                 type: 'key',
                 key: evt.key,
                 mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
-                // visual,
+                visual,
             });
         },
         [editor, sel],

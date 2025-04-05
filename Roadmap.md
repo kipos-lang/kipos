@@ -2,6 +2,8 @@
 # Thinking about modules
 
 Ok I do think that imports should be defined outside of parseable syntax.
+can have much better autocomplete that way maybeee and definitely automatic updating of stuff for renames,
+and also auto-importing stuff
 
 # Major usability things:
 
