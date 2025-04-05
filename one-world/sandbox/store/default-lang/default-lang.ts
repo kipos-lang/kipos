@@ -27,7 +27,7 @@ type Macro = {
 
 export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
     version: 1,
-    intern: (ast, info) => ({ ast, info }),
+    // intern: (ast, info) => ({ ast, info }),
     parser: {
         config: parser.config,
         parse(macros, node) {
@@ -139,5 +139,8 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
             events: glob.events,
             annotations: allAnnotations,
         };
+    },
+    compiler() {
+        throw new Error('not');
     },
 };

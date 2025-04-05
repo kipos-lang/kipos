@@ -7,12 +7,11 @@ import { Annotation, Language, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
 
-export type EditorState<AST, TypeInfo, IR> = {
+export type EditorState<AST, TypeInfo> = {
     parseResults: { [top: string]: ParseResult<AST> };
     // validation, is ~by "top", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
     validationResults: { [top: string]: ValidateResult<TypeInfo> };
-    irResults: { [top: string]: IR };
     spans: { [top: string]: Record<string, string[][]> };
     // top -> deep list of dependent tops, in the right order
     // so we can just go down the list, validating & executing
@@ -29,13 +28,13 @@ export type Dependencies = {
     traversalOrder: string[];
 };
 
-export class EditorStore<AST, TypeInfo, IR> {
-    state: EditorState<AST, TypeInfo, IR>;
+export class EditorStore<AST, TypeInfo> {
+    state: EditorState<AST, TypeInfo>;
     module: Module;
-    language: Language<any, AST, TypeInfo, IR>;
+    language: Language<any, AST, TypeInfo>;
     prevAnnotations: Record<string, Record<string, Annotation[]>> = {};
 
-    constructor(module: Module, language: Language<any, AST, TypeInfo, IR>) {
+    constructor(module: Module, language: Language<any, AST, TypeInfo>) {
         this.state = {
             parseResults: {},
             validationResults: {},
@@ -47,7 +46,6 @@ export class EditorStore<AST, TypeInfo, IR> {
                 traversalOrder: [],
                 dependents: {},
             },
-            irResults: {},
         };
         this.module = module;
         this.language = language;
@@ -163,7 +161,7 @@ export class EditorStore<AST, TypeInfo, IR> {
 
                 this.prevAnnotations[cid] = results[id].annotations[cid];
 
-                this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
+                // this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
             }
 
             for (let cid of dependencies.components.entries[id]) {

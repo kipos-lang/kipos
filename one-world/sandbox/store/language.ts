@@ -3,6 +3,7 @@ import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
 import { Event } from '../../syntaxes/dsl3';
 import { StackText } from './default-lang/validate';
+import { Dependencies } from './editorStore';
 
 // export type MatchError =
 //     | {
@@ -95,11 +96,30 @@ in the first example,
 
 */
 
-export type Language<Macro, AST, ValidationInfo, IR = { ast: AST; info: ValidationInfo }, Target = string> = {
+// SOO this setup doesn't allow for like OffscreenCanvas ... will think about that later.
+
+export type EvaluationResult =
+    | { type: 'exception'; message: string }
+    | { type: 'plain'; data: string; mime?: string }
+    // | { type: 'structured', data: any }
+    | { type: 'render'; renderable: Renderable }
+    // A "stream" can update itself...
+    | { type: 'stream'; id: string; contents: EvaluationResult[] };
+// Also want something like render plugins ... so you can pass back structured data ...
+// but maybe with a fallback? hmm. So a top could have multiple evaluationResults
+// hmm also might want to have like ... streaming updates?
+// YEAH ok so if you get multiple updates with the same UpdateID, that means you /append/.
+// (hrm I guess you might want to replace?)
+
+export type Language<Macro, AST, ValidationInfo> = {
     version: 1;
     parser: Parser<Macro, AST>;
     validate?(ast: { ast: AST; tid: string }[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
-    intern: (ast: AST, info: ValidationInfo) => IR;
-    compile?(ir: IR, deps: Record<string, IR>): Target;
-    eval?(ir: IR, deps: Record<string, any>): any;
+    compiler(): {
+        update(updateId: string, moduleId: string, deps: Dependencies, tops: Record<string, { ast: AST; info: ValidationInfo }>): void;
+        listen(fn: (updates: { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> }[]) => void): () => void;
+    };
+    // intern: (ast: AST, info: ValidationInfo) => IR;
+    // compile?(ir: IR, deps: Record<string, IR>): Target;
+    // eval?(ir: IR, deps: Record<string, any>): any;
 };

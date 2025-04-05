@@ -1,4 +1,56 @@
 
+# COMPILE
+
+compile/link/exec?
+
+and can that encompass the 'eval' case as well?
+seems like the whole compiler should be on the other side of a bridge (websocket / webworker)
+
+also, type inference scope should know if something comes from (builtin | toplevel | import)
+
+also we want to be able to batch executions, probably by module? So we can rerun all the tests in a module at once.
+
+andddd something about determining if a given toplevel is ~serializeable. so it can be cached instead of recomputed.
+
+///
+
+What would this look like for:
+- js (mut vs immut)
+- wasm
+- python
+- go
+
+----
+
+compile : (IR) -> ...
+
+ok, so if I want to do "whole program optimization", the "compile -> link" story gets weirder. Right?
+For example: if I want to monomorphize generic functions.
+
+would I just ... have a different "link" story, and do more of the compiling there?
+
+ALTERNATIVELY
+we could leave this up to the compiler, right?
+simplify the interface to:
+
+"here are the updates ... let me know what you find out"
+so (intern) is also irrelevant to our purposes.
+we'd provide the compiler a way to cache things if it wanted.
+
+but we don't actually need anything beyond:
+
+`evaluate`
+
+right?
+I guess at some point I might want an `export` function.
+ok so we're lookin at some persistence here.
+So, `compiler()` returns an object that is expected to have
+some persistence.
+
+EditorStore is working at the level of an individual module.
+but we're going to need to think bigger.
+
+
 # Thinking about modules
 
 Ok I do think that imports should be defined outside of parseable syntax.
