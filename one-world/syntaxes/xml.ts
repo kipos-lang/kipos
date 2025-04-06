@@ -1,6 +1,7 @@
 import { isTag } from '../keyboard/handleNav';
-import { Src } from '../keyboard/handleShiftNav';
+import { genId } from '../keyboard/ui/genId';
 import { RecNode, TextSpan } from '../shared/cnodes';
+import { Src } from './dsl3';
 
 export type XML = { tag: string; src: null | Src; attrs?: Record<string, any>; children?: Record<string, XML | XML[] | undefined> };
 
@@ -43,16 +44,20 @@ export const attrs = (v: Record<string, any>, max = 20) => {
 export const textSpanToXML = <T>(span: TextSpan<T, any>, toXML: (t: T) => XML): XML => {
     switch (span.type) {
         case 'text':
-            return { tag: 'span:' + span.type, src: { type: 'src', left: '' }, attrs: { text: span.text, style: span.style, link: span.link } };
+            return {
+                tag: 'span:' + span.type,
+                src: { type: 'src', left: '', id: genId() },
+                attrs: { text: span.text, style: span.style, link: span.link },
+            };
         case 'embed':
             return {
                 tag: 'span:' + span.type,
-                src: { type: 'src', left: '' },
+                src: { type: 'src', left: '', id: genId() },
                 attrs: { style: span.style, link: span.link },
                 children: { children: toXML(span.item) },
             };
         default:
-            return { tag: 'span:' + span.type, src: { type: 'src', left: '' } };
+            return { tag: 'span:' + span.type, src: { type: 'src', left: '', id: genId() } };
     }
 };
 
@@ -61,13 +66,13 @@ export const nodeToXML = (node: RecNode): XML => {
         case 'id':
             return {
                 tag: node.type,
-                src: { type: 'src', left: node.loc },
+                src: { type: 'src', left: node.loc, id: genId() },
                 attrs: { text: node.text, ref: node.ref, ccls: node.ccls, loc: node.loc },
             };
         case 'list':
             return {
                 tag: node.type,
-                src: { type: 'src', left: node.loc },
+                src: { type: 'src', left: node.loc, id: genId() },
                 attrs: { kind: isTag(node.kind) ? undefined : node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     tag: isTag(node.kind) ? nodeToXML(node.kind.node) : undefined,
@@ -78,7 +83,7 @@ export const nodeToXML = (node: RecNode): XML => {
         case 'table':
             return {
                 tag: node.type,
-                src: { type: 'src', left: node.loc },
+                src: { type: 'src', left: node.loc, id: genId() },
                 attrs: { kind: node.kind, forceMultiline: node.forceMultiline, loc: node.loc },
                 children: {
                     children: node.rows.map((row) => ({
@@ -86,14 +91,14 @@ export const nodeToXML = (node: RecNode): XML => {
                         children: {
                             children: row.map(nodeToXML),
                         },
-                        src: { type: 'src', left: row[0].loc, right: row.length > 1 ? row[row.length - 1].loc : undefined },
+                        src: { type: 'src', left: row[0].loc, right: row.length > 1 ? row[row.length - 1].loc : undefined, id: genId() },
                     })),
                 },
             };
         case 'text':
             return {
                 tag: node.type,
-                src: { type: 'src', left: node.loc },
+                src: { type: 'src', left: node.loc, id: genId() },
                 attrs: { loc: node.loc },
                 children: { children: node.spans.map((span) => textSpanToXML(span, nodeToXML)) },
             };

@@ -1,7 +1,6 @@
-import { Src } from '../../keyboard/handleShiftNav';
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
-import { Event } from '../../syntaxes/dsl3';
+import { Event, Src } from '../../syntaxes/dsl3';
 import { StackText } from './default-lang/validate';
 import { Dependencies } from './editorStore';
 
@@ -104,12 +103,19 @@ export type EvaluationResult =
     // | { type: 'structured', data: any }
     | { type: 'render'; renderable: Renderable }
     // A "stream" can update itself...
-    | { type: 'stream'; id: string; contents: EvaluationResult[] };
+    | { type: 'stream'; id: string; contents: EvaluationResult[] }
+    | { type: 'input'; id: string; kind: 'int' | 'float' | 'text' | 'cst' | 'boolean' };
 // Also want something like render plugins ... so you can pass back structured data ...
 // but maybe with a fallback? hmm. So a top could have multiple evaluationResults
 // hmm also might want to have like ... streaming updates?
 // YEAH ok so if you get multiple updates with the same UpdateID, that means you /append/.
 // (hrm I guess you might want to replace?)
+
+type InputValue =
+    | { type: 'int' | 'float'; value: number }
+    | { type: 'text'; value: string }
+    | { type: 'cst'; value: RecNode }
+    | { type: 'boolean'; value: boolean };
 
 export type Language<Macro, AST, ValidationInfo> = {
     version: 1;
@@ -118,6 +124,7 @@ export type Language<Macro, AST, ValidationInfo> = {
     compiler(): {
         update(updateId: string, moduleId: string, deps: Dependencies, tops: Record<string, { ast: AST; info: ValidationInfo }>): void;
         listen(fn: (updates: { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> }[]) => void): () => void;
+        input(inputId: string, value: InputValue): void;
     };
     // intern: (ast: AST, info: ValidationInfo) => IR;
     // compile?(ir: IR, deps: Record<string, IR>): Target;

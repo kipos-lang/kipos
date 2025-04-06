@@ -1,4 +1,7 @@
 
+I should really write up my thoughts about the architecture here.
+in a way that other people can comment on.
+
 # COMPILE
 
 compile/link/exec?
@@ -49,6 +52,21 @@ some persistence.
 
 EditorStore is working at the level of an individual module.
 but we're going to need to think bigger.
+
+# So a compiler
+
+Do we ... give it the whole dependency graph? each time?
+because it needs to be able to know what should be brought in.
+
+update(moduleId: string, deps: Dependencies, tops: Record<string, {ast: AST, info: ValidationInfo}>)
+
+...
+
+and then it responds with ... like ... "toplevelOutput: {id, data}"
+
+right?
+
+NOTE: Dependencies should encapsulate cross-module deps as well.
 
 
 # Thinking about modules

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { XML } from '../../syntaxes/xml';
 import React from 'react';
 import { NodeSelection, SelectionStatuses, Top } from '../utils';
-import { allPaths, Src } from '../handleShiftNav';
 import { Loc } from '../../shared/cnodes';
+import { Src } from '../../syntaxes/dsl3';
 
 type Path = (string | number)[];
 type State = { pinned: Path[]; expanded: Path[]; extra: number };

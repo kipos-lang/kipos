@@ -1,6 +1,7 @@
 import equal from 'fast-deep-equal';
 import { isTag } from '../keyboard/handleNav';
 import { ListKind, Loc, NodeID, RecNode, TableKind, TextSpan } from '../shared/cnodes';
+import { genId } from '../keyboard/ui/genId';
 
 export type MatchParent = {
     type: 'match_parent';
@@ -9,7 +10,7 @@ export type MatchParent = {
     sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
 };
 
-export type Src = { type: 'src'; left: Loc; right?: Loc };
+export type Src = { type: 'src'; left: Loc; right?: Loc; id: string };
 
 type AutoComplete = string;
 
@@ -43,7 +44,7 @@ export type Ctx = {
 
 export type Rule<T> =
     | { type: 'or'; opts: Rule<T>[] }
-    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src) => T }
+    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src & { id: string }) => T }
     | { type: 'meta'; meta: string; inner: Rule<T> }
     | { type: 'kwd'; kwd: string; meta?: string }
     | { type: 'ref'; name: string; bind?: string }
@@ -359,7 +360,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (rat >= parent.nodes.length) throw new Error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             // if (rat >= parent.nodes.length) console.error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             const right = m.consumed > 1 && rat < parent.nodes.length ? parent.nodes[at + m.consumed - 1].loc : undefined;
-            return { value: rule.f(ictx, { type: 'src', left, right }), consumed: m.consumed };
+            return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
         }
         case 'group': {
             if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);
@@ -403,7 +404,7 @@ const isBlank = (node: RecNode) => node.type === 'id' && node.text === '';
 
 // regex stuff
 export const or = <T>(...opts: Rule<T>[]): Rule<T> => ({ type: 'or', opts });
-export const tx = <T>(inner: Rule<any>, f: (ctx: Ctx, src: Src) => T): Rule<T> => ({ type: 'tx', inner, f });
+export const tx = <T>(inner: Rule<any>, f: (ctx: Ctx, src: Src & { id: string }) => T): Rule<T> => ({ type: 'tx', inner, f });
 export const ref = <T>(name: string, bind?: string): Rule<T> => ({ type: 'ref', name, bind });
 export const opt = <T>(inner: Rule<T>): Rule<T | null> => ({ type: 'opt', inner });
 export const seq = (...rules: Rule<any>[]): Rule<unknown> => ({ type: 'seq', rules });

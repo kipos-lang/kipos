@@ -12,11 +12,12 @@ import { Meta, Renderable } from '../language';
 import { RecNode } from '../../../shared/cnodes';
 import { id, list } from '../../../keyboard/test-utils';
 import { partition } from './binops';
+import { genId } from '../../../keyboard/ui/genId';
 // import { Src } from '../../lang/parse-dsl';
 // import { interleave } from '../../demo/interleave';
 // import { Type, Expr, Stmt, Pat } from './Type';
 
-export const builtinSrc: Src = { type: 'src', left: 'builtin' };
+export const builtinSrc = (): Src => ({ type: 'src', left: 'builtin', id: genId() });
 
 export const builtinEnv = () => {
     const builtinEnv: Tenv = {
@@ -25,36 +26,36 @@ export const builtinEnv = () => {
         constructors: {},
         scope: {},
     };
-    const concrete = (body: Type): Scheme => ({ vars: [], body, src: builtinSrc });
-    const generic = (vars: string[], body: Type): Scheme => ({ vars, body, src: builtinSrc });
-    const tint: Type = { type: 'con', name: 'int', src: builtinSrc };
-    const tbool: Type = { type: 'con', name: 'bool', src: builtinSrc };
-    const t: Type = { type: 'var', name: 't', src: builtinSrc };
-    const a: Type = { type: 'var', name: 'a', src: builtinSrc };
-    const b: Type = { type: 'var', name: 'b', src: builtinSrc };
-    const tapp = (target: Type, ...args: Type[]): Type => ({ type: 'app', args, target, src: builtinSrc });
-    const tcon = (name: string): Type => ({ type: 'con', name, src: builtinSrc });
-    builtinEnv.scope['null'] = concrete({ type: 'con', name: 'null', src: builtinSrc });
-    builtinEnv.scope['true'] = concrete({ type: 'con', name: 'bool', src: builtinSrc });
-    builtinEnv.scope['false'] = concrete({ type: 'con', name: 'bool', src: builtinSrc });
-    builtinEnv.scope['length'] = generic(['t'], tfn(tapp(tcon('Array'), t), tint, builtinSrc));
-    builtinEnv.scope['index'] = generic(['t'], tfns([tapp(tcon('Array'), t), tint], t, builtinSrc));
-    builtinEnv.scope['unshift'] = generic(['t'], tfns([tapp(tcon('Array'), t), t], tcon('void'), builtinSrc));
-    builtinEnv.scope['push'] = generic(['t'], tfns([tapp(tcon('Array'), t), t], tcon('void'), builtinSrc));
-    builtinEnv.scope['concat'] = generic(['t'], tfns([tapp(tcon('Array'), t), tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc));
+    const concrete = (body: Type): Scheme => ({ vars: [], body, src: builtinSrc() });
+    const generic = (vars: string[], body: Type): Scheme => ({ vars, body, src: builtinSrc() });
+    const tint: Type = { type: 'con', name: 'int', src: builtinSrc() };
+    const tbool: Type = { type: 'con', name: 'bool', src: builtinSrc() };
+    const t: Type = { type: 'var', name: 't', src: builtinSrc() };
+    const a: Type = { type: 'var', name: 'a', src: builtinSrc() };
+    const b: Type = { type: 'var', name: 'b', src: builtinSrc() };
+    const tapp = (target: Type, ...args: Type[]): Type => ({ type: 'app', args, target, src: builtinSrc() });
+    const tcon = (name: string): Type => ({ type: 'con', name, src: builtinSrc() });
+    builtinEnv.scope['null'] = concrete({ type: 'con', name: 'null', src: builtinSrc() });
+    builtinEnv.scope['true'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });
+    builtinEnv.scope['false'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });
+    builtinEnv.scope['length'] = generic(['t'], tfn(tapp(tcon('Array'), t), tint, builtinSrc()));
+    builtinEnv.scope['index'] = generic(['t'], tfns([tapp(tcon('Array'), t), tint], t, builtinSrc()));
+    builtinEnv.scope['unshift'] = generic(['t'], tfns([tapp(tcon('Array'), t), t], tcon('void'), builtinSrc()));
+    builtinEnv.scope['push'] = generic(['t'], tfns([tapp(tcon('Array'), t), t], tcon('void'), builtinSrc()));
+    builtinEnv.scope['concat'] = generic(['t'], tfns([tapp(tcon('Array'), t), tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
     // builtinEnv.scope['[]'] = generic(['t'], tapp(tcon('Array'), t));
-    // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc));
-    builtinEnv.scope['void'] = concrete({ type: 'con', name: 'void', src: builtinSrc });
-    builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc));
-    builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc));
-    builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc));
-    builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc));
-    builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc));
-    builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc));
-    builtinEnv.scope['<'] = concrete(tfns([tint, tint], tbool, builtinSrc));
-    builtinEnv.scope['<='] = concrete(tfns([tint, tint], tbool, builtinSrc));
-    builtinEnv.scope['='] = generic(['t'], tfns([t, t], tint, builtinSrc));
-    builtinEnv.scope[','] = generic(['a', 'b'], tfns([a, b], tapp(tcon(','), a, b), builtinSrc));
+    // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
+    builtinEnv.scope['void'] = concrete({ type: 'con', name: 'void', src: builtinSrc() });
+    builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc()));
+    builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc()));
+    builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc()));
+    builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc()));
+    builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['<'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['<='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['='] = generic(['t'], tfns([t, t], tint, builtinSrc()));
+    builtinEnv.scope[','] = generic(['a', 'b'], tfns([a, b], tapp(tcon(','), a, b), builtinSrc()));
     builtinEnv.constructors[','] = { free: ['a', 'b'], args: [a, b], result: tapp(tcon(','), a, b) };
     return builtinEnv;
 };
@@ -437,9 +438,9 @@ export const inferExpr = (tenv: Tenv, expr: Expr) => {
     return type;
 };
 
-export const tfn = (arg: Type, body: Type, src: Src): Type => ({ type: 'fn', args: [arg], result: body, src });
+export const tfn = (arg: Type, body: Type, src: Src & { id: string }): Type => ({ type: 'fn', args: [arg], result: body, src });
 // ({ type: 'app', target: { type: 'app', target: { type: 'con', name: '->' }, arg }, arg: body });
-export const tfns = (args: Type[], body: Type, src: Src): Type => ({ type: 'fn', args, result: body, src });
+export const tfns = (args: Type[], body: Type, src: Src & { id: string }): Type => ({ type: 'fn', args, result: body, src });
 // args.reduceRight((res, arg) => tfn(arg, res), body);
 
 const tenvWithScope = (tenv: Tenv, scope: Tenv['scope']): Tenv => ({
@@ -707,7 +708,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             scope.return = { vars: [], body: returnVar, src };
             stackPush(src, typ(returnVar));
             stackBreak(`Create a type variable for tracking early returns`);
-            globalState.events.push({ type: 'infer', src: { type: 'src', left: expr.src.left }, value: returnVar });
+            globalState.events.push({ type: 'infer', src: { type: 'src', left: expr.src.left, id: genId() }, value: returnVar });
             stackPop();
             let boundEnv = { ...tenv, scope: { ...tenv.scope, ...scope } };
             stackReplace(src, '(', ...commas(args.map(typ)), '): ', typ(returnVar), ' => ', hole());
@@ -762,7 +763,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                             if (row.value) {
                                 inferExpr(tenv, row.value);
                             } else {
-                                inferExpr(tenv, { type: 'var', name: row.name.text, src: { type: 'src', left: row.name.loc } });
+                                inferExpr(tenv, { type: 'var', name: row.name.text, src: { type: 'src', left: row.name.loc, id: genId() } });
                             }
                         } else {
                             inferExpr(tenv, row.inner);

@@ -28,6 +28,7 @@ import {
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, Type } from './algw-s2-types';
+import { genId } from '../keyboard/ui/genId';
 
 export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
@@ -103,12 +104,17 @@ export type Suffix =
     | CallArgs
     | { type: 'attribute'; attribute: Id<Loc>; src: Src };
 
-const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
+const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }): Expr => {
     if (!suffixes.length) return base;
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
-                base = { type: 'attribute', target: base, attribute: textLoc(suffix.attribute), src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
+                base = {
+                    type: 'attribute',
+                    target: base,
+                    attribute: textLoc(suffix.attribute),
+                    src: mergeSrc(base.src, nodesSrc(suffix.attribute)),
+                };
                 return;
             case 'named':
             case 'unnamed':
@@ -159,7 +165,7 @@ const exprs: Record<string, Rule<Expr>> = {
     ),
     'expr object': tx<Expr>(group('rows', table('curly', or(ref('spread'), ref('object row')))), (ctx, src) => ({
         type: 'object',
-        rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'),
+        rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src & { id: string } })[]>('rows'),
         src,
     })),
     'expr tuple': tx<Expr>(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
@@ -234,6 +240,7 @@ const rules = {
                     src: {
                         type: 'src',
                         left: ctx.ref<Id<Loc>>('name').loc,
+                        id: genId(),
                     },
                 },
                 args: ctx.ref<Type[]>('args'),

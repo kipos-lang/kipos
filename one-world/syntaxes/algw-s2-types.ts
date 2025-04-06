@@ -1,5 +1,6 @@
 import { RecNode } from '../shared/cnodes';
-import { Src } from './dsl3';
+// import { Src } from './dsl3';
+export type Src = { type: 'src'; left: string; right?: string; id: string };
 
 export type Prim = { type: 'int'; value: number } | { type: 'bool'; value: boolean };
 export type Block = { type: 'block'; stmts: Stmt[]; src: Src };
