@@ -2,6 +2,13 @@
 I should really write up my thoughts about the architecture here.
 in a way that other people can comment on.
 
+# Validator - know where a reference resolved from
+will be necessary for codegen
+
+- [x] give all AST nodes unique IDs (put it on Src, yay)
+- [ ] make Tenv scope know where something comes from
+  - ergh this is where my lack of unit tests comes to bite me.
+
 # COMPILE
 
 compile/link/exec?

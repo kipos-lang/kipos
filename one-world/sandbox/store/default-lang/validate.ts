@@ -26,8 +26,14 @@ export const builtinEnv = () => {
         constructors: {},
         scope: {},
     };
-    const concrete = (body: Type): Scheme => ({ vars: [], body, src: builtinSrc() });
-    const generic = (vars: string[], body: Type): Scheme => ({ vars, body, src: builtinSrc() });
+    const concrete = (body: Type): { scheme: Scheme; source: Source } => ({
+        scheme: { vars: [], body, src: builtinSrc() },
+        source: { type: 'builtin' },
+    });
+    const generic = (vars: string[], body: Type): { scheme: Scheme; source: Source } => ({
+        scheme: { vars, body, src: builtinSrc() },
+        source: { type: 'builtin' },
+    });
     const tint: Type = { type: 'con', name: 'int', src: builtinSrc() };
     const tbool: Type = { type: 'con', name: 'bool', src: builtinSrc() };
     const t: Type = { type: 'var', name: 't', src: builtinSrc() };
@@ -147,8 +153,10 @@ const typeEqual = (one: Type, two: Type): boolean => {
 
 export type Scheme = { vars: string[]; body: Type; src: Src };
 
+export type Source = { type: 'builtin' } | { type: 'local'; src: Src } | { type: 'toplevel'; module: string; toplevel: string; src: Src };
+
 export type Tenv = {
-    scope: Record<string, Scheme>;
+    scope: Record<string, { scheme: Scheme; source: Source }>;
     constructors: Record<string, { free: string[]; args: Type[]; result: Type }>;
     types: Record<string, { free: number; constructors: string[] }>;
     aliases: Record<string, { args: string[]; body: Type }>;
@@ -177,7 +185,7 @@ export const typeFree = (type: Type): string[] => {
 
 export const schemeFree = (scheme: Scheme) => typeFree(scheme.body).filter((t) => !scheme.vars.includes(t));
 
-export const tenvFree = (tenv: Tenv) => merge(...Object.values(tenv.scope).map(schemeFree));
+export const tenvFree = (tenv: Tenv) => merge(...Object.values(tenv.scope).map((m) => schemeFree(m.scheme)));
 
 export type Subst = Record<string, Type>;
 
@@ -215,12 +223,21 @@ export const schemeApply = (subst: Subst, scheme: Scheme): Scheme => {
 };
 
 export const tenvApply = (subst: Subst, tenv: Tenv): Tenv => {
-    return { ...tenv, scope: scopeApply(subst, tenv.scope) };
+    return { ...tenv, scope: tscopeApply(subst, tenv.scope) };
 };
-export const scopeApply = (subst: Subst, scope: Tenv['scope']) => {
-    const res: Tenv['scope'] = {};
+
+export const scopeApply = (subst: Subst, scope: Record<string, Scheme>) => {
+    const res: Record<string, Scheme> = {};
     Object.keys(scope).forEach((k) => {
         res[k] = schemeApply(subst, scope[k]);
+    });
+    return res;
+};
+
+export const tscopeApply = (subst: Subst, scope: Tenv['scope']) => {
+    const res: Tenv['scope'] = {};
+    Object.keys(scope).forEach((k) => {
+        res[k] = { scheme: schemeApply(subst, scope[k].scheme), source: scope[k].source };
     });
     return res;
 };
@@ -301,6 +318,7 @@ export type State = {
     events: Event[];
     tvarMeta: Record<string, TvarMeta>;
     latestScope?: Tenv['scope'];
+    resolutions: Record<string, Source>;
 };
 
 type TvarMeta =
@@ -317,9 +335,9 @@ type TvarMeta =
     | { type: 'unsafe'; src: Src }
     | { type: 'pat-any'; src: Src };
 
-let globalState: State = { nextId: 0, subst: {}, events: [], tvarMeta: {} };
+let globalState: State = { nextId: 0, subst: {}, events: [], tvarMeta: {}, resolutions: {} };
 export const resetState = () => {
-    globalState = { nextId: 0, subst: {}, events: [], tvarMeta: {} };
+    globalState = { nextId: 0, subst: {}, events: [], tvarMeta: {}, resolutions: {} };
 };
 export const getGlobalState = () => globalState;
 
@@ -425,7 +443,7 @@ export const unifyInner = (one: Type, two: Type): Subst => {
 };
 
 export const inferExpr = (tenv: Tenv, expr: Expr) => {
-    if (!globalState.latestScope || !equal(scopeApply(globalState.subst, globalState.latestScope), scopeApply(globalState.subst, tenv.scope))) {
+    if (!globalState.latestScope || !equal(tscopeApply(globalState.subst, globalState.latestScope), tscopeApply(globalState.subst, tenv.scope))) {
         globalState.latestScope = tenv.scope;
         globalState.events.push({ type: 'scope', scope: tenv.scope });
     }
@@ -443,12 +461,13 @@ export const tfn = (arg: Type, body: Type, src: Src & { id: string }): Type => (
 export const tfns = (args: Type[], body: Type, src: Src & { id: string }): Type => ({ type: 'fn', args, result: body, src });
 // args.reduceRight((res, arg) => tfn(arg, res), body);
 
-const tenvWithScope = (tenv: Tenv, scope: Tenv['scope']): Tenv => ({
-    ...tenv,
-    scope: { ...tenv.scope, ...scope },
-});
+const tenvWithScope = (tenv: Tenv, locals: Record<string, Scheme>): Tenv => {
+    const scope = { ...tenv.scope };
+    Object.entries(locals).forEach(([key, scheme]) => (scope[key] = { scheme, source: { type: 'local', src: scheme.src } }));
+    return { ...tenv, scope };
+};
 
-export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scope: Tenv['scope']; values: Type[]; events: [number, number][] } => {
+export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scopes: Record<string, Scheme>[]; values: Type[]; events: [number, number][] } => {
     for (let stmt of stmts) {
         if (stmt.type !== 'let') {
             throw new Error(`mutual recursion must be "let"s`);
@@ -462,7 +481,7 @@ export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scope: Tenv['scope']; v
     }
     const lets = stmts as (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[];
 
-    const recscope: Tenv['scope'] = {};
+    const recscope: Record<string, Scheme> = {};
     const names = lets.map(({ pat, src }) => {
         const pv = newTypeVar({ type: 'pat-var', name: pat.name, src: pat.src }, pat.src);
         stackPush(pat.src, pat.name, ' -> ', typ(pv));
@@ -474,7 +493,7 @@ export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scope: Tenv['scope']; v
     });
     const self = tenvWithScope(tenv, recscope);
 
-    const scope: Tenv['scope'] = {};
+    const scopes: Record<string, Scheme>[] = [];
 
     const events: [number, number][] = [];
     const values = lets.map((stmt, i) => {
@@ -505,14 +524,14 @@ export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scope: Tenv['scope']; v
     const appliedEnv = tenvApply(globalState.subst, tenv);
     // const allFree =
     values.forEach((value, i) => {
-        scope[lets[i].pat.name] = generalize(appliedEnv, gtypeApply(value), lets[i].src);
+        scopes.push({ [lets[i].pat.name]: generalize(appliedEnv, gtypeApply(value), lets[i].src) });
     });
-    console.log('here we are', scope);
+    console.log('here we are', scopes);
 
-    return { scope, values: values.map(gtypeApply), events };
+    return { scopes, values: values.map(gtypeApply), events };
 };
 
-export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['scope'] } => {
+export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record<string, Scheme> } => {
     switch (stmt.type) {
         case 'return': {
             const value = newTypeVar({ type: 'return-any', src: stmt.src }, stmt.src);
@@ -522,14 +541,14 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Tenv['
             if (!stmt.value) {
                 stackPush(stmt.src, `return`);
                 stackBreak('return statement');
-                unify(tenv.scope['return'].body, { type: 'con', name: 'void', src: stmt.src }, stmt.src, 'early return type', 'empty return');
+                unify(tenv.scope['return'].scheme.body, { type: 'con', name: 'void', src: stmt.src }, stmt.src, 'early return type', 'empty return');
                 stackPop();
                 return { value };
             }
             stackPush(stmt.src, `return `, hole(true));
             stackBreak('return statement');
             const inner = inferExpr(tenv, stmt.value);
-            unify(tenv.scope['return'].body, inner, stmt.src, 'early return type', 'return value');
+            unify(tenv.scope['return'].scheme.body, inner, stmt.src, 'early return type', 'return value');
             stackPop();
             return { value };
         }
@@ -659,22 +678,22 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 return newTypeVar({ type: 'free', prev: expr.name }, expr.src);
                 // throw new Error();
             }
-            if (got.vars.length) {
+            if (got.scheme.vars.length) {
                 stackPush(
                     expr.src,
                     kwd(expr.name),
                     ' -> ',
                     '<',
-                    ...got.vars.map((name) => typ({ type: 'var', name, src: expr.src }, true)),
+                    ...got.scheme.vars.map((name) => typ({ type: 'var', name, src: expr.src }, true)),
                     '>',
-                    typ(got.body, true),
+                    typ(got.scheme.body, true),
                 );
             } else {
-                stackPush(expr.src, kwd(expr.name), ' -> ', typ(got.body));
+                stackPush(expr.src, kwd(expr.name), ' -> ', typ(got.scheme.body));
             }
             stackBreak('variable lookup');
-            const inst = instantiate(got, expr.src);
-            if (got.vars.length) {
+            const inst = instantiate(got.scheme, expr.src);
+            if (got.scheme.vars.length) {
                 stackReplace(expr.src, kwd(expr.name), ' -> ', typ(inst));
                 stackBreak('create new variables for the type parameters');
             }
@@ -700,12 +719,15 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 let [argType, patScope] = inferPattern(tenv, pat);
                 patScope = scopeApply(globalState.subst, patScope);
                 args.push(argType);
-                Object.assign(scope, patScope);
+                Object.entries(patScope).forEach(([key, scheme]) => {
+                    scope[key] = { scheme, source: { type: 'local', src: scheme.src } };
+                });
                 globalState.events.push({ type: 'infer', src: pat.src, value: argType });
             });
             stackReplace(src, '(', ...commas(args.map(typ)), '): ', hole(true), ' => ', hole());
             const returnVar = newTypeVar({ type: 'lambda-return', src: expr.src }, expr.src);
-            scope.return = { vars: [], body: returnVar, src };
+            scope.return = { scheme: { vars: [], body: returnVar, src }, source: { type: 'local', src } };
+
             stackPush(src, typ(returnVar));
             stackBreak(`Create a type variable for tracking early returns`);
             globalState.events.push({ type: 'infer', src: { type: 'src', left: expr.src.left, id: genId() }, value: returnVar });
@@ -946,7 +968,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                     hole(),
                 );
                 const applied = tenvApply(globalState.subst, tenv);
-                const res = inferStmt({ ...applied, scope: { ...applied.scope, ...scope } }, inner);
+                const res = inferStmt(tenvWithScope(applied, scope), inner);
                 if (res.scope) {
                     Object.assign(scope, res.scope);
                 }
@@ -1004,7 +1026,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
     throw new Error('Unknown expr type: ' + (expr as any).type);
 };
 
-const inferPattern = (tenv: Tenv, pat: Pat): [Type, Tenv['scope']] => {
+const inferPattern = (tenv: Tenv, pat: Pat): [Type, Record<string, Scheme>] => {
     switch (pat.type) {
         case 'any':
             return [newTypeVar({ type: 'pat-any', src: pat.src }, pat.src), {}];
@@ -1037,7 +1059,7 @@ const inferPattern = (tenv: Tenv, pat: Pat): [Type, Tenv['scope']] => {
 
             if (cargs.length !== pat.args.args.length) throw new Error(`wrong number of arguments to type constructor ${pat.name}`);
 
-            const scope: Tenv['scope'] = {};
+            const scope: Record<string, Scheme> = {};
 
             if (tenv.constructors[pat.name].free.length) {
                 stackReplace(pat.src, kwd(pat.name), ' -> ', typ({ type: 'fn', args: cargs, result: cres, src: pat.src }));

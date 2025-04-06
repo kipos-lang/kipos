@@ -12,6 +12,7 @@ import {
     newTypeVar,
     resetState,
     Scheme,
+    Source,
     typeApply,
     typeToNode,
     typeToString,
@@ -25,7 +26,7 @@ type Macro = {
     body: Rule<any>;
 };
 
-export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
+export const defaultLang: Language<Macro, Stmt, Record<string, { scheme: Scheme; source: Source }>> = {
     version: 1,
     // intern: (ast, info) => ({ ast, info }),
     parser: {
@@ -63,13 +64,14 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
         const env = builtinEnv();
         const glob = getGlobalState();
 
+        console.log(deps);
         deps.forEach((scope) => Object.assign(env.scope, scope));
 
         let res: Type[] | null = null;
         let error: string | null = null;
         const eventsByTop: VEvent[][] = [];
         // NOTE: This limits us to 1 def per name, can't do static overloading in a world like this
-        const scope: Record<string, Scheme> = {};
+        const scope: Record<string, { scheme: Scheme; source: Source }> = {};
         try {
             if (asts.length > 1) {
                 const full = inferStmts(
@@ -77,14 +79,20 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                     asts.map((a) => a.ast),
                 );
                 res = full.values;
-                Object.assign(scope, full.scope);
+                full.scopes.forEach((sub, i) => {
+                    Object.entries(sub).forEach(([key, scheme]) => {
+                        scope[key] = { scheme, source: { type: 'toplevel', toplevel: asts[i].tid, module: '', src: scheme.src } };
+                    });
+                });
                 full.events.forEach(([start, end]) => {
                     eventsByTop.push(glob.events.slice(start, end));
                 });
             } else {
                 const result = inferStmt(env, asts[0].ast);
                 if (result.scope) {
-                    Object.assign(scope, result.scope);
+                    Object.entries(result.scope).forEach(([key, scheme]) => {
+                        scope[key] = { scheme, source: { type: 'toplevel', toplevel: asts[0].tid, module: '', src: scheme.src } };
+                    });
                 }
                 res = [result.value];
                 eventsByTop.push(glob.events.slice());
@@ -131,6 +139,8 @@ export const defaultLang: Language<Macro, Stmt, Record<string, Scheme>> = {
                 }
             });
         });
+
+        console.log('result scope', scope);
 
         // return { glob, res, cst, node, parsed };
         return {
