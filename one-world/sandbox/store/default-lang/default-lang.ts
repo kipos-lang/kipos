@@ -99,7 +99,7 @@ export const defaultLang: Language<Macro, Stmt, TInfo> = {
                 res = full.values;
                 full.scopes.forEach((sub, i) => {
                     Object.entries(sub).forEach(([key, scheme]) => {
-                        scope[key] = { scheme, source: { type: 'toplevel', toplevel: asts[i].tid, module: moduleId, src: scheme.src } };
+                        scope[key] = { scheme, source: { type: 'toplevel', name: key, toplevel: asts[i].tid, module: moduleId, src: scheme.src } };
                     });
                 });
                 full.events.forEach(([start, end]) => {
@@ -109,7 +109,7 @@ export const defaultLang: Language<Macro, Stmt, TInfo> = {
                 const result = inferStmt(env, asts[0].ast);
                 if (result.scope) {
                     Object.entries(result.scope).forEach(([key, scheme]) => {
-                        scope[key] = { scheme, source: { type: 'toplevel', toplevel: asts[0].tid, module: moduleId, src: scheme.src } };
+                        scope[key] = { scheme, source: { type: 'toplevel', name: key, toplevel: asts[0].tid, module: moduleId, src: scheme.src } };
                     });
                 }
                 res = [result.value];
@@ -195,6 +195,14 @@ Things to think about when compiling:
 */
 
 type TraceableString = string | { type: 'group'; id: string; contents: TraceableString[] } | { type: 'indent'; contents: TraceableString[] };
+
+const toString = (ts: TraceableString): string => {
+    if (typeof ts === 'string') return ts;
+    if (ts.type === 'group') {
+        return ts.contents.map(toString).join('');
+    }
+    return ts.contents.map(toString).join('').replace(/\n/g, '\n  ');
+};
 
 const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString => {
     switch (expr.type) {
@@ -340,6 +348,27 @@ const addFn = <K extends keyof CompilerEvents>(
     };
 };
 
+/*
+
+I have code for a top
+
+in order to evaluate it, ...
+OK FOLKS I'm just gonna cache stuff,
+and mutability be darned.
+
+
+
+
+*/
+
+const evaluate = (source: string, toplevels: { [module: string]: { [top: string]: string } }): EvaluationResult[] => {
+    return [];
+};
+
+const define = () => {
+    throw new Error('nope');
+};
+
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
 class DefaultCompiler implements Compiler<Stmt, TInfo> {
@@ -347,12 +376,48 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
         results: {},
         viewSource: {},
     };
-    code: Record<string, string> = {};
+    code: { [module: string]: { [top: string]: string } } = {};
+    results: {
+        [module: string]: {
+            [top: string]:
+                | {
+                      type: 'definition';
+                      scope: Record<string, any>;
+                  }
+                | { type: 'evaluate'; result: EvaluationResult[] };
+        };
+    } = {};
     constructor() {
         //
     }
-    loadModule(moduleId: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
-        //
+    loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
+        this.code[module] = {};
+        deps.traversalOrder.forEach((hid) => {
+            // TODO: ... if names are duplicated ... do something about that
+            const components = deps.components.entries[hid];
+            components.forEach((top) => {
+                const deps: Record<string, any> = {};
+                Object.values(infos[hid].resolutions).forEach((source) => {
+                    if (source.type === 'toplevel') {
+                        const top = this.results[source.module][source.toplevel];
+                        if (top.type !== 'definition') throw new Error(`source in a top thats not a definition`);
+                        if (!(source.src.id in top.scope)) throw new Error(`source id ${source.src.id} not defined`);
+                        deps[`${source.module}.${source.toplevel}.${source.src.id}`] = top.scope[source.src.id];
+                    }
+                });
+
+                const code = stmtToString(asts[top].ast, infos[hid].resolutions);
+                const source = toString(code);
+                this.code[module][top] = source;
+                this.emit('viewSource', { module, top }, { source });
+                if (asts[top].kind.type === 'evaluation') {
+                    this.results[module][top] = { type: 'evaluate', result: evaluate(source, this.code) };
+                } else if (asts[top].kind.type === 'definition') {
+                    const scope = define();
+                    this.results[module][top] = { type: 'definition', scope };
+                }
+            });
+        });
     }
     update(
         updateId: string,

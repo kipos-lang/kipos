@@ -3,7 +3,7 @@ import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
-import { Annotation, Compiler, Language, ParseResult, ValidateResult } from './language';
+import { Annotation, Compiler, Language, ParseKind, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
 
@@ -60,10 +60,10 @@ export class EditorStore<AST, TypeInfo> {
         });
         this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
         this.runValidation(this.state.dependencies, this.state.validationResults);
-        const asts: Record<string, AST> = {};
+        const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
         Object.entries(this.state.parseResults).forEach(([key, parse]) => {
             if (!parse.result) return;
-            asts[key] = parse.result;
+            asts[key] = { ast: parse.result, kind: parse.kind };
         });
         const infos: Record<string, TypeInfo> = {};
         Object.entries(this.state.validationResults).forEach(([key, result]) => {

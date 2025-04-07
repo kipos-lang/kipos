@@ -153,7 +153,10 @@ const typeEqual = (one: Type, two: Type): boolean => {
 
 export type Scheme = { vars: string[]; body: Type; src: Src };
 
-export type Source = { type: 'builtin' } | { type: 'local'; src: Src } | { type: 'toplevel'; module: string; toplevel: string; src: Src };
+export type Source =
+    | { type: 'builtin' }
+    | { type: 'local'; src: Src }
+    | { type: 'toplevel'; module: string; toplevel: string; src: Src; name: string };
 
 export type Tenv = {
     scope: Record<string, { scheme: Scheme; source: Source }>;
