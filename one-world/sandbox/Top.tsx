@@ -3,7 +3,7 @@ import React, { useMemo, useCallback, createContext } from 'react';
 import { genId } from '../keyboard/ui/genId';
 import { Path, lastChild } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
-import { DragCtx, noopDrag } from './Editor';
+import { DragCtx, noopDrag, useEditor } from './Editor';
 import { RenderNode } from './render/RenderNode';
 import { Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
@@ -39,6 +39,65 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
 
     const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (
+        <div>
+            <div
+                className={css({
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    padding: '12px',
+                    margin: '12px',
+                    borderRadius: '4px',
+                    boxShadow: '0px 1px 3px #ccc',
+                    fontFamily: 'Jet Brains',
+                })}
+                style={
+                    isSelected
+                        ? {
+                              boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color,
+                          }
+                        : {}
+                }
+            >
+                <TopGrab name={name} id={id} />
+                <div style={{ flexBasis: 12 }} />
+                <GetTopCtx.Provider value={getTop}>
+                    <UseNodeCtx.Provider value={useNode}>
+                        <RenderNode parent={rootPath} id={root} />
+                    </UseNodeCtx.Provider>
+                </GetTopCtx.Provider>
+                <div
+                    className={css({
+                        marginLeft: '24px',
+                        boxShadow: `0px 1px 2px ${currentTheme.typeColors.hlColor}`,
+                        paddingInline: '4px',
+                        borderRadius: '3px',
+                    })}
+                >
+                    {Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
+                        <div key={key}>
+                            {items.map((item, i) =>
+                                item.type === 'type' && item.primary ? (
+                                    <div key={i}>
+                                        <RenderStaticNode root={item.annotation} />
+                                    </div>
+                                ) : null,
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <TopReults id={id} isSelected={isSelected} />
+        </div>
+    );
+});
+
+export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean }) => {
+    const editor = useEditor();
+    const results = editor.useTopResults(id);
+    if (results == null) return null;
+
+    return (
         <div
             className={css({
                 display: 'flex',
@@ -58,36 +117,10 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                     : {}
             }
         >
-            <TopGrab name={name} id={id} />
-            <div style={{ flexBasis: 12 }} />
-            <GetTopCtx.Provider value={getTop}>
-                <UseNodeCtx.Provider value={useNode}>
-                    <RenderNode parent={rootPath} id={root} />
-                </UseNodeCtx.Provider>
-            </GetTopCtx.Provider>
-            <div
-                className={css({
-                    marginLeft: '24px',
-                    boxShadow: `0px 1px 2px ${currentTheme.typeColors.hlColor}`,
-                    paddingInline: '4px',
-                    borderRadius: '3px',
-                })}
-            >
-                {Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
-                    <div key={key}>
-                        {items.map((item, i) =>
-                            item.type === 'type' && item.primary ? (
-                                <div key={i}>
-                                    <RenderStaticNode root={item.annotation} />
-                                </div>
-                            ) : null,
-                        )}
-                    </div>
-                ))}
-            </div>
+            {JSON.stringify(results)}
         </div>
     );
-});
+};
 
 export const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record<string, Meta> } }) => {
     const { map, id, meta } = useMemo(() => {

@@ -13,6 +13,19 @@ will be necessary for codegen
 - [x] track module through somehowwww
 - [ ] do a little compiler
 
+- [ ] modules ... I need to do a dependency graph of modules too
+
+WHAT ABOUT SUBMODULES
+you know what, I think I do want submodules.
+In fact, which if I use nesting as being submodules? that seems kinda natural, right?
+a module can be anonymous, in which case it can't really be referenced
+but it can also be named
+
+ok so you can like have a definition, and the anonymous submodule inhabited by the toplevel's children
+has like ... documentation? and tests? that's kinda cool.
+
+OR you could have a docstring toplevel, and have the submodule be named, and the docstring is the documentation for the thing.
+
 ## A Little Compiler
 
 - [ ] want to be able to show in the debug sidebar ... the compiled output of a thing.
@@ -376,7 +389,6 @@ tale as old as time, what do you do about lambdas.
 I say, that directly calling a toplevel function puts you in magic territory.
 So if the target resolves to a `var`, and that `var` resolves to a named-function-type,
 then we're good.
-
 # Typed FFI
 
 Ok y'all, we're gonna need to talk about typed ffi.

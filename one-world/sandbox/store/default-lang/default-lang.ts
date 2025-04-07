@@ -1,7 +1,7 @@
 import { cp } from 'fs/promises';
 import { RecNode } from '../../../shared/cnodes';
 import { parser } from '../../../syntaxes/algw-s2-return';
-import { Expr, Pat, Stmt, Type } from '../../../syntaxes/algw-s2-types';
+import { Block, Expr, Pat, Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Dependencies } from '../editorStore';
 import {
@@ -158,7 +158,7 @@ export const defaultLang: Language<Macro, Stmt, TInfo> = {
             });
         });
 
-        console.log('result scope', scope, glob.resolutions);
+        // console.log('result scope', scope, glob.resolutions);
 
         // return { glob, res, cst, node, parsed };
         return {
@@ -209,7 +209,7 @@ type Resolutions = Record<string, Source>;
 const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
     switch (expr.type) {
         case 'block':
-            return group(expr.src.id, ['{\n', { type: 'indent', contents: expr.stmts.map((stmt) => stmtToString(stmt, res)) }, '}']);
+            return blockToString(expr, res);
         case 'object':
             return group(expr.src.id, [
                 '{',
@@ -226,20 +226,15 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 '}',
             ]);
         case 'if':
-            return group(expr.src.id, [
-                'if (',
-                exprToString(expr.cond, res),
-                ') ',
-                exprToString(expr.yes, res),
-                expr.no ? ` else ${exprToString(expr.no, res)}\n` : '\n',
-            ]);
+            return group(expr.src.id, ['() => {', ifToString(expr, res, true), '}']);
         case 'match':
             return group(expr.src.id, [
+                '() => {',
                 'switch (',
                 exprToString(expr.target, res),
                 ') {\n',
                 { type: 'indent', contents: expr.cases.map((c) => `${patToString(c.pat, res)} => ${exprToString(c.body, res)},\n`) },
-                '}',
+                '}\n}',
             ]);
         case 'array':
             return group(expr.src.id, [
@@ -328,7 +323,25 @@ const patToString = (pat: Pat, res: Resolutions): TraceableString => {
     }
 };
 
-const stmtToString = (stmt: Stmt, res: Resolutions): TraceableString => {
+const blockToString = (block: Block, res: Resolutions, vbl?: string | true) => {
+    return group(block.src.id, [
+        '{\n',
+        { type: 'indent', contents: block.stmts.map((stmt, i) => stmtToString(stmt, res, i === block.stmts.length - 1 ? vbl : undefined)) },
+        '}',
+    ]);
+};
+
+const ifToString = (iff: Expr & { type: 'if' }, res: Resolutions, vbl?: string | true): TraceableString => {
+    return group(iff.src.id, [
+        'if (',
+        exprToString(iff.cond, res),
+        ') ',
+        blockToString(iff.yes, res, vbl),
+        iff.no ? ` else ${iff.no.type === 'if' ? ifToString(iff.no, res, vbl) : blockToString(iff.no, res, vbl)}\n` : '\n',
+    ]);
+};
+
+const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string): TraceableString => {
     switch (stmt.type) {
         case 'for':
             return group(stmt.src.id, [
@@ -339,13 +352,30 @@ const stmtToString = (stmt: Stmt, res: Resolutions): TraceableString => {
                 '; ',
                 exprToString(stmt.update, res),
                 ') ',
-                exprToString(stmt.body, res),
+                blockToString(stmt.body, res),
                 '\n',
             ]);
         case 'let':
+            if (stmt.init.type === 'block') {
+                if (stmt.pat.type === 'var') {
+                    return group(stmt.src.id, [`let `, patToString(stmt.pat, res), ';\n', blockToString(stmt.init, res, stmt.pat.name), ';\n']);
+                }
+            }
             return group(stmt.src.id, [`let `, patToString(stmt.pat, res), ` = `, exprToString(stmt.init, res), ';\n']);
         case 'expr':
-            return group(stmt.src.id, [exprToString(stmt.expr, res), ';\n']);
+            switch (stmt.expr.type) {
+                case 'block':
+                    return blockToString(stmt.expr, res, last);
+                case 'if':
+                    return ifToString(stmt.expr, res, last);
+            }
+            if (last === true) {
+                return group(stmt.src.id, ['return ', exprToString(stmt.expr, res), ';\n']);
+            } else if (last) {
+                return group(stmt.src.id, [last, ' = ', exprToString(stmt.expr, res), ';\n']);
+            } else {
+                return group(stmt.src.id, [exprToString(stmt.expr, res), ';\n']);
+            }
         case 'type':
             throw new Error('wat');
         case 'return':
@@ -389,7 +419,7 @@ const evaluate = (source: string, deps: Record<string, any>, names: Record<strin
         'deps',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
-            .join('') + `\n\nreturn ${source}`,
+            .join('') + `\n\n${source}`,
     );
     try {
         const value = f(deps);
@@ -421,7 +451,7 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
         viewSource: {},
     };
     code: { [module: string]: { [top: string]: string } } = {};
-    results: {
+    _results: {
         [module: string]: {
             [top: string]:
                 | {
@@ -434,10 +464,19 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
     constructor() {
         //
     }
+    results(moduleId: string, top: string): EvaluationResult[] | null {
+        const res = this._results[moduleId]?.[top];
+        if (res?.type === 'evaluate') {
+            return res.result;
+        }
+        return null;
+    }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
         this.code[module] = {};
-        this.results[module] = {};
+        this._results[module] = {};
+        // console.log('deps', deps.traversalOrder);
         deps.traversalOrder.forEach((hid) => {
+            // console.log('processing', hid);
             // TODO: ... if names are duplicated ... do something about that
             const components = deps.components.entries[hid];
             components.forEach((top) => {
@@ -447,14 +486,14 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
 
                 Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
                     if (source.type === 'toplevel') {
-                        const top = this.results[source.module][source.toplevel];
+                        const top = this._results[source.module][source.toplevel];
                         if (top.type !== 'definition') throw new Error(`source in a top thats not a definition`);
-                        if (!(source.src.id in top.scope)) {
-                            console.log('have', source.src, top.scope);
-                            throw new Error(`source id ${source.src.id} not defined`);
+                        if (!(source.src.left in top.scope)) {
+                            // console.log('have', source.src, top.scope);
+                            throw new Error(`source id ${source.src.left} not defined`);
                         }
-                        const key = `${source.module}.${source.toplevel}.${source.src.id}`;
-                        deps[key] = top.scope[source.src.id];
+                        const key = `${source.module}.${source.toplevel}.${source.src.left}`;
+                        deps[key] = top.scope[source.src.left];
                         if (!names[source.name] || names[source.name] === key) {
                             names[source.name] = key;
                             fixedSources[rkey] = { ...source, name: '$' + source.name };
@@ -474,12 +513,15 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
                     }
                 });
 
-                const code = stmtToString(asts[top].ast, fixedSources);
+                const code = stmtToString(asts[top].ast, fixedSources, true);
+                // console.log('to string');
+                // console.log(code);
                 const source = toString(code);
+                // console.log(source);
                 this.code[module][top] = source;
                 this.emit('viewSource', { module, top }, { source });
                 if (asts[top].kind.type === 'evaluation') {
-                    this.results[module][top] = { type: 'evaluate', result: evaluate(source, deps, names) };
+                    this._results[module][top] = { type: 'evaluate', result: evaluate(source, deps, names) };
                 } else if (asts[top].kind.type === 'definition') {
                     try {
                         const rawscope = define(
@@ -495,7 +537,7 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
                                 scope[p.loc] = rawscope[p.name];
                             });
 
-                        this.results[module][top] = { type: 'definition', scope };
+                        this._results[module][top] = { type: 'definition', scope };
                     } catch (err) {
                         console.error('bad news bears', err);
                     }

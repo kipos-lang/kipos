@@ -7,7 +7,7 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
 import { LangResult, makeEditor } from './makeEditor';
-import { Annotation, Meta, ParseResult } from './language';
+import { Annotation, EvaluationResult, Meta, ParseResult } from './language';
 import { Event } from '../../syntaxes/dsl3';
 import { Dependencies } from './editorStore';
 
@@ -35,6 +35,7 @@ export interface EditorStoreI {
     useTopParseResults(top: string): LangResult;
     useParseResults(): Record<string, ParseResult<any>>;
     useDependencyGraph(): Dependencies;
+    useTopResults(top: string): null | EvaluationResult[];
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;

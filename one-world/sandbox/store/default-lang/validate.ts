@@ -582,7 +582,9 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
                 // globalState.events.push({ type: 'stack-pop' });
                 // globalState.events.push({ type: 'infer', src: pat.src, value: valueType });
                 return {
-                    scope: { [pat.name]: init.type === 'lambda' ? generalize(appliedEnv, valueType, src) : { vars: [], body: valueType, src } },
+                    scope: {
+                        [pat.name]: init.type === 'lambda' ? generalize(appliedEnv, valueType, pat.src) : { vars: [], body: valueType, src: pat.src },
+                    },
                     value: gtypeApply(valueType),
                 };
             }
@@ -594,7 +596,7 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
             scope = scopeApply(globalState.subst, scope);
             // globalState.events.push({ type: 'stack-pop' });
             stackPop();
-            return { scope: scope, value: gtypeApply(valueType) };
+            return { scope: scope, value: { type: 'con', name: 'void', src } };
         }
         case 'expr':
             const value = inferExpr(tenv, stmt.expr);

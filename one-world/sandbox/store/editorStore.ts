@@ -52,12 +52,16 @@ export class EditorStore<AST, TypeInfo> {
         this.language = language;
         this.compiler = language.compiler();
         this.initialProcess();
+        // @ts-ignore
+        window.compiler = this.compiler;
     }
 
     initialProcess() {
-        Object.values(this.module.toplevels).forEach((top) => {
+        this.module.roots.forEach((id) => {
+            const top = this.module.toplevels[id];
             this.state.parseResults[top.id] = this.language.parser.parse([], root({ top }));
         });
+        console.log('parsed', this.state.parseResults);
         this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
         this.runValidation(this.state.dependencies, this.state.validationResults);
         const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
@@ -69,7 +73,11 @@ export class EditorStore<AST, TypeInfo> {
         Object.entries(this.state.validationResults).forEach(([key, result]) => {
             infos[key] = result.result;
         });
-        this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
+        try {
+            this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
+        } catch (err) {
+            console.log(err);
+        }
     }
 
     updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
@@ -152,6 +160,7 @@ export class EditorStore<AST, TypeInfo> {
                 dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
                 dependencies.headDeps[id].map((did) => results[did].result),
             );
+            // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
             // to indicate that a value exists but has type errors

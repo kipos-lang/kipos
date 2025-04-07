@@ -139,6 +139,7 @@ export interface Compiler<AST, ValidationInfo> {
         asts: Record<string, { kind: ParseKind; ast: AST }>,
         infos: Record<string, ValidationInfo>,
     ): void;
+    results(moduleId: string, top: string): EvaluationResult[] | null;
     update(
         updateId: string,
         moduleId: string,

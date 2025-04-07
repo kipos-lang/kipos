@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { root } from '../../keyboard/root';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import { genId } from '../../keyboard/ui/genId';
@@ -9,7 +9,7 @@ import { Event, Src } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
 import { EditorStore } from './editorStore';
-import { Language, ParseResult, ValidateResult } from './language';
+import { EvaluationResult, Language, ParseResult, ValidateResult } from './language';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStoreI, Evt, allIds } from './store';
@@ -79,6 +79,13 @@ export const makeEditor = (
         useDependencyGraph() {
             useTick(`module:${selected}:dependency-graph`);
             return store.state.dependencies;
+        },
+        useTopResults(top: string) {
+            const [results, setResults] = useState(store.compiler.results(selected, top) as null | EvaluationResult[]);
+            useEffect(() => {
+                return store.compiler.listen('results', { module: selected, top }, ({ results }) => setResults(results));
+            }, [top]);
+            return results;
         },
         useParseResults() {
             useTick(`module:${selected}:parse-results`);
