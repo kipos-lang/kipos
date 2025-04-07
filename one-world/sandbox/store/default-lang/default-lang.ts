@@ -472,16 +472,18 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
         return null;
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
-        this.code[module] = {};
-        this._results[module] = {};
+        if (!this.code[module]) this.code[module] = {};
+        if (!this._results[module]) this._results[module] = {};
         // console.log('deps', deps.traversalOrder);
         deps.traversalOrder.forEach((hid) => {
+            if (!asts[hid] || !infos[hid]) return; // skipping Iguess
             // console.log('processing', hid);
             // TODO: ... if names are duplicated ... do something about that
             const components = deps.components.entries[hid];
             components.forEach((top) => {
                 const deps: Record<string, any> = {};
                 const names: Record<string, string> = {};
+                if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
                 const fixedSources: Resolutions = { ...infos[hid].resolutions };
 
                 Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
@@ -521,7 +523,9 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
                 this.code[module][top] = source;
                 this.emit('viewSource', { module, top }, { source });
                 if (asts[top].kind.type === 'evaluation') {
-                    this._results[module][top] = { type: 'evaluate', result: evaluate(source, deps, names) };
+                    const result = evaluate(source, deps, names);
+                    this._results[module][top] = { type: 'evaluate', result };
+                    this.emit('results', { module, top }, { results: result });
                 } else if (asts[top].kind.type === 'definition') {
                     try {
                         const rawscope = define(

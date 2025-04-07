@@ -51,13 +51,7 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                     boxShadow: '0px 1px 3px #ccc',
                     fontFamily: 'Jet Brains',
                 })}
-                style={
-                    isSelected
-                        ? {
-                              boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color,
-                          }
-                        : {}
-                }
+                style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
             >
                 <TopGrab name={name} id={id} />
                 <div style={{ flexBasis: 12 }} />
@@ -109,13 +103,7 @@ export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean 
                 boxShadow: '0px 1px 3px #ccc',
                 fontFamily: 'Jet Brains',
             })}
-            style={
-                isSelected
-                    ? {
-                          boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color,
-                      }
-                    : {}
-            }
+            style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
         >
             {JSON.stringify(results)}
         </div>

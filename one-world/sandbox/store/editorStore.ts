@@ -63,21 +63,7 @@ export class EditorStore<AST, TypeInfo> {
         });
         console.log('parsed', this.state.parseResults);
         this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
-        this.runValidation(this.state.dependencies, this.state.validationResults);
-        const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
-        Object.entries(this.state.parseResults).forEach(([key, parse]) => {
-            if (!parse.result) return;
-            asts[key] = { ast: parse.result, kind: parse.kind };
-        });
-        const infos: Record<string, TypeInfo> = {};
-        Object.entries(this.state.validationResults).forEach(([key, result]) => {
-            infos[key] = result.result;
-        });
-        try {
-            this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
-        } catch (err) {
-            console.log(err);
-        }
+        this.runValidation();
     }
 
     updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
@@ -108,32 +94,47 @@ export class EditorStore<AST, TypeInfo> {
         });
         // console.log('other notified', ids, otherNotified);
         this.state.dependencies = newDeps;
-        this.runValidation(this.state.dependencies, this.state.validationResults, ids.concat(otherNotified), changedKeys);
+        this.runValidation(ids.concat(otherNotified), changedKeys);
     }
 
-    runValidation(
-        dependencies: Dependencies,
-        results: Record<string, ValidateResult<TypeInfo>>,
-        changedTops?: string[],
-        changedKeys?: Record<string, true>,
-    ) {
+    runCompilation(heads: string[]) {
+        const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
+        // const heads: Record<string, true> = {};
+        heads.forEach((hid) => {
+            this.state.dependencies.components.entries[hid].forEach((key) => {
+                const parse = this.state.parseResults[key];
+                if (!parse?.result) return;
+                asts[key] = { ast: parse.result, kind: parse.kind };
+            });
+        });
+        const infos: Record<string, TypeInfo> = {};
+        heads.forEach((key) => {
+            infos[key] = this.state.validationResults[key]?.result;
+        });
+        try {
+            this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    runValidation(changedTops?: string[], changedKeys?: Record<string, true>) {
         if (!this.language.validate) return {};
-        // const results: Record<string, ValidateResult<TypeInfo>> = {};
         let onlyUpdate = null as null | string[];
         if (changedTops) {
             onlyUpdate = [];
             changedTops.forEach((id) => {
-                const hid = dependencies.components.pointers[id];
+                const hid = this.state.dependencies.components.pointers[id];
                 if (!onlyUpdate!.includes(hid)) onlyUpdate!.push(hid);
             });
         }
         // Ok, so.
-        for (let id of dependencies.traversalOrder) {
+        for (let id of this.state.dependencies.traversalOrder) {
             if (onlyUpdate) {
                 if (!onlyUpdate.includes(id)) continue;
             }
             let skip = false;
-            for (let cid of dependencies.components.entries[id]) {
+            for (let cid of this.state.dependencies.components.entries[id]) {
                 if (!this.state.parseResults[cid]) {
                     // This should be ... smoother.
                     throw new Error(`something didnt get parsed: ${cid}`);
@@ -149,45 +150,45 @@ export class EditorStore<AST, TypeInfo> {
                 console.warn(`skipping validation for ${id} because of parse error`);
                 continue;
             }
-            for (let did of dependencies.headDeps[id]) {
-                if (!results[did]) {
+            for (let did of this.state.dependencies.headDeps[id]) {
+                if (!this.state.validationResults[did]) {
                     throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
                 }
             }
             // const prev = results[id];
-            results[id] = this.language.validate(
+            this.state.validationResults[id] = this.language.validate(
                 this.module.id,
-                dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
-                dependencies.headDeps[id].map((did) => results[did].result),
+                this.state.dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
+                this.state.dependencies.headDeps[id].map((did) => this.state.validationResults[did].result),
             );
             // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
             // to indicate that a value exists but has type errors
-            for (let cid of dependencies.components.entries[id]) {
+            for (let cid of this.state.dependencies.components.entries[id]) {
                 if (changedKeys) {
                     // console.log(`annotations for`, cid, results[id].annotations[cid], this.prevAnnotations[cid]);
-                    Object.entries(results[id].annotations[cid]).forEach(([k, ann]) => {
+                    Object.entries(this.state.validationResults[id].annotations[cid]).forEach(([k, ann]) => {
                         if (!equal(ann, this.prevAnnotations[cid]?.[k])) {
                             changedKeys[k] = true;
                         }
                     });
 
                     Object.keys(this.prevAnnotations[cid] ?? {}).forEach((k) => {
-                        if (!results[id].annotations[cid]?.[k]) {
+                        if (!this.state.validationResults[id].annotations[cid]?.[k]) {
                             changedKeys[k] = true;
                         }
                     });
                 }
 
-                this.prevAnnotations[cid] = results[id].annotations[cid];
+                this.prevAnnotations[cid] = this.state.validationResults[id].annotations[cid];
 
                 // this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
             }
 
-            for (let cid of dependencies.components.entries[id]) {
+            for (let cid of this.state.dependencies.components.entries[id]) {
                 const prev = this.state.spans[cid];
-                this.state.spans[cid] = this.calculateSpans(cid, this.module.toplevels[cid], results[id]);
+                this.state.spans[cid] = this.calculateSpans(cid, this.module.toplevels[cid], this.state.validationResults[id]);
                 if (changedKeys) {
                     Object.entries(this.state.spans[cid]).forEach(([loc, spans]) => {
                         if (!prev) changedKeys[loc] = true;
@@ -201,10 +202,11 @@ export class EditorStore<AST, TypeInfo> {
             // TODO: here's where we would determine whether the `results[id]` had meaningfully changed
             // from the previous one, and only then would we add dependencies to the onlyUpdate list.
             if (onlyUpdate) {
-                onlyUpdate.push(...(dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
+                onlyUpdate.push(...(this.state.dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
             }
         }
         // return results;
+        this.runCompilation(onlyUpdate ?? this.state.dependencies.traversalOrder);
     }
 
     calculateSpans(tid: string, top: Toplevel, validation: ValidateResult<TypeInfo>) {
