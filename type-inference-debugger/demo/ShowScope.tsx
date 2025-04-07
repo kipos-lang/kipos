@@ -1,15 +1,7 @@
 import React, { useMemo } from 'react';
-import { Scheme, Subst, builtinEnv, schemeApply } from '../infer/algw/algw-s2-return';
+import { Subst, Tenv, builtinEnv, schemeApply } from '../infer/algw/algw-s2-return';
 import { Ctx, NodeClick } from './App';
 import { colors, RenderScheme } from './RenderType';
-import { Type } from '../infer/algw/Type';
-
-export type Tenv = {
-    scope: Record<string, { scheme: Scheme; source: any }>;
-    constructors: Record<string, { free: string[]; args: Type[]; result: Type }>;
-    types: Record<string, { free: number; constructors: string[] }>;
-    aliases: Record<string, { args: string[]; body: Type }>;
-};
 
 export const ShowScope = ({
     smap,
@@ -81,7 +73,7 @@ export const ShowScope = ({
                             <div style={{ textAlign: 'right', marginLeft: 16 }}>{k}</div>
                             <div style={{ textAlign: 'left' }}>
                                 <RenderScheme
-                                    s={schemeApply(smap, scope[k].scheme)}
+                                    s={schemeApply(smap, scope[k])}
                                     highlightVars={highlightVars}
                                     onClick={(name) => ctx?.onClick({ type: 'var', name })}
                                 />

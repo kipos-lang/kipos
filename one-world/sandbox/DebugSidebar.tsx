@@ -130,7 +130,14 @@ const ShowTypeInference = () => {
     const breaks = useMemo(() => stackForEvt(events.length - 1, events), [events]);
 
     const { byLoc, scope, smap, stack, highlightVars } = useMemo(() => {
-        return processStack(events, results?.ctx.meta ?? {}, at, false);
+        return processStack(
+            events.map((evt) =>
+                evt.type === 'scope' ? { ...evt, scope: Object.fromEntries(Object.entries(evt.scope).map(([k, v]) => [k, (v as any).scheme])) } : evt,
+            ),
+            results?.ctx.meta ?? {},
+            at,
+            false,
+        );
     }, [at, false, events, results?.ctx.meta]);
 
     if (!results?.validation) return <span>No inference results</span>;
