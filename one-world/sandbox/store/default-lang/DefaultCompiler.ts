@@ -86,10 +86,15 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
         }
         return null;
     }
-    logFailure(module: string, top: string, kind: FailureKind) {
+    logFailure(module: string, top: string, kind: FailureKind | null) {
         if (!this._failures[module]) this._failures[module] = {};
-        this._failures[module][top] = kind;
-        this.emit('failure', { module, top }, [kind]);
+        if (!kind) {
+            delete this._failures[module][top];
+            this.emit('failure', { module, top }, []);
+        } else {
+            this._failures[module][top] = kind;
+            this.emit('failure', { module, top }, [kind]);
+        }
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
         if (!this.code[module]) this.code[module] = {};
@@ -157,6 +162,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
                     const result = evaluate(source, deps, names);
                     this._results[module][top] = { type: 'evaluate', result };
                     this.emit('results', { module, top }, { results: result });
+                    this.logFailure(module, top, null);
                 } else if (asts[top].kind.type === 'definition') {
                     try {
                         const rawscope = define(
@@ -173,6 +179,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
                             });
 
                         this._results[module][top] = { type: 'definition', scope };
+                        this.logFailure(module, top, null);
                     } catch (err) {
                         // console.error('bad news bears', err);
                         this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });

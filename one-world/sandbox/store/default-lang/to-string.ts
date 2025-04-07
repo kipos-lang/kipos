@@ -225,7 +225,7 @@ const ifToString = (iff: Expr & { type: 'if' }, res: Resolutions, vbl?: string |
         exprToString(iff.cond, res),
         ') ',
         blockToString(iff.yes, res, vbl),
-        iff.no ? ` else ${iff.no.type === 'if' ? ifToString(iff.no, res, vbl) : blockToString(iff.no, res, vbl)}` : '',
+        ...(iff.no ? [` else `, iff.no.type === 'if' ? ifToString(iff.no, res, vbl) : blockToString(iff.no, res, vbl)] : []),
     ]);
 };
 export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string): TraceableString => {

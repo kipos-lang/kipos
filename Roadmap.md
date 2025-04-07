@@ -17,9 +17,12 @@ will be necessary for codegen
 - [ ] anddd that means we need to like load up the infos again, right?
 - [ ] aslooo, we want to handle multi module situations
 
-- [ ] indicate errors happening at different levels
+- [x] indicate errors happening at different levels
 - [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
   like they can type check, but should not execute
+
+- [ ] I also super want tests. definitely tests.
+- [ ] additionally, if it's not too much trouble, persist the files to the backend.
 
 - [ ] modules ... I need to do a dependency graph of modules too
 
