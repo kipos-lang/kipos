@@ -20,21 +20,19 @@ import { Dependencies } from './editorStore';
 
 export type Meta = { kind?: string; placeholder?: string };
 
+export type ParseKind =
+    | {
+          type: 'definition';
+          provides: { loc: string; name: string; kind: string }[];
+          macros?: { loc: string; name: string }[];
+      }
+    | { type: 'evaluation' }
+    | { type: 'test' };
+
 export type ParseResult<T> = {
     input: RecNode;
     result: T | undefined;
-    kind:
-        | {
-              type: 'definition';
-              provides: { loc: string; name: string; kind: string }[];
-              macros?: { loc: string; name: string }[];
-          }
-        | {
-              type: 'evaluation';
-          }
-        | {
-              type: 'test';
-          };
+    kind: ParseKind;
     // hmm. how do we communicate that a macro is happening.
     // because, we need like a way to ... evaluate it?
     // ok so maybe the evaluator will have a special mode that's like
@@ -117,12 +115,38 @@ type InputValue =
     | { type: 'cst'; value: RecNode }
     | { type: 'boolean'; value: boolean };
 
-export type Update = { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> };
+// export type Update = { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> };
+
+export type CompilerEvents = {
+    viewSource: { args: { module: string; top: string }; data: { source: string } };
+    results: { args: { module: string; top: string }; data: { results: EvaluationResult[] } };
+};
+
+export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, ((data: CompilerEvents[K]['data']) => void)[]> };
+
+export const eventKey = <K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args']): string => {
+    switch (evt) {
+        case 'results':
+        case 'viewSource':
+            return `${args.module} : ${args.top}`;
+    }
+};
 
 export interface Compiler<AST, ValidationInfo> {
-    loadModule(moduleId: string, deps: Dependencies, asts: Record<string, AST>, infos: Record<string, ValidationInfo>): void;
-    update(updateId: string, moduleId: string, deps: Dependencies, ast: Record<string, AST>, infos: Record<string, ValidationInfo>): void;
-    listen(fn: (updates: Update[]) => void): () => void;
+    loadModule(
+        moduleId: string,
+        deps: Dependencies,
+        asts: Record<string, { kind: ParseKind; ast: AST }>,
+        infos: Record<string, ValidationInfo>,
+    ): void;
+    update(
+        updateId: string,
+        moduleId: string,
+        deps: Dependencies,
+        ast: Record<string, { kind: ParseKind; ast: AST }>,
+        infos: Record<string, ValidationInfo>,
+    ): void;
+    listen<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], fn: (data: CompilerEvents[K]['data']) => void): () => void;
     input(inputId: string, value: InputValue): void;
 }
 

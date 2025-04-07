@@ -1,9 +1,20 @@
+import { cp } from 'fs/promises';
 import { RecNode } from '../../../shared/cnodes';
 import { parser } from '../../../syntaxes/algw-s2-return';
 import { Expr, Pat, Stmt, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Dependencies } from '../editorStore';
-import { Annotation, AnnotationText, Language, Compiler, EvaluationResult, Update } from '../language';
+import {
+    Annotation,
+    AnnotationText,
+    Language,
+    Compiler,
+    EvaluationResult,
+    CompilerEvents,
+    CompilerListenersMap,
+    eventKey,
+    ParseKind,
+} from '../language';
 import { findSpans, srcKey } from '../makeEditor';
 import {
     builtinEnv,
@@ -226,10 +237,21 @@ const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString 
                 ...expr.items.flatMap((item) => (item.type === 'spread' ? [`...`, exprToString(item.inner, res)] : [exprToString(item, res), ', '])),
                 ']',
             ]);
-        // case 'prim':
-        //     return expr.value.toString();
-        // case 'var':
-        //     return expr.name;
+        case 'prim':
+            return expr.prim.value.toString();
+        case 'var': {
+            const resolution = res[expr.src.id];
+            if (!resolution) {
+                throw new Error(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
+            }
+            switch (resolution.type) {
+                case 'builtin':
+                case 'local':
+                    return expr.name;
+                case 'toplevel':
+                    return `toplevels["${resolution.module}"]["${expr.name}_${resolution.src.id}"]`;
+            }
+        }
         // case 'str':
         //     return `"${expr.value}"`;
         // case 'quote':
@@ -238,12 +260,24 @@ const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString 
         //     return `,${exprToString(expr.expr, res)}`;
         // case 'bop':
         //     return group(expr.src.id, [exprToString(expr.left, res), ` ${expr.op} `, exprToString(expr.right, res)]);
-        // case 'lambda':
-        //     return group(expr.src.id, ['(', expr.args.map((arg) => patToString(arg, res)).join(', '), ') => ', exprToString(expr.body, res)]);
+        case 'lambda':
+            return group(expr.src.id, ['(', ...expr.args.flatMap((arg) => [patToString(arg, res), ', ']), ') => ', exprToString(expr.body, res)]);
         // case 'tuple':
         //     return group(expr.src.id, ['(', ...expr.items.map((item) => exprToString(item, res)), ')']);
-        // case 'app':
-        //     return group(expr.src.id, [exprToString(expr.target, res), '(', ...expr.args.map((arg) => exprToString(arg, res)), ')']);
+        case 'app':
+            return group(expr.src.id, [
+                '(',
+                exprToString(expr.target, res),
+                ')(',
+                ...expr.args.args.flatMap((arg) =>
+                    arg.type === 'spread'
+                        ? ['...', exprToString(arg.inner, res)]
+                        : arg.type === 'row'
+                          ? [arg.value ? exprToString(arg.value, res) : arg.name.text]
+                          : [exprToString(arg, res), ', '],
+                ),
+                ')',
+            ]);
         // case 'throw':
         //     return group(expr.src.id, ['throw ', exprToString(expr.expr, res)]);
         // case 'new':
@@ -288,26 +322,56 @@ const stmtToString = (stmt: Stmt, res: Record<string, Source>): TraceableString 
     }
 };
 
+const addFn = <K extends keyof CompilerEvents>(
+    key: string,
+    record: Record<string, ((data: CompilerEvents[K]['data']) => void)[]>,
+    fn: (data: CompilerEvents[K]['data']) => void,
+) => {
+    if (!record[key]) {
+        record[key] = [fn];
+    } else {
+        record[key].push(fn);
+    }
+    return () => {
+        const at = record[key].indexOf(fn);
+        if (at !== -1) {
+            record[key].splice(at, 1);
+        }
+    };
+};
+
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
 class DefaultCompiler implements Compiler<Stmt, TInfo> {
-    listeners: ((updates: Update[]) => void)[] = [];
+    listeners: CompilerListenersMap = {
+        results: {},
+        viewSource: {},
+    };
     code: Record<string, string> = {};
     constructor() {
         //
     }
-    loadModule(moduleId: string, deps: Dependencies, asts: Record<string, Stmt>, infos: Record<string, TInfo>): void {
+    loadModule(moduleId: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
         //
     }
-    update(updateId: string, moduleId: string, deps: Dependencies, ast: Record<string, Stmt>, infos: Record<string, TInfo>): void {
+    update(
+        updateId: string,
+        moduleId: string,
+        deps: Dependencies,
+        ast: Record<string, { kind: ParseKind; ast: Stmt }>,
+        infos: Record<string, TInfo>,
+    ): void {
         //
     }
-    listen(fn: (updates: Update[]) => void): () => void {
-        this.listeners.push(fn);
-        return () => {
-            const at = this.listeners.indexOf(fn);
-            if (at !== -1) this.listeners.splice(1);
-        };
+    listen<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], fn: (data: CompilerEvents[K]['data']) => void): () => void {
+        const key = eventKey(evt, args);
+        return addFn(key, this.listeners[evt], fn);
+    }
+    has<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args']) {
+        return this.listeners[evt][eventKey(evt, args)]?.length;
+    }
+    emit<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], data: CompilerEvents[K]['data']) {
+        this.listeners[evt][eventKey(evt, args)]?.forEach((fn) => fn(data));
     }
     input(
         inputId: string,

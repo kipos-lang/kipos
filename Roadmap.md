@@ -13,6 +13,11 @@ will be necessary for codegen
 - [x] track module through somehowwww
 - [ ] do a little compiler
 
+## A Little Compiler
+
+- [ ] want to be able to show in the debug sidebar ... the compiled output of a thing.
+  - this would involve ... putting a `listener` on the compiler probably
+
 
 # COMPILE
 
