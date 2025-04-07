@@ -18,6 +18,9 @@ will be necessary for codegen
 - [ ] aslooo, we want to handle multi module situations
 - [ ] BUG mut recursive values aren't being exported
 
+- [x] debug sidebar type inference, fix it
+- [ ] parse debugging, would be good to have that enableable.
+
 - [x] indicate errors happening at different levels
 - [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
   like they can type check, but should not execute
