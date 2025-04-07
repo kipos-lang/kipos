@@ -102,52 +102,91 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
         deps.traversalOrder.forEach((hid) => {
             if (!asts[hid] || !infos[hid]) return; // skipping Iguess
 
+            const depValues: Record<string, any> = {};
+            const names: Record<string, string> = {};
+            if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
+            const fixedSources: Resolutions = { ...infos[hid].resolutions };
+
+            let missingDeps: { module: string; toplevel: string; message?: string }[] = [];
+
+            Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
+                if (source.type === 'toplevel') {
+                    const top = this._results[source.module][source.toplevel];
+                    if (!top) {
+                        missingDeps.push({ ...source, message: `no result` });
+                        return;
+                    }
+                    if (top.type !== 'definition') {
+                        missingDeps.push({ ...source, message: `not a definition` });
+                        return;
+                    }
+                    if (!(source.src.left in top.scope)) {
+                        console.log(source, top.scope);
+                        missingDeps.push({ ...source, message: `doesn't export ${source.name} at ${source.src.left}` });
+                        return;
+                    }
+                    const key = `${source.module}.${source.toplevel}.${source.src.left}`;
+                    depValues[key] = top.scope[source.src.left];
+                    if (!names[source.name] || names[source.name] === key) {
+                        names[source.name] = key;
+                        fixedSources[rkey] = { ...source, name: '$' + source.name };
+                        return;
+                    } else {
+                        let i = 2;
+                        for (; i < 100; i++) {
+                            const name = `${source.name}${i}`;
+                            if (!names[name] || names[name] === key) {
+                                names[name] = key;
+                                fixedSources[rkey] = { ...source, name: '$' + name };
+                                return;
+                            }
+                        }
+                        throw new Error(`do you really have 100 dependencies all named ${source.name}???`);
+                    }
+                }
+            });
+
             // TODO: ... if names are duplicated ... do something about that
             const components = deps.components.entries[hid];
-            components.forEach((top) => {
-                const deps: Record<string, any> = {};
-                const names: Record<string, string> = {};
-                if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
-                const fixedSources: Resolutions = { ...infos[hid].resolutions };
 
-                let missingDeps: { module: string; toplevel: string; message?: string }[] = [];
-
-                Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
-                    if (source.type === 'toplevel') {
-                        const top = this._results[source.module][source.toplevel];
-                        if (!top) {
-                            missingDeps.push({ ...source, message: `no result` });
-                            return;
-                        }
-                        if (top.type !== 'definition') {
-                            missingDeps.push({ ...source, message: `not a definition` });
-                            return;
-                        }
-                        if (!(source.src.left in top.scope)) {
-                            console.log(source, top.scope);
-                            missingDeps.push({ ...source, message: `doesn't export ${source.name} at ${source.src.left}` });
-                            return;
-                        }
-                        const key = `${source.module}.${source.toplevel}.${source.src.left}`;
-                        deps[key] = top.scope[source.src.left];
-                        if (!names[source.name] || names[source.name] === key) {
-                            names[source.name] = key;
-                            fixedSources[rkey] = { ...source, name: '$' + source.name };
-                            return;
-                        } else {
-                            let i = 2;
-                            for (; i < 100; i++) {
-                                const name = `${source.name}${i}`;
-                                if (!names[name] || names[name] === key) {
-                                    names[name] = key;
-                                    fixedSources[rkey] = { ...source, name: '$' + name };
-                                    return;
-                                }
-                            }
-                            throw new Error(`do you really have 100 dependencies all named ${source.name}???`);
-                        }
-                    }
+            if (components.length > 1 || asts[components[0]].kind.type === 'definition') {
+                const codes = components.map((top) => {
+                    const code = stmtToString(asts[top].ast, fixedSources, true);
+                    const source = toString(code);
+                    this.code[module][top] = source;
+                    this.emit('viewSource', { module, top }, { source });
+                    return source;
                 });
+                const provides = components.flatMap((top) =>
+                    (asts[top].kind as ParseKind & { type: 'definition' }).provides.filter((p) => p.kind === 'value'),
+                );
+
+                try {
+                    const rawscope = define(
+                        codes.join('\n\n'),
+                        provides.map((p) => p.name),
+                        depValues,
+                        names,
+                    );
+                    components.forEach((top) => {
+                        const scope: Record<string, any> = {};
+                        (asts[top].kind as ParseKind & { type: 'definition' }).provides
+                            .filter((p) => p.kind === 'value')
+                            .forEach((p) => {
+                                scope[p.loc] = rawscope[p.name];
+                            });
+
+                        this._results[module][top] = { type: 'definition', scope };
+                        this.logFailure(module, top, null);
+                    });
+                } catch (err) {
+                    // console.error('bad news bears', err);
+                    components.forEach((top) => {
+                        this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                    });
+                }
+            } else {
+                const top = components[0];
 
                 const code = stmtToString(asts[top].ast, fixedSources, true);
                 const source = toString(code);
@@ -160,33 +199,14 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
                 }
 
                 if (asts[top].kind.type === 'evaluation') {
-                    const result = evaluate(source, deps, names);
+                    const result = evaluate(source, depValues, names);
                     this._results[module][top] = { type: 'evaluate', result };
                     this.emit('results', { module, top }, { results: result });
                     this.logFailure(module, top, null);
                 } else if (asts[top].kind.type === 'definition') {
-                    try {
-                        const rawscope = define(
-                            source,
-                            asts[top].kind.provides.filter((p) => p.kind === 'value').map((p) => p.name),
-                            deps,
-                            names,
-                        );
-                        const scope: Record<string, any> = {};
-                        asts[top].kind.provides
-                            .filter((p) => p.kind === 'value')
-                            .forEach((p) => {
-                                scope[p.loc] = rawscope[p.name];
-                            });
-
-                        this._results[module][top] = { type: 'definition', scope };
-                        this.logFailure(module, top, null);
-                    } catch (err) {
-                        // console.error('bad news bears', err);
-                        this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
-                    }
+                    throw new Error(`unreachable`);
                 }
-            });
+            }
         });
     }
 
