@@ -423,7 +423,7 @@ export const Example = ({ text }: { text: string }) => {
                     </div>
                     <Sidebar stack={stack} showTips={ctx.showTips} smap={smap} highlightVars={highlightVars} onClick={ctx.onClick} />
                     <div>
-                        <ShowScope smap={smap} scope={{ ...relevantBuiltins, ...scopeToShow }} highlightVars={highlightVars} ctx={ctx} />
+                        {/* <ShowScope smap={smap} scope={{ ...relevantBuiltins, ...scopeToShow }} highlightVars={highlightVars} ctx={ctx} /> */}
                     </div>
                 </div>
             </div>

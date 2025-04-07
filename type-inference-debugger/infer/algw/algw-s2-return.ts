@@ -118,6 +118,7 @@ export const tenvFree = (tenv: Tenv) => merge(...Object.values(tenv.scope).map(s
 export type Subst = Record<string, Type>;
 
 export const gtypeApply = (type: Type): Type => {
+    if (!type) debugger;
     return typeApply(globalState.subst, type);
 };
 export const typeApply = (subst: Subst, type: Type): Type => {
