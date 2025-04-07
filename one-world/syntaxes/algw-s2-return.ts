@@ -364,7 +364,7 @@ const rules = {
             type: 'if',
             cond: ctx.ref<Expr>('cond'),
             yes: ctx.ref<Block>('yes'),
-            no: ctx.ref<undefined | Expr>('no'),
+            no: ctx.ref<undefined | Block | (Expr & { type: 'if' })>('no'),
             src,
         }),
     ),

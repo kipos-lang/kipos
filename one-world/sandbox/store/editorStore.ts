@@ -3,7 +3,7 @@ import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
-import { Annotation, Language, ParseResult, ValidateResult } from './language';
+import { Annotation, Compiler, Language, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
 
@@ -33,6 +33,7 @@ export class EditorStore<AST, TypeInfo> {
     module: Module;
     language: Language<any, AST, TypeInfo>;
     prevAnnotations: Record<string, Record<string, Annotation[]>> = {};
+    compiler: Compiler<AST, TypeInfo>;
 
     constructor(module: Module, language: Language<any, AST, TypeInfo>) {
         this.state = {
@@ -49,16 +50,26 @@ export class EditorStore<AST, TypeInfo> {
         };
         this.module = module;
         this.language = language;
-        this.initialParse();
+        this.compiler = language.compiler();
+        this.initialProcess();
     }
 
-    initialParse() {
+    initialProcess() {
         Object.values(this.module.toplevels).forEach((top) => {
             this.state.parseResults[top.id] = this.language.parser.parse([], root({ top }));
         });
-        // START HERE
         this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
         this.runValidation(this.state.dependencies, this.state.validationResults);
+        const asts: Record<string, AST> = {};
+        Object.entries(this.state.parseResults).forEach(([key, parse]) => {
+            if (!parse.result) return;
+            asts[key] = parse.result;
+        });
+        const infos: Record<string, TypeInfo> = {};
+        Object.entries(this.state.validationResults).forEach(([key, result]) => {
+            infos[key] = result.result;
+        });
+        this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
     }
 
     updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
@@ -137,6 +148,7 @@ export class EditorStore<AST, TypeInfo> {
             }
             // const prev = results[id];
             results[id] = this.language.validate(
+                this.module.id,
                 dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
                 dependencies.headDeps[id].map((did) => results[did].result),
             );

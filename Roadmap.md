@@ -6,8 +6,13 @@ in a way that other people can comment on.
 will be necessary for codegen
 
 - [x] give all AST nodes unique IDs (put it on Src, yay)
-- [ ] make Tenv scope know where something comes from
+- [x] make Tenv scope know where something comes from
   - ergh this is where my lack of unit tests comes to bite me.
+- [x] when resolving a `var`, link the usage back
+- [x] hang on to those resolutions as ValidationInfo
+- [x] track module through somehowwww
+- [ ] do a little compiler
+
 
 # COMPILE
 

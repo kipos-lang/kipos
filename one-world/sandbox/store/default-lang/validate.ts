@@ -678,6 +678,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 return newTypeVar({ type: 'free', prev: expr.name }, expr.src);
                 // throw new Error();
             }
+            globalState.resolutions[expr.src.id] = got.source;
             if (got.scheme.vars.length) {
                 stackPush(
                     expr.src,

@@ -33,7 +33,7 @@ export type Quote =
     | { type: 'type'; contents: Type };
 export type Expr =
     | Block
-    | { type: 'if'; cond: Expr; yes: Block; no?: Expr; src: Src }
+    | { type: 'if'; cond: Expr; yes: Block; no?: Block | (Expr & { type: 'if' }); src: Src }
     | { type: 'match'; target: Expr; cases: { pat: Pat; body: Expr }[]; src: Src }
     | { type: 'array'; items: (Expr | Spread<Expr>)[]; src: Src }
     | { type: 'prim'; prim: Prim; src: Src }

@@ -117,15 +117,20 @@ type InputValue =
     | { type: 'cst'; value: RecNode }
     | { type: 'boolean'; value: boolean };
 
+export type Update = { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> };
+
+export interface Compiler<AST, ValidationInfo> {
+    loadModule(moduleId: string, deps: Dependencies, asts: Record<string, AST>, infos: Record<string, ValidationInfo>): void;
+    update(updateId: string, moduleId: string, deps: Dependencies, ast: Record<string, AST>, infos: Record<string, ValidationInfo>): void;
+    listen(fn: (updates: Update[]) => void): () => void;
+    input(inputId: string, value: InputValue): void;
+}
+
 export type Language<Macro, AST, ValidationInfo> = {
     version: 1;
     parser: Parser<Macro, AST>;
-    validate?(ast: { ast: AST; tid: string }[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
-    compiler(): {
-        update(updateId: string, moduleId: string, deps: Dependencies, tops: Record<string, { ast: AST; info: ValidationInfo }>): void;
-        listen(fn: (updates: { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> }[]) => void): () => void;
-        input(inputId: string, value: InputValue): void;
-    };
+    validate?(moduleId: string, ast: { ast: AST; tid: string }[], infos: ValidationInfo[]): ValidateResult<ValidationInfo>;
+    compiler(): Compiler<AST, ValidationInfo>;
     // intern: (ast: AST, info: ValidationInfo) => IR;
     // compile?(ir: IR, deps: Record<string, IR>): Target;
     // eval?(ir: IR, deps: Record<string, any>): any;
