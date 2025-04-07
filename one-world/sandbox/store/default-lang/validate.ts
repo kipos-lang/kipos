@@ -527,7 +527,7 @@ export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scopes: Record<string, 
     const appliedEnv = tenvApply(globalState.subst, tenv);
     // const allFree =
     values.forEach((value, i) => {
-        scopes.push({ [lets[i].pat.name]: generalize(appliedEnv, gtypeApply(value), lets[i].src) });
+        scopes.push({ [lets[i].pat.name]: generalize(appliedEnv, gtypeApply(value), lets[i].pat.src) });
     });
     console.log('here we are', scopes);
 

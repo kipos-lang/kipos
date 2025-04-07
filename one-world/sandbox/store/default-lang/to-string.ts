@@ -108,7 +108,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 ']',
             ]);
         case 'prim':
-            return expr.prim.value.toString();
+            return group(expr.src.id, [expr.prim.value.toString()]);
         case 'var': {
             const resolution = res[expr.src.id];
             if (!resolution) {
@@ -125,8 +125,8 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                     return resolution.name;
             }
         }
-        // case 'str':
-        //     return `"${expr.value}"`;
+        case 'str':
+            return group(expr.src.id, [JSON.stringify(expr.value)]);
         // case 'quote':
         //     return `'${exprToString(expr.expr, res)}`;
         // case 'unquote':
@@ -185,7 +185,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
         // case 'constructor':
         //     return group(expr.src.id, [expr.name, '(', ...expr.args.map((arg) => exprToString(arg, res)), ')']);
     }
-    throw new Error('no' + expr.type);
+    throw new Error('no to-string for ' + expr.type);
 };
 const group = (id: string | null, contents: TraceableString[]): TraceableString => ({ type: 'group', id, contents });
 const patToString = (pat: Pat, res: Resolutions): TraceableString => {

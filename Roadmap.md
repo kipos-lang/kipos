@@ -16,6 +16,7 @@ will be necessary for codegen
 - [ ] want to restart the worker when its ded
 - [ ] anddd that means we need to like load up the infos again, right?
 - [ ] aslooo, we want to handle multi module situations
+- [ ] BUG mut recursive values aren't being exported
 
 - [x] indicate errors happening at different levels
 - [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.

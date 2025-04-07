@@ -124,6 +124,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
                             return;
                         }
                         if (!(source.src.left in top.scope)) {
+                            console.log(source, top.scope);
                             missingDeps.push({ ...source, message: `doesn't export ${source.name} at ${source.src.left}` });
                             return;
                         }
