@@ -125,7 +125,7 @@ export type FailureKind =
 export type CompilerEvents = {
     viewSource: { args: { module: string; top: string }; data: { source: string } };
     results: { args: { module: string; top: string }; data: { results: EvaluationResult[] } };
-    failure: { args: { module: string; top: string }; data: FailureKind };
+    failure: { args: { module: string; top: string }; data: FailureKind[] };
 };
 
 export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, ((data: CompilerEvents[K]['data']) => void)[]> };

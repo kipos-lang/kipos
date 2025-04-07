@@ -89,7 +89,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
     logFailure(module: string, top: string, kind: FailureKind) {
         if (!this._failures[module]) this._failures[module] = {};
         this._failures[module][top] = kind;
-        this.emit('failure', { module, top }, kind);
+        this.emit('failure', { module, top }, [kind]);
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
         if (!this.code[module]) this.code[module] = {};
@@ -189,7 +189,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
             case 'failure': {
                 const failure = this._failures[args.module]?.[args.top];
                 if (failure) {
-                    fn(failure);
+                    fn([failure]);
                 }
                 break;
             }

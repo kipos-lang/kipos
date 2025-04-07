@@ -17,6 +17,7 @@ will be necessary for codegen
 - [ ] anddd that means we need to like load up the infos again, right?
 - [ ] aslooo, we want to handle multi module situations
 
+- [ ] indicate errors happening at different levels
 - [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
   like they can type check, but should not execute
 

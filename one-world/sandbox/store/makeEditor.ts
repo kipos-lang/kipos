@@ -88,7 +88,7 @@ export const makeEditor = (
             return results;
         },
         useTopFailure(top: string) {
-            const [results, setResults] = useState(null as null | FailureKind);
+            const [results, setResults] = useState(null as null | FailureKind[]);
             useEffect(() => {
                 return store.compiler.listen('failure', { module: selected, top }, (results) => setResults(results));
             }, [top]);

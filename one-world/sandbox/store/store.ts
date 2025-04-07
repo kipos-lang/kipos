@@ -36,7 +36,7 @@ export interface EditorStoreI {
     useParseResults(): Record<string, ParseResult<any>>;
     useDependencyGraph(): Dependencies;
     useTopResults(top: string): null | EvaluationResult[];
-    useTopFailure(top: string): null | FailureKind;
+    useTopFailure(top: string): null | FailureKind[];
     useTopSource(top: string): null | string; // make it cst pleeeease
     useModule(): Module;
     useSelection(): NodeSelection[];

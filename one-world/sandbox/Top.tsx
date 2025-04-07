@@ -5,7 +5,7 @@ import { Path, lastChild } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
 import { DragCtx, noopDrag, useEditor } from './Editor';
 import { RenderNode } from './render/RenderNode';
-import { Meta } from './store/language';
+import { FailureKind, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
 import { TopGrab } from './TopGrab';
@@ -90,8 +90,25 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
 
 export const TopFailure = ({ id }: { id: string }) => {
     const editor = useEditor();
-    const failure = editor.useTopFailure(id);
-    if (failure == null) return null;
+    const compileFailure = editor.useTopFailure(id);
+    const parseResults = editor.useTopParseResults(id);
+    const failure: (FailureKind | { type: 'parse' | 'validation'; message: string })[] = [...(compileFailure ?? [])];
+    if (!parseResults.result) {
+        failure.push({ type: 'parse', message: 'failed to parse' });
+    }
+    if (!parseResults.validation) {
+        failure.push({ type: 'validation', message: 'failed to validate' });
+    }
+    Object.values(parseResults.validation?.annotations[id] ?? {}).forEach((anns) => {
+        anns.forEach((ann) => {
+            if (ann.type === 'error') {
+                failure.push({ type: 'validation', message: JSON.stringify(ann.message) });
+            }
+        });
+    });
+
+    // const validation = editor.use
+    if (!failure.length) return null;
 
     return (
         <div
@@ -133,7 +150,7 @@ export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean 
             })}
             style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
         >
-            {JSON.stringify(results)}
+            {results.map((res, i) => (res.type === 'plain' ? <pre>{res.data}</pre> : <pre>{JSON.stringify(res)}</pre>))}
         </div>
     );
 };
