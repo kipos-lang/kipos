@@ -117,15 +117,22 @@ type InputValue =
 
 // export type Update = { updateId: string; moduleId: string; tops: Record<string, EvaluationResult[]> };
 
+export type FailureKind =
+    | { type: 'compilation'; message: string }
+    | { type: 'dependencies'; deps: { module: string; toplevel: string; message?: string }[] }
+    | { type: 'evaluation'; message: string };
+
 export type CompilerEvents = {
     viewSource: { args: { module: string; top: string }; data: { source: string } };
     results: { args: { module: string; top: string }; data: { results: EvaluationResult[] } };
+    failure: { args: { module: string; top: string }; data: FailureKind };
 };
 
 export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, ((data: CompilerEvents[K]['data']) => void)[]> };
 
 export const eventKey = <K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args']): string => {
     switch (evt) {
+        case 'failure':
         case 'results':
         case 'viewSource':
             return `${args.module} : ${args.top}`;
@@ -139,14 +146,14 @@ export interface Compiler<AST, ValidationInfo> {
         asts: Record<string, { kind: ParseKind; ast: AST }>,
         infos: Record<string, ValidationInfo>,
     ): void;
-    results(moduleId: string, top: string): EvaluationResult[] | null;
-    update(
-        updateId: string,
-        moduleId: string,
-        deps: Dependencies,
-        ast: Record<string, { kind: ParseKind; ast: AST }>,
-        infos: Record<string, ValidationInfo>,
-    ): void;
+    // results(moduleId: string, top: string): EvaluationResult[] | null;
+    // update(
+    //     updateId: string,
+    //     moduleId: string,
+    //     deps: Dependencies,
+    //     ast: Record<string, { kind: ParseKind; ast: AST }>,
+    //     infos: Record<string, ValidationInfo>,
+    // ): void;
     listen<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], fn: (data: CompilerEvents[K]['data']) => void): () => void;
     input(inputId: string, value: InputValue): void;
 }

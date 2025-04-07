@@ -59,7 +59,7 @@ export const RenderList = ({
                 key={id}
             >
                 <RenderNode parent={self} id={id} key={id} />
-                {node.kind === 'smooshed' || node.kind === 'spaced' ? null : ', '}
+                {node.kind === 'smooshed' || node.kind === 'spaced' ? null : node.kind === 'curly' ? '; ' : ', '}
             </span>
         ) : (
             <RenderNode parent={self} id={id} key={id} />
@@ -109,7 +109,7 @@ export const RenderList = ({
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
             {has('inside') ? <Cursor /> : null}
-            {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>, </span>)}
+            {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>{node.kind === 'curly' ? '; ' : ', '}</span>)}
             {closer[node.kind]}
             {has('after') ? <Cursor /> : null}
         </span>

@@ -9,7 +9,7 @@ import { Event, Src } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
 import { EditorStore } from './editorStore';
-import { EvaluationResult, Language, ParseResult, ValidateResult } from './language';
+import { EvaluationResult, FailureKind, Language, ParseResult, ValidateResult } from './language';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStoreI, Evt, allIds } from './store';
@@ -80,8 +80,22 @@ export const makeEditor = (
             useTick(`module:${selected}:dependency-graph`);
             return store.state.dependencies;
         },
+        useTopSource(top: string) {
+            const [results, setResults] = useState(null as null | string);
+            useEffect(() => {
+                return store.compiler.listen('viewSource', { module: selected, top }, ({ source }) => setResults(source));
+            }, [top]);
+            return results;
+        },
+        useTopFailure(top: string) {
+            const [results, setResults] = useState(null as null | FailureKind);
+            useEffect(() => {
+                return store.compiler.listen('failure', { module: selected, top }, (results) => setResults(results));
+            }, [top]);
+            return results;
+        },
         useTopResults(top: string) {
-            const [results, setResults] = useState(store.compiler.results(selected, top) as null | EvaluationResult[]);
+            const [results, setResults] = useState(null as null | EvaluationResult[]);
             useEffect(() => {
                 return store.compiler.listen('results', { module: selected, top }, ({ results }) => setResults(results));
             }, [top]);

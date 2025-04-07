@@ -50,9 +50,11 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                     borderRadius: '4px',
                     boxShadow: '0px 1px 3px #ccc',
                     fontFamily: 'Jet Brains',
+                    position: 'relative',
                 })}
                 style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
             >
+                <TopFailure id={id} />
                 <TopGrab name={name} id={id} />
                 <div style={{ flexBasis: 12 }} />
                 <GetTopCtx.Provider value={getTop}>
@@ -85,6 +87,32 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
         </div>
     );
 });
+
+export const TopFailure = ({ id }: { id: string }) => {
+    const editor = useEditor();
+    const failure = editor.useTopFailure(id);
+    if (failure == null) return null;
+
+    return (
+        <div
+            className={css({
+                width: '200px',
+                background: '#fee',
+                boxShadow: '0px 0px 2px red',
+                position: 'absolute',
+                top: '5px',
+                right: '5px',
+                borderRadius: '4px',
+                zIndex: 400,
+                fontSize: '60%',
+                overflow: 'auto',
+                padding: '4px',
+            })}
+        >
+            {JSON.stringify(failure)}
+        </div>
+    );
+};
 
 export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean }) => {
     const editor = useEditor();

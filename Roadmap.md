@@ -11,7 +11,14 @@ will be necessary for codegen
 - [x] when resolving a `var`, link the usage back
 - [x] hang on to those resolutions as ValidationInfo
 - [x] track module through somehowwww
-- [ ] do a little compiler
+- [x] do a little compiler
+- [x] nowwww let's toss that into a web worker pls
+- [ ] want to restart the worker when its ded
+- [ ] anddd that means we need to like load up the infos again, right?
+- [ ] aslooo, we want to handle multi module situations
+
+- [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
+  like they can type check, but should not execute
 
 - [ ] modules ... I need to do a dependency graph of modules too
 

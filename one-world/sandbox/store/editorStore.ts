@@ -53,7 +53,7 @@ export class EditorStore<AST, TypeInfo> {
         this.compiler = language.compiler();
         this.initialProcess();
         // @ts-ignore
-        window.compiler = this.compiler;
+        // window.compiler = this.compiler;
     }
 
     initialProcess() {
