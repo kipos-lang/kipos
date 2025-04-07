@@ -204,7 +204,9 @@ const toString = (ts: TraceableString): string => {
     return ts.contents.map(toString).join('').replace(/\n/g, '\n  ');
 };
 
-const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString => {
+type Resolutions = Record<string, Source>;
+
+const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
     switch (expr.type) {
         case 'block':
             return group(expr.src.id, ['{\n', { type: 'indent', contents: expr.stmts.map((stmt) => stmtToString(stmt, res)) }, '}']);
@@ -257,7 +259,9 @@ const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString 
                 case 'local':
                     return expr.name;
                 case 'toplevel':
-                    return `toplevels["${resolution.module}"]["${expr.name}_${resolution.src.id}"]`;
+                    // This will have been replaced ... if needed ...
+                    // ooh I need to make sure this cant shadowwwwwww
+                    return resolution.name;
             }
         }
         // case 'str':
@@ -302,10 +306,26 @@ const exprToString = (expr: Expr, res: Record<string, Source>): TraceableString 
 
 const group = (id: string, contents: TraceableString[]): TraceableString => ({ type: 'group', id, contents });
 
-const patToString = (pat: Pat, res: Record<string, Source>): TraceableString => {
-    return '';
+const patToString = (pat: Pat, res: Resolutions): TraceableString => {
+    switch (pat.type) {
+        case 'any':
+            return '_' + pat.src.id;
+        case 'unquote':
+            throw new Error(`unexpanded macrooo`);
+        case 'var':
+            return pat.name;
+        case 'tuple':
+            return group(pat.src.id, ['[', ...pat.items.flatMap((item) => [patToString(item, res), ', ']), ']']);
+        case 'con':
+            throw new Error('con patterns not happening');
+        case 'str':
+            throw new Error('string patterns not happening');
+        case 'prim':
+            throw new Error('prim pattern onpe');
+    }
 };
-const stmtToString = (stmt: Stmt, res: Record<string, Source>): TraceableString => {
+
+const stmtToString = (stmt: Stmt, res: Resolutions): TraceableString => {
     switch (stmt.type) {
         case 'for':
             return group(stmt.src.id, [
@@ -361,12 +381,42 @@ and mutability be darned.
 
 */
 
-const evaluate = (source: string, toplevels: { [module: string]: { [top: string]: string } }): EvaluationResult[] => {
-    return [];
+const evaluate = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
+    const f = new Function(
+        'deps',
+        Object.entries(names)
+            .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
+            .join('') + `\n\nreturn ${source}`,
+    );
+    try {
+        const value = f(deps);
+        try {
+            return [{ type: 'plain', data: JSON.stringify(value) ?? 'undefined' }];
+        } catch (err) {
+            return [{ type: 'plain', data: `Result cant be stringified: ${value}` }];
+        }
+    } catch (err) {
+        return [{ type: 'exception', message: (err as Error).message }];
+    }
 };
 
-const define = () => {
-    throw new Error('nope');
+const define = (source: string, provides: string[], deps: Record<string, any>, names: Record<string, string>) => {
+    const f = new Function(
+        'deps',
+        Object.entries(names)
+            .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
+            .join('') + `\n\n${source}\n\nreturn {${provides.join(', ')}}`,
+    );
+    try {
+        const value = f(deps);
+        try {
+            return [{ type: 'plain', data: JSON.stringify(value) ?? 'undefined' }];
+        } catch (err) {
+            return [{ type: 'plain', data: `Result cant be stringified: ${value}` }];
+        }
+    } catch (err) {
+        return [{ type: 'exception', message: (err as Error).message }];
+    }
 };
 
 // this... seems like something that could be abstracted.
@@ -397,28 +447,54 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
             const components = deps.components.entries[hid];
             components.forEach((top) => {
                 const deps: Record<string, any> = {};
-                Object.values(infos[hid].resolutions).forEach((source) => {
+                const names: Record<string, string> = {};
+                const fixedSources: Resolutions = { ...infos[hid].resolutions };
+
+                Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
                     if (source.type === 'toplevel') {
                         const top = this.results[source.module][source.toplevel];
                         if (top.type !== 'definition') throw new Error(`source in a top thats not a definition`);
                         if (!(source.src.id in top.scope)) throw new Error(`source id ${source.src.id} not defined`);
-                        deps[`${source.module}.${source.toplevel}.${source.src.id}`] = top.scope[source.src.id];
+                        const key = `${source.module}.${source.toplevel}.${source.src.id}`;
+                        deps[key] = top.scope[source.src.id];
+                        if (!names[source.name] || names[source.name] === key) {
+                            names[source.name] = key;
+                            fixedSources[rkey] = { ...source, name: '$' + source.name };
+                            return;
+                        } else {
+                            let i = 2;
+                            for (; i < 100; i++) {
+                                const name = `${source.name}${i}`;
+                                if (!names[name] || names[name] === key) {
+                                    names[name] = key;
+                                    fixedSources[rkey] = { ...source, name: '$' + name };
+                                    return;
+                                }
+                            }
+                            throw new Error(`do you really have 100 dependencies all named ${source.name}???`);
+                        }
                     }
                 });
 
-                const code = stmtToString(asts[top].ast, infos[hid].resolutions);
+                const code = stmtToString(asts[top].ast, fixedSources);
                 const source = toString(code);
                 this.code[module][top] = source;
                 this.emit('viewSource', { module, top }, { source });
                 if (asts[top].kind.type === 'evaluation') {
-                    this.results[module][top] = { type: 'evaluate', result: evaluate(source, this.code) };
+                    this.results[module][top] = { type: 'evaluate', result: evaluate(source, deps, names) };
                 } else if (asts[top].kind.type === 'definition') {
-                    const scope = define();
+                    const scope = define(
+                        source,
+                        asts[top].kind.provides.filter((p) => p.kind === 'value').map((p) => p.name),
+                        deps,
+                        names,
+                    );
                     this.results[module][top] = { type: 'definition', scope };
                 }
             });
         });
     }
+
     update(
         updateId: string,
         moduleId: string,
