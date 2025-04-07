@@ -270,8 +270,11 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
         //     return `'${exprToString(expr.expr, res)}`;
         // case 'unquote':
         //     return `,${exprToString(expr.expr, res)}`;
-        // case 'bop':
-        //     return group(expr.src.id, [exprToString(expr.left, res), ` ${expr.op} `, exprToString(expr.right, res)]);
+        case 'bop':
+            return group(expr.src.id, [
+                exprToString(expr.left, res),
+                ...expr.rights.flatMap(({ op, right }) => [' ', op.text, ' ', exprToString(right, res)]),
+            ]);
         case 'lambda':
             return group(expr.src.id, ['(', ...expr.args.flatMap((arg) => [patToString(arg, res), ', ']), ') => ', exprToString(expr.body, res)]);
         // case 'tuple':
@@ -301,7 +304,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
         // case 'constructor':
         //     return group(expr.src.id, [expr.name, '(', ...expr.args.map((arg) => exprToString(arg, res)), ')']);
     }
-    throw new Error('no');
+    throw new Error('no' + expr.type);
 };
 
 const group = (id: string, contents: TraceableString[]): TraceableString => ({ type: 'group', id, contents });
@@ -407,16 +410,7 @@ const define = (source: string, provides: string[], deps: Record<string, any>, n
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}\n\nreturn {${provides.join(', ')}}`,
     );
-    try {
-        const value = f(deps);
-        try {
-            return [{ type: 'plain', data: JSON.stringify(value) ?? 'undefined' }];
-        } catch (err) {
-            return [{ type: 'plain', data: `Result cant be stringified: ${value}` }];
-        }
-    } catch (err) {
-        return [{ type: 'exception', message: (err as Error).message }];
-    }
+    return f(deps);
 };
 
 // this... seems like something that could be abstracted.
@@ -442,6 +436,7 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
         this.code[module] = {};
+        this.results[module] = {};
         deps.traversalOrder.forEach((hid) => {
             // TODO: ... if names are duplicated ... do something about that
             const components = deps.components.entries[hid];
@@ -454,7 +449,10 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
                     if (source.type === 'toplevel') {
                         const top = this.results[source.module][source.toplevel];
                         if (top.type !== 'definition') throw new Error(`source in a top thats not a definition`);
-                        if (!(source.src.id in top.scope)) throw new Error(`source id ${source.src.id} not defined`);
+                        if (!(source.src.id in top.scope)) {
+                            console.log('have', source.src, top.scope);
+                            throw new Error(`source id ${source.src.id} not defined`);
+                        }
                         const key = `${source.module}.${source.toplevel}.${source.src.id}`;
                         deps[key] = top.scope[source.src.id];
                         if (!names[source.name] || names[source.name] === key) {
@@ -483,13 +481,24 @@ class DefaultCompiler implements Compiler<Stmt, TInfo> {
                 if (asts[top].kind.type === 'evaluation') {
                     this.results[module][top] = { type: 'evaluate', result: evaluate(source, deps, names) };
                 } else if (asts[top].kind.type === 'definition') {
-                    const scope = define(
-                        source,
-                        asts[top].kind.provides.filter((p) => p.kind === 'value').map((p) => p.name),
-                        deps,
-                        names,
-                    );
-                    this.results[module][top] = { type: 'definition', scope };
+                    try {
+                        const rawscope = define(
+                            source,
+                            asts[top].kind.provides.filter((p) => p.kind === 'value').map((p) => p.name),
+                            deps,
+                            names,
+                        );
+                        const scope: Record<string, any> = {};
+                        asts[top].kind.provides
+                            .filter((p) => p.kind === 'value')
+                            .forEach((p) => {
+                                scope[p.loc] = rawscope[p.name];
+                            });
+
+                        this.results[module][top] = { type: 'definition', scope };
+                    } catch (err) {
+                        console.error('bad news bears', err);
+                    }
                 }
             });
         });
