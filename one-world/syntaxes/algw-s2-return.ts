@@ -38,14 +38,14 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
     test_stmt: tx<TopItem>(
         seq(
             kwd('test'),
-            group('name', text({ type: 'none' })),
+            meta(group('name', text({ type: 'none' })), 'text'),
             group(
                 'cases',
                 table(
                     'curly',
                     tx(
                         seq(
-                            group('name', or(text({ type: 'none' }), id(null))),
+                            meta(group('name', or(text({ type: 'none' }), id(null))), 'text'),
                             group('input', ref('expr')),
                             loc('outloc', group('output', ref('expr'))),
                         ),
@@ -69,7 +69,7 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
                 .ref<TextSpan<any, any>[]>('name')
                 .map((s) => (s.type === 'text' ? s.text : '**'))
                 .join(''),
-            cases: ctx.ref<{ name?: string; input: Expr; output: Expr; outloc: string }[]>('cases'),
+            cases: ctx.ref<{ name?: string; input: Expr; output: Expr; outloc: string; src: Src }[]>('cases'),
             src,
         }),
     ),

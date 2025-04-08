@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { interleaveF } from '../../keyboard/interleave';
 import { lightColor } from '../../keyboard/ui/colors';
 import { Cursor } from '../../keyboard/ui/cursor';
@@ -11,6 +11,8 @@ import { SelStatus } from '../store/store';
 import { currentTheme } from '../themes';
 import { Meta } from '../store/language';
 import { metaStyles } from './metaStyles';
+import { posInList } from '../../keyboard/ui/selectionPos';
+import { GetTopCtx } from '../Top';
 
 export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node & { type: 'table' }; sel?: SelStatus; self: Path }) => {
     const has = (where: ListWhere) => sel?.cursors.some((c) => c.type === 'list' && c.where === where);
@@ -83,9 +85,31 @@ export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node
     //         <RenderNode parent={self} id={id} key={id} />
     //     ),
     // );
+    const getTop = useContext(GetTopCtx);
 
     return (
-        <span ref={drag.ref(node.loc)} style={style}>
+        <span
+            ref={drag.ref(node.loc)}
+            style={style}
+            onMouseDown={(evt) => {
+                evt.stopPropagation();
+                evt.preventDefault();
+                const sel = posInList(self, { x: evt.clientX, y: evt.clientY }, drag.refs, getTop());
+                if (sel) {
+                    drag.start(sel);
+                }
+            }}
+            onMouseMove={(evt) => {
+                if (drag.dragging) {
+                    evt.stopPropagation();
+                    evt.preventDefault();
+                    const sel = posInList(self, { x: evt.clientX, y: evt.clientY }, drag.refs, getTop());
+                    if (sel) {
+                        drag.move(sel, evt.ctrlKey, evt.altKey);
+                    }
+                }
+            }}
+        >
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
             <span style={{ marginLeft: -5, marginRight: 5 }}>:</span>

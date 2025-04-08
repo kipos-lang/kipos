@@ -70,17 +70,19 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                         borderRadius: '3px',
                     })}
                 >
-                    {Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
-                        <div key={key}>
-                            {items.map((item, i) =>
-                                item.type === 'type' && item.primary ? (
-                                    <div key={i}>
-                                        <RenderStaticNode root={item.annotation} />
-                                    </div>
-                                ) : null,
-                            )}
-                        </div>
-                    ))}
+                    {parseResult?.kind.type !== 'test'
+                        ? Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
+                              <div key={key}>
+                                  {items.map((item, i) =>
+                                      item.type === 'type' && item.primary ? (
+                                          <div key={i}>
+                                              <RenderStaticNode root={item.annotation} />
+                                          </div>
+                                      ) : null,
+                                  )}
+                              </div>
+                          ))
+                        : null}
                 </div>
             </div>
             <TopReults id={id} isSelected={isSelected} />
