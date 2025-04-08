@@ -18,6 +18,8 @@ will be necessary for codegen
 - [ ] aslooo, we want to handle multi module situations
 - [ ] BUG mut recursive values aren't being exported
 
+- [ ] hovering something that has a warning or error should ALSO bring up the warning or error.
+
 - [x] debug sidebar type inference, fix it
 - [ ] parse debugging, would be good to have that enableable.
 

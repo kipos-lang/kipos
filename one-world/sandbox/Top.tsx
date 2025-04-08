@@ -5,7 +5,7 @@ import { Path, lastChild } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
 import { DragCtx, noopDrag, useEditor } from './Editor';
 import { RenderNode } from './render/RenderNode';
-import { FailureKind, Meta } from './store/language';
+import { AnnotationText, FailureKind, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
 import { TopGrab } from './TopGrab';
@@ -88,11 +88,16 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
     );
 });
 
+const renderMessage = (message: string | AnnotationText[]) =>
+    typeof message === 'string'
+        ? message
+        : message.map((item, i) => (typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />));
+
 export const TopFailure = ({ id }: { id: string }) => {
     const editor = useEditor();
     const compileFailure = editor.useTopFailure(id);
     const parseResults = editor.useTopParseResults(id);
-    const failure: (FailureKind | { type: 'parse' | 'validation'; message: string })[] = [...(compileFailure ?? [])];
+    const failure: (FailureKind | { type: 'parse' | 'validation'; message: string | AnnotationText[] })[] = [...(compileFailure ?? [])];
     if (!parseResults.result) {
         failure.push({ type: 'parse', message: 'failed to parse' });
     }
@@ -102,7 +107,7 @@ export const TopFailure = ({ id }: { id: string }) => {
     Object.values(parseResults.validation?.annotations[id] ?? {}).forEach((anns) => {
         anns.forEach((ann) => {
             if (ann.type === 'error') {
-                failure.push({ type: 'validation', message: JSON.stringify(ann.message) });
+                failure.push({ type: 'validation', message: ann.message });
             }
         });
     });
@@ -113,7 +118,7 @@ export const TopFailure = ({ id }: { id: string }) => {
     return (
         <div
             className={css({
-                width: '200px',
+                width: '300px',
                 background: '#fee',
                 boxShadow: '0px 0px 2px red',
                 position: 'absolute',
@@ -126,7 +131,20 @@ export const TopFailure = ({ id }: { id: string }) => {
                 padding: '4px',
             })}
         >
-            {JSON.stringify(failure)}
+            {failure.map((fail, i) => {
+                switch (fail.type) {
+                    case 'compilation':
+                        return <div key={i}>C: {fail.message}</div>;
+                    case 'dependencies':
+                        return <div key={i}>Missing {fail.deps.length} deps</div>;
+                    case 'evaluation':
+                        return <div key={i}>E: {fail.message}</div>;
+                    case 'parse':
+                        return <div key={i}>P: {renderMessage(fail.message)}</div>;
+                    case 'validation':
+                        return <div key={i}>V: {renderMessage(fail.message)}</div>;
+                }
+            })}
         </div>
     );
 };
@@ -173,7 +191,7 @@ export const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record
         return { map, id, meta };
     }, [root]);
     return (
-        <div>
+        <span>
             <DragCtx.Provider value={noopDrag}>
                 <UseNodeCtx.Provider
                     value={(path: Path) => {
@@ -183,7 +201,7 @@ export const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record
                     <RenderNode id={id} parent={{ children: [], root: { ids: [], top: '' } }} />
                 </UseNodeCtx.Provider>
             </DragCtx.Provider>
-        </div>
+        </span>
     );
 };
 
