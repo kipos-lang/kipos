@@ -230,8 +230,10 @@ const ifToString = (iff: Expr & { type: 'if' }, res: Resolutions, vbl?: string |
 };
 export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string): TraceableString => {
     switch (stmt.type) {
-        case 'test':
-            return group(stmt.src.id, ['TESTMAYBE()']);
+        // case 'test':
+        //     return group(stmt.src.id, ['TESTMAYBE()']);
+        // case 'type':
+        //     throw new Error('wat');
         case 'for':
             return group(stmt.src.id, [
                 `for (`,
@@ -264,8 +266,6 @@ export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string)
             } else {
                 return group(stmt.src.id, [exprToString(stmt.expr, res), ';']);
             }
-        case 'type':
-            throw new Error('wat');
         case 'return':
             return group(stmt.src.id, stmt.value ? [`return `, exprToString(stmt.value, res), `;`] : [`return;`]);
     }

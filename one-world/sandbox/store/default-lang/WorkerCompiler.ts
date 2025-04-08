@@ -1,6 +1,6 @@
 import { genId } from '../../../keyboard/ui/genId';
 import { RecNode } from '../../../shared/cnodes';
-import { Stmt } from '../../../syntaxes/algw-s2-types';
+import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
 import { Compiler, CompilerEvents, ParseKind } from '../language';
 import { TInfo } from './default-lang';
@@ -8,7 +8,7 @@ import { FromWorker, ToWorker } from './worker';
 
 export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, (data: CompilerEvents[K]['data']) => void> };
 
-export class WorkerCompiler implements Compiler<Stmt, TInfo> {
+export class WorkerCompiler implements Compiler<TopItem, TInfo> {
     worker: Worker;
     listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {} };
 
@@ -40,7 +40,7 @@ export class WorkerCompiler implements Compiler<Stmt, TInfo> {
         this.worker.postMessage(msg);
     }
 
-    loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
+    loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: TopItem }>, infos: Record<string, TInfo>): void {
         this.send({ type: 'load', asts, infos, deps, module });
     }
 

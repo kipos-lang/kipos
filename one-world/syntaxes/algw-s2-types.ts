@@ -4,7 +4,7 @@ export type Src = { type: 'src'; left: string; right?: string; id: string };
 
 export type Prim = { type: 'int'; value: number } | { type: 'bool'; value: boolean };
 export type Block = { type: 'block'; stmts: Stmt[]; src: Src };
-export type Toplevel =
+export type TopItem =
     | { type: 'test'; name: string; src: Src; cases: { name?: string; input: Expr; output: Expr; outloc: string }[] }
     | {
           type: 'type';
@@ -16,7 +16,7 @@ export type Toplevel =
               args: { name: { text: string; loc: string }; value: Type; default?: Expr }[];
           }[];
       }
-    | { type: 'stmt'; stmt: Stmt };
+    | { type: 'stmt'; stmt: Stmt; src: Src };
 export type Stmt =
     | { type: 'for'; init: Stmt; cond: Expr; update: Expr; body: Block; src: Src }
     | { type: 'let'; pat: Pat; init: Expr; src: Src }

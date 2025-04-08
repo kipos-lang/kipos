@@ -1,5 +1,5 @@
 import { RecNode } from '../../../shared/cnodes';
-import { Stmt } from '../../../syntaxes/algw-s2-types';
+import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
 import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind } from '../language';
 import { TInfo } from './default-lang';
@@ -63,7 +63,7 @@ const define = (source: string, provides: string[], deps: Record<string, any>, n
 };
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
-export class DefaultCompiler implements Compiler<Stmt, TInfo> {
+export class DefaultCompiler implements Compiler<TopItem, TInfo> {
     listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {} };
     code: { [module: string]: { [top: string]: string } } = {};
     _failures: { [module: string]: { [top: string]: FailureKind } } = {};
@@ -96,7 +96,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
             this.emit('failure', { module, top }, [kind]);
         }
     }
-    loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: Stmt }>, infos: Record<string, TInfo>): void {
+    loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: TopItem }>, infos: Record<string, TInfo>): void {
         if (!this.code[module]) this.code[module] = {};
         if (!this._results[module]) this._results[module] = {};
         deps.traversalOrder.forEach((hid) => {
@@ -151,7 +151,7 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
 
             if (components.length > 1 || asts[components[0]].kind.type === 'definition') {
                 const codes = components.map((top) => {
-                    const code = stmtToString(asts[top].ast, fixedSources, true);
+                    const code = stmtToString((asts[top].ast as TopItem & { type: 'stmt' }).stmt, fixedSources, true);
                     const source = toString(code);
                     this.code[module][top] = source;
                     this.emit('viewSource', { module, top }, { source });
@@ -187,24 +187,28 @@ export class DefaultCompiler implements Compiler<Stmt, TInfo> {
                 }
             } else {
                 const top = components[0];
+                const single = asts[top].ast;
+                if (single.type === 'stmt') {
+                    const code = stmtToString(single.stmt, fixedSources, true);
+                    const source = toString(code);
+                    this.code[module][top] = source;
+                    this.emit('viewSource', { module, top }, { source });
 
-                const code = stmtToString(asts[top].ast, fixedSources, true);
-                const source = toString(code);
-                this.code[module][top] = source;
-                this.emit('viewSource', { module, top }, { source });
+                    if (missingDeps.length) {
+                        this.logFailure(module, top, { type: 'dependencies', deps: missingDeps });
+                        return; // skip it
+                    }
 
-                if (missingDeps.length) {
-                    this.logFailure(module, top, { type: 'dependencies', deps: missingDeps });
-                    return; // skip it
-                }
-
-                if (asts[top].kind.type === 'evaluation') {
-                    const result = evaluate(source, depValues, names);
-                    this._results[module][top] = { type: 'evaluate', result };
-                    this.emit('results', { module, top }, { results: result });
-                    this.logFailure(module, top, null);
-                } else if (asts[top].kind.type === 'definition') {
-                    throw new Error(`unreachable`);
+                    if (asts[top].kind.type === 'evaluation') {
+                        const result = evaluate(source, depValues, names);
+                        this._results[module][top] = { type: 'evaluate', result };
+                        this.emit('results', { module, top }, { results: result });
+                        this.logFailure(module, top, null);
+                    } else if (asts[top].kind.type === 'definition') {
+                        throw new Error(`unreachable`);
+                    }
+                } else {
+                    throw new Error(`cant evaluate ${single.type}`);
                 }
             }
         });

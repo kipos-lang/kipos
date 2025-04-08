@@ -1,10 +1,10 @@
 import { parser } from '../../../syntaxes/algw-s2-return';
-import { Stmt, Type } from '../../../syntaxes/algw-s2-types';
+import { Stmt, TopItem, Type } from '../../../syntaxes/algw-s2-types';
 import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Annotation, AnnotationText, Language } from '../language';
 import { srcKey } from '../makeEditor';
 import { DefaultCompiler } from './DefaultCompiler';
-import { builtinEnv, getGlobalState, inferStmt, inferStmts, resetState, Scheme, Source, typeApply, typeToNode, Event as VEvent } from './validate';
+import { builtinEnv, getGlobalState, inferStmt, inferLets, resetState, Scheme, Source, typeApply, typeToNode, Event as VEvent } from './validate';
 import { WorkerCompiler } from './WorkerCompiler';
 
 type Macro = {
@@ -18,7 +18,7 @@ export type TInfo = {
     resolutions: Record<string, Source>;
 };
 
-export const defaultLang: Language<Macro, Stmt, TInfo> = {
+export const defaultLang: Language<Macro, TopItem, TInfo> = {
     version: 1,
     // intern: (ast, info) => ({ ast, info }),
     parser: {
@@ -43,7 +43,10 @@ export const defaultLang: Language<Macro, Stmt, TInfo> = {
                 internalReferences: result.ctx.usages,
                 ffiReferences: [],
                 result: result.result,
-                kind: result.result?.type === 'expr' ? { type: 'evaluation' } : { type: 'definition', provides: result.ctx.scopes[0] },
+                kind:
+                    result.result?.type === 'stmt' && result.result?.stmt.type === 'expr'
+                        ? { type: 'evaluation' }
+                        : { type: 'definition', provides: result.ctx.scopes[0] },
             };
         },
         spans(ast) {
@@ -66,28 +69,64 @@ export const defaultLang: Language<Macro, Stmt, TInfo> = {
         const scope: Record<string, { scheme: Scheme; source: Source }> = {};
         try {
             if (asts.length > 1) {
-                const full = inferStmts(
-                    env,
-                    asts.map((a) => a.ast),
-                );
-                res = full.values;
-                full.scopes.forEach((sub, i) => {
-                    Object.entries(sub).forEach(([key, scheme]) => {
-                        scope[key] = { scheme, source: { type: 'toplevel', name: key, toplevel: asts[i].tid, module: moduleId, src: scheme.src } };
+                if (
+                    asts.every(
+                        (ast) =>
+                            ast.ast.type === 'stmt' &&
+                            ast.ast.stmt.type === 'let' &&
+                            ast.ast.stmt.pat.type === 'var' &&
+                            ast.ast.stmt.init.type === 'lambda',
+                    )
+                ) {
+                    const full = inferLets(
+                        env,
+                        (asts as { ast: TopItem & { type: 'stmt'; stmt: { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } } } }[]).map(
+                            (a) => a.ast.stmt,
+                        ),
+                    );
+                    res = full.values;
+                    full.scopes.forEach((sub, i) => {
+                        Object.entries(sub).forEach(([key, scheme]) => {
+                            scope[key] = {
+                                scheme,
+                                source: { type: 'toplevel', name: key, toplevel: asts[i].tid, module: moduleId, src: scheme.src },
+                            };
+                        });
                     });
-                });
-                full.events.forEach(([start, end]) => {
-                    eventsByTop.push(glob.events.slice(start, end));
-                });
-            } else {
-                const result = inferStmt(env, asts[0].ast);
-                if (result.scope) {
-                    Object.entries(result.scope).forEach(([key, scheme]) => {
-                        scope[key] = { scheme, source: { type: 'toplevel', name: key, toplevel: asts[0].tid, module: moduleId, src: scheme.src } };
+                    full.events.forEach(([start, end]) => {
+                        eventsByTop.push(glob.events.slice(start, end));
                     });
                 }
-                res = [result.value];
-                eventsByTop.push(glob.events.slice());
+                throw new Error('not all let lambdas');
+                // for (let stmt of stmts) {
+                //     if (stmt.type !== 'let') {
+                //         throw new Error(`mutual recursion must be "let"s`);
+                //     }
+                //     if (stmt.pat.type !== 'var') {
+                //         throw new Error(`mutual recursion must be let {var}`);
+                //     }
+                //     if (stmt.init.type !== 'lambda') {
+                //         throw new Error(`mutual recursion must be let {var} = {lambda}`);
+                //     }
+                // }
+                // const lets = stmts as (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[];
+            } else {
+                const single = asts[0].ast;
+                if (single.type === 'stmt') {
+                    const result = inferStmt(env, single.stmt);
+                    if (result.scope) {
+                        Object.entries(result.scope).forEach(([key, scheme]) => {
+                            scope[key] = {
+                                scheme,
+                                source: { type: 'toplevel', name: key, toplevel: asts[0].tid, module: moduleId, src: scheme.src },
+                            };
+                        });
+                    }
+                    res = [result.value];
+                    eventsByTop.push(glob.events.slice());
+                } else {
+                    throw new Error('not inferringg');
+                }
             }
         } catch (err) {
             console.log('bad inference', err);

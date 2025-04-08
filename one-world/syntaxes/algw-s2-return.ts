@@ -28,14 +28,14 @@ import {
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
-import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, Type } from './algw-s2-types';
+import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, TopItem, Type } from './algw-s2-types';
 import { genId } from '../keyboard/ui/genId';
 
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
 
-const stmts_spaced: Record<string, Rule<Stmt>> = {
-    test_stmt: tx<Stmt>(
+const toplevels_spaced: Record<string, Rule<TopItem>> = {
+    test_stmt: tx<TopItem>(
         seq(
             kwd('test'),
             group('name', text({ type: 'none' })),
@@ -72,7 +72,7 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
             src,
         }),
     ),
-    type_stmt: tx<Stmt>(
+    type_stmt: tx<TopItem>(
         seq(
             kwd('type'),
             group('name', declaration('type')),
@@ -112,6 +112,9 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
             constructors: ctx.ref('constructors'),
         }),
     ),
+};
+
+const stmts_spaced: Record<string, Rule<Stmt>> = {
     let: tx<Stmt>(seq(kwd('let'), ref('pat', 'pat'), kwd('=', 'punct'), ref('expr ', 'value')), (ctx, src) => ({
         type: 'let',
         pat: ctx.ref<Pat>('pat'),
@@ -217,10 +220,26 @@ const exprs: Record<string, Rule<Expr>> = {
 };
 
 const rules = {
+    toplevel_spaced: or(...Object.keys(toplevels_spaced).map((name) => ref<TopItem>(name))),
+    toplevel: or<TopItem>(
+        list(
+            'spaced',
+            or(
+                ref<TopItem>('toplevel_spaced'),
+                tx<TopItem>(ref<Stmt>('stmt_spaced', 'stmt'), (ctx, src) => ({ type: 'stmt', stmt: ctx.ref<Stmt>('stmt'), src })),
+            ),
+        ),
+        tx(ref('expr', 'expr'), (ctx, src) => ({
+            type: 'stmt',
+            stmt: { type: 'expr', expr: ctx.ref<Expr>('expr'), src: { ...src, id: genId() } },
+            src,
+        })),
+    ),
+    stmt_spaced: or(...Object.keys(stmts_spaced).map((name) => ref<Stmt>(name))),
     stmt: or<Stmt>(
-        list('spaced', or(...Object.keys(stmts_spaced).map((name) => ref<Stmt>(name)))),
+        list('spaced', ref('stmt_spaced')),
         // tx(ref('block'), (ctx, src),
-        // tx(kwd('return'), (_, src) => ({ type: 'return', value: null, src })),
+        tx<Stmt>(kwd('return'), (_, src) => ({ type: 'return', value: undefined, src })),
         // kwd('continue'),
         tx(ref('expr', 'expr'), (ctx, src) => ({ type: 'expr', expr: ctx.ref<Expr>('expr'), src })),
     ),
@@ -336,6 +355,7 @@ const rules = {
         },
     ),
     ...stmts_spaced,
+    ...toplevels_spaced,
     // typ_quote: tx<Expr>(
     //     seq(kwd('@'), kwd('t'), list('round', ref('type', 'contents'))),
     //     (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'type', contents: ctx.ref<Type>('contents') } }),
@@ -527,7 +547,7 @@ export const parser = {
                 myctx.rules[macro.parent] = or(macro.body, ref(macro.id));
             }
         });
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        const res = match<TopItem>({ type: 'ref', name: 'toplevel' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         // console.log(myctx.usages, myctx.externalUsages);
         // if (res?.value?.type === 'let')
         // console.log('provides', myctx.scopes);

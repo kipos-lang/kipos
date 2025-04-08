@@ -1,4 +1,4 @@
-import { Stmt, Type, Expr, Pat } from '../../../syntaxes/algw-s2-types';
+import { Stmt, Type, Expr, Pat, TopItem } from '../../../syntaxes/algw-s2-types';
 
 // export const validate = (stmt: Stmt) => {
 //     //
@@ -470,20 +470,10 @@ const tenvWithScope = (tenv: Tenv, locals: Record<string, Scheme>): Tenv => {
     return { ...tenv, scope };
 };
 
-export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scopes: Record<string, Scheme>[]; values: Type[]; events: [number, number][] } => {
-    for (let stmt of stmts) {
-        if (stmt.type !== 'let') {
-            throw new Error(`mutual recursion must be "let"s`);
-        }
-        if (stmt.pat.type !== 'var') {
-            throw new Error(`mutual recursion must be let {var}`);
-        }
-        if (stmt.init.type !== 'lambda') {
-            throw new Error(`mutual recursion must be let {var} = {lambda}`);
-        }
-    }
-    const lets = stmts as (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[];
-
+export const inferLets = (
+    tenv: Tenv,
+    lets: (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[],
+): { scopes: Record<string, Scheme>[]; values: Type[]; events: [number, number][] } => {
     const recscope: Record<string, Scheme> = {};
     const names = lets.map(({ pat, src }) => {
         const pv = newTypeVar({ type: 'pat-var', name: pat.name, src: pat.src }, pat.src);
@@ -533,6 +523,23 @@ export const inferStmts = (tenv: Tenv, stmts: Stmt[]): { scopes: Record<string, 
 
     return { scopes, values: values.map(gtypeApply), events };
 };
+export const inferToplevel = (tenv: Tenv, stmt: TopItem): { value: Type; scope?: Record<string, Scheme> } => {
+    switch (stmt.type) {
+        case 'type':
+            return { value: { type: 'con', name: 'void', src: stmt.src } };
+        case 'test': {
+            const { name, src, cases } = stmt;
+            cases.forEach(({ input, output, outloc }) => {
+                const itype = inferExpr(tenv, input);
+                const otype = inferExpr(tenv, output);
+                unify(itype, otype, input.src, 'input', 'output');
+            });
+            return { value: { type: 'con', name: 'void', src } }; // basic case, types equal
+        }
+        case 'stmt':
+            return inferStmt(tenv, stmt.stmt);
+    }
+};
 
 export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record<string, Scheme> } => {
     switch (stmt.type) {
@@ -554,17 +561,6 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
             unify(tenv.scope['return'].scheme.body, inner, stmt.src, 'early return type', 'return value');
             stackPop();
             return { value };
-        }
-        case 'type':
-            return { value: { type: 'con', name: 'void', src: stmt.src } };
-        case 'test': {
-            const { name, src, cases } = stmt;
-            cases.forEach(({ input, output, outloc }) => {
-                const itype = inferExpr(tenv, input);
-                const otype = inferExpr(tenv, output);
-                unify(itype, otype, input.src, 'input', 'output');
-            });
-            return { value: { type: 'con', name: 'void', src } }; // basic case, types equal
         }
         case 'let': {
             const { pat, init, src } = stmt;

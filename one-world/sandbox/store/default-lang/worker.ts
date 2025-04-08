@@ -1,7 +1,7 @@
 // prevents TS errors
 // declare var self: Worker;
 
-import { Stmt } from '../../../syntaxes/algw-s2-types';
+import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
 import { CompilerEvents, ParseKind } from '../language';
 import { TInfo } from './default-lang';
@@ -12,7 +12,7 @@ export type ToWorker<K extends keyof CompilerEvents> =
           type: 'load';
           module: string;
           deps: Dependencies;
-          asts: Record<string, { kind: ParseKind; ast: Stmt }>;
+          asts: Record<string, { kind: ParseKind; ast: TopItem }>;
           infos: Record<string, TInfo>;
       }
     | {
