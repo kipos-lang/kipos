@@ -70,7 +70,7 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                         borderRadius: '3px',
                     })}
                 >
-                    {parseResult?.kind.type !== 'test'
+                    {parseResult?.kind?.type !== 'test'
                         ? Object.entries(parseResult?.validation?.annotations[id] ?? {}).map(([key, items]) => (
                               <div key={key}>
                                   {items.map((item, i) =>

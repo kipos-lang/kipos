@@ -2,6 +2,14 @@
 I should really write up my thoughts about the architecture here.
 in a way that other people can comment on.
 
+# TEStss
+
+- [x] yay
+
+- [ ] clicking a toplevel should select it somehow.
+
+
+
 # Validator - know where a reference resolved from
 will be necessary for codegen
 
