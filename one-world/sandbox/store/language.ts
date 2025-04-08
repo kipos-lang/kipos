@@ -80,22 +80,22 @@ export type ValidateResult<ValidationInfo> = {
     events?: any[]; // add this in from the stepping debugger
 };
 
-/*
-
-so we can say
-parse -> infer -> compile -> print
-parse -> infer -> compile -> eval
-or
-parse -> infer -> compile
-parse -> infer -> eval
-
-in the first example,
-
-*/
-
 // SOO this setup doesn't allow for like OffscreenCanvas ... will think about that later.
 
+export type TestResult =
+    | { type: 'pass'; message?: string }
+    | { type: 'fail'; message?: string }
+    // hrm. should this be RecNode?
+    | { type: 'mismatch'; actual: any; message?: string }
+    | { type: 'error'; message?: string };
+
 export type EvaluationResult =
+    | {
+          type: 'test-result';
+          result: TestResult;
+          name?: string;
+          loc?: string;
+      }
     | { type: 'exception'; message: string }
     | { type: 'plain'; data: string; mime?: string }
     // | { type: 'structured', data: any }

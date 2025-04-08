@@ -242,12 +242,14 @@ and do a little equivocarion
 */
 
 export const testToString = (test: TopItem & { type: 'test' }, res: Resolutions): TraceableString => {
-    return group(
-        test.src.id,
-        test.cases.map(({ name, input, output, outloc, src }) => {
+    return group(test.src.id, [
+        `// ${test.name}\n`,
+        ...test.cases.map(({ name, input, output, outloc, src }) => {
             return group(src.id, [
                 `$$check(`,
                 JSON.stringify(name),
+                ', ',
+                test.target ? exprToString(test.target, res) : 'null',
                 ', () => ',
                 exprToString(input, res),
                 ', () => ',
@@ -257,7 +259,7 @@ export const testToString = (test: TopItem & { type: 'test' }, res: Resolutions)
                 ');\n',
             ]);
         }),
-    );
+    ]);
 };
 
 export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string): TraceableString => {

@@ -34,11 +34,30 @@ import { genId } from '../keyboard/ui/genId';
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
 
+const tableConfig = tx(
+    group(
+        'items',
+        table(
+            'curly',
+            tx(seq(group('name', id(null)), ref('expr', 'value')), (ctx, src) => ({
+                name: ctx.ref<Id<string>>('name'),
+                value: ctx.ref<Expr>('value'),
+            })),
+        ),
+    ),
+    (ctx, src) => {
+        const items = ctx.ref<{ name: Id<string>; value: Expr }[]>('items');
+        const config: Record<string, Expr> = {};
+        items.forEach(({ name, value }) => (config[name.text] = value));
+        return { type: 'tableConfig', config };
+    },
+);
+
 const toplevels_spaced: Record<string, Rule<TopItem>> = {
     test_stmt: tx<TopItem>(
         seq(
             kwd('test'),
-            meta(group('name', text({ type: 'none' })), 'text'),
+            group('config', or(meta(text({ type: 'none' }), 'text'), id(null), tableConfig)),
             group(
                 'cases',
                 table(
@@ -63,15 +82,32 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
                 ),
             ),
         ),
-        (ctx, src) => ({
-            type: 'test',
-            name: ctx
-                .ref<TextSpan<any, any>[]>('name')
-                .map((s) => (s.type === 'text' ? s.text : '**'))
-                .join(''),
-            cases: ctx.ref<{ name?: string; input: Expr; output: Expr; outloc: string; src: Src }[]>('cases'),
-            src,
-        }),
+        (ctx, src) => {
+            const config = ctx.ref<Id<string> | { type: 'tableConfig'; config: Record<string, Expr> } | TextSpan<any, any>[]>('config');
+            let name: string | null = null;
+            let target: undefined | Expr = undefined;
+            console.log(config);
+            if (Array.isArray(config)) {
+                name = config.map((s) => (s.type === 'text' ? s.text : '**')).join('');
+            } else if (config.type === 'tableConfig') {
+                const ename = config.config['name'];
+                if (ename?.type === 'var' && ename.name) {
+                    name = ename.name;
+                } else if (ename?.type === 'str') {
+                    name = ename.value;
+                }
+                target = config.config['target'];
+            } else if (config.text) {
+                name = config.text;
+            }
+            return {
+                type: 'test',
+                name,
+                target,
+                cases: ctx.ref<{ name?: string; target?: Expr; input: Expr; output: Expr; outloc: string; src: Src }[]>('cases'),
+                src,
+            };
+        },
     ),
     type_stmt: tx<TopItem>(
         seq(

@@ -46,25 +46,28 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
     );
     const results: EvaluationResult[] = [];
     try {
-        f(deps, (name: string, finput: () => any, foutput: () => any, outloc: string) => {
+        f(deps, (name: string, target: null | Function, finput: () => any, foutput: () => any, outloc: string) => {
             let input, output;
             try {
                 input = finput();
+                if (target) {
+                    input = target(input);
+                }
             } catch (err) {
-                results.push({ type: 'exception', message: `⚠️ ${name} - input` });
+                results.push({ type: 'test-result', result: { type: 'error', message: `input: ${err}` }, name, loc: outloc });
                 return;
             }
             try {
                 output = foutput();
             } catch (err) {
-                results.push({ type: 'exception', message: `⚠️ ${name} - output` });
+                results.push({ type: 'test-result', result: { type: 'error', message: `output: ${err}` }, name, loc: outloc });
                 return;
             }
             // TODO: want to be able to exception guard the input
             if (equal(input, output)) {
-                results.push({ type: 'plain', data: `✅ ${name}` });
+                results.push({ type: 'test-result', result: { type: 'pass' }, name, loc: outloc });
             } else {
-                results.push({ type: 'plain', data: `🚨 ${name}` });
+                results.push({ type: 'test-result', result: { type: 'mismatch', actual: input }, name, loc: outloc });
             }
         });
     } catch (err) {
