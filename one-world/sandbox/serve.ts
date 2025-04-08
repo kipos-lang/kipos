@@ -17,6 +17,7 @@ serve({
             return new Response(await readFile('./.worker/worker.js'));
         },
         '/favicon.png': async () => new Response(await readFile('./favicon.png')),
+        '/:name': async (req) => new Response(await readFile(`./${req.params.name}`)),
         '/fonts/:name': async (req) => {
             const { name } = req.params;
             return new Response(await readFile('./fonts/' + name));

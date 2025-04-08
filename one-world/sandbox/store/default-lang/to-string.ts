@@ -244,9 +244,9 @@ export const testToString = (test: TopItem & { type: 'test' }, res: Resolutions)
             return group(src.id, [
                 `$$check(`,
                 JSON.stringify(name),
-                ', ',
+                ', () => ',
                 exprToString(input, res),
-                ', ',
+                ', () => ',
                 exprToString(output, res),
                 ', ',
                 JSON.stringify(outloc),

@@ -5,9 +5,52 @@ in a way that other people can comment on.
 # TEStss
 
 - [x] yay
-
+- [ ] want to show the pass/fail inline (with outloc)
+- [ ] clicking the /fail/ should show a popover, allowing you to show a diff
+  - hmm I wonder about, like, having a display setting to "show failures inline" or something
 - [ ] clicking a toplevel should select it somehow.
+- [ ] there should be a way to specify the /function to run/
+- [ ] tests should isolate filures in the input & output evaluation
 
+- [ ] gotta lift the `compiler` to the main store level, not the editorStore.
+
+
+# Modules and dependencies
+
+is module resolution / dependency whatnot, something that I want to leave up to language implementors?
+or rather, do I want to allow it to be iterated on?
+seems like there are some definite tradeoffs
+
+regardless:
+- I do think I want there to be the concept of /vendored/ dependencies (of which ffi deps are one)
+  - these are /not/ editable directly, and are referenced by their unique /hash/
+  - this allows for sharing / deduplicating.
+
+How easy do I want to make it, to ~migrate version numbers of a vendored dependency?
+IFF every module has a hard link to their vendored dependencies, then making that
+update would be tedious.
+
+Sometimes, you might want the dependency to be ~scoped to a single (sub)module.
+Other times, it will be shared with the whole tree.
+
+oooooh ok here's an idea. WHAT IF, if any of the /types/ of a dependency are ~leaked,
+then that dependency has to be ... hoisted? or something?
+ALTERNATIVELY that dependency could be marked as /private/, meaning that any leaked
+types are "opaque" outside of the module.
+that seems kinda cool.
+
+
+# Loading from where?
+
+I'm imagining the ability to send somebody a link like kipos.org/view/gist.github/303303
+and it will ask you
+- view this read-only
+- persist in browser
+- persist to a local (or remote) server
+
+it would be ... nice ... if I could allow a language backend
+to persist /execution results/ (for interacting with) in like
+and sql database if they wanted to. for like a pandas DataFrame
 
 
 # Validator - know where a reference resolved from
@@ -22,7 +65,7 @@ will be necessary for codegen
 - [x] do a little compiler
 - [x] nowwww let's toss that into a web worker pls
 - [ ] want to restart the worker when its ded
-- [ ] anddd that means we need to like load up the infos again, right?
+  - [ ] anddd that means we need to like load up the infos again, right?
 - [ ] aslooo, we want to handle multi module situations
 - [x] BUG mutual recursive values aren't being exported
 
@@ -34,10 +77,10 @@ will be necessary for codegen
 - [ ] parse debugging, would be good to have that enableable.
 
 - [x] indicate errors happening at different levels
-- [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
+- [x] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
   like they can type check, but should not execute
 
-- [ ] I also super want tests. definitely tests.
+- [x] I also super want tests. definitely tests.
 - [ ] additionally, if it's not too much trouble, persist the files to the backend.
 
 - [ ] modules ... I need to do a dependency graph of modules too
@@ -55,7 +98,7 @@ OR you could have a docstring toplevel, and have the submodule be named, and the
 
 ## A Little Compiler
 
-- [ ] want to be able to show in the debug sidebar ... the compiled output of a thing.
+- [x] want to be able to show in the debug sidebar ... the compiled output of a thing.
   - this would involve ... putting a `listener` on the compiler probably
 
 
