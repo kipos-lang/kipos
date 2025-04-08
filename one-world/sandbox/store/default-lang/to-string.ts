@@ -42,6 +42,7 @@ const needsWrap = (expr: Expr) => {
         case 'bop':
         case 'lambda':
         case 'throw':
+        case 'new':
             return true;
 
         case 'prim':
@@ -53,7 +54,6 @@ const needsWrap = (expr: Expr) => {
         case 'unquote':
         case 'tuple':
         case 'app':
-        case 'new':
         case 'attribute':
         case 'index':
         case 'constructor':
@@ -68,6 +68,10 @@ const maybeWrap = (expr: Expr, res: Resolutions) => {
 
 const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
     switch (expr.type) {
+        case 'throw':
+            return group(expr.src.id, ['(() => {throw ', exprToString(expr.value, res), ';})()']);
+        case 'new':
+            return group(expr.src.id, ['new ', exprToString(expr.value, res)]);
         case 'block':
             return blockToString(expr, res);
         case 'object':
@@ -286,6 +290,8 @@ export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string)
                     return blockToString(stmt.expr, res, last);
                 case 'if':
                     return ifToString(stmt.expr, res, last);
+                case 'throw':
+                    return group(stmt.expr.src.id, [`throw `, exprToString(stmt.expr.value, res), ';']);
             }
             if (last === true) {
                 return group(stmt.src.id, ['return ', exprToString(stmt.expr, res), ';']);

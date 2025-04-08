@@ -36,11 +36,13 @@ export const builtinEnv = () => {
     });
     const tint: Type = { type: 'con', name: 'int', src: builtinSrc() };
     const tbool: Type = { type: 'con', name: 'bool', src: builtinSrc() };
+    const tstring: Type = { type: 'con', name: 'string', src: builtinSrc() };
     const t: Type = { type: 'var', name: 't', src: builtinSrc() };
     const a: Type = { type: 'var', name: 'a', src: builtinSrc() };
     const b: Type = { type: 'var', name: 'b', src: builtinSrc() };
     const tapp = (target: Type, ...args: Type[]): Type => ({ type: 'app', args, target, src: builtinSrc() });
     const tcon = (name: string): Type => ({ type: 'con', name, src: builtinSrc() });
+    builtinEnv.scope['Error'] = concrete(tfn(tstring, { type: 'con', name: 'Error', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['null'] = concrete({ type: 'con', name: 'null', src: builtinSrc() });
     builtinEnv.scope['true'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });
     builtinEnv.scope['false'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });
@@ -335,7 +337,7 @@ type TvarMeta =
       }
     | { type: 'lambda-return'; src: Src }
     | { type: 'apply-result'; src: Src }
-    | { type: 'unsafe'; src: Src }
+    | { type: 'unsafe' | 'throw'; src: Src }
     | { type: 'pat-any'; src: Src };
 
 let globalState: State = { nextId: 0, subst: {}, events: [], tvarMeta: {}, resolutions: {} };
@@ -810,6 +812,17 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             }
             // throw new Error(`constructors not yet checked`);
             return newTypeVar({ type: 'free', prev: 'lol' }, expr.src);
+        }
+
+        case 'throw': {
+            // stackWarning([expr.src], `indexes are entirely unchecked`);
+            inferExpr(tenv, expr.value);
+            return newTypeVar({ type: 'throw', src: expr.src }, expr.src);
+        }
+        case 'new': {
+            stackWarning([expr.src], `"new" are entirely unchecked`);
+            inferExpr(tenv, expr.value);
+            return newTypeVar({ type: 'throw', src: expr.src }, expr.src);
         }
 
         case 'index': {
