@@ -3,11 +3,12 @@ import { handleDelete } from '../handleDelete';
 import { handleKey } from '../handleKey';
 import { handleNav } from '../handleNav';
 import { selUpdate } from '../update/updaters';
-import { Mods, SelStart, Src, handleShiftNav, handleSpecial, handleTab, shiftExpand, wordNav } from '../handleShiftNav';
+import { Mods, SelStart, handleShiftNav, handleSpecial, handleTab, shiftExpand, wordNav } from '../handleShiftNav';
 import { wrapKind, handleWrap, closerKind, handleClose } from '../handleWrap';
 import { Config, TestState, js } from '../test-utils';
 import { NodeSelection, Update } from '../utils';
 import { KeyAction, moveA } from '../keyActionToUpdate';
+import { Src } from '../../syntaxes/dsl3';
 
 export type Visual = {
     up: (sel: NodeSelection) => SelStart | null | void | undefined;

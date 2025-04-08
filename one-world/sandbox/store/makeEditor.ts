@@ -1,19 +1,18 @@
-import equal from 'fast-deep-equal';
+import { useEffect, useMemo, useState } from 'react';
 import { root } from '../../keyboard/root';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import { genId } from '../../keyboard/ui/genId';
-import { SelectionStatuses, mergeHighlights, Path, lastChild, pathKey } from '../../keyboard/utils';
+import { Path, SelectionStatuses, lastChild, mergeHighlights, pathKey } from '../../keyboard/utils';
 import { validate } from '../../keyboard/validate';
 import { Loc } from '../../shared/cnodes';
-import { ParseResult } from '../../syntaxes/algw-s2-return';
+import { Event, Src } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
+import { EditorStore } from './editorStore';
+import { EvaluationResult, FailureKind, Language, ParseResult, ValidateResult } from './language';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
-import { EditorStore, Evt, allIds } from './store';
-import { Event } from '../../syntaxes/dsl3';
-import { Language, ValidateResult } from './language';
-import { Type } from '../../syntaxes/algw-s2-types';
+import { EditorStoreI, Evt, allIds } from './store';
 
 const recalcSelectionStatuses = (mod: Module) => {
     const statuses: SelectionStatuses = {};
@@ -32,32 +31,79 @@ const recalcSelectionStatuses = (mod: Module) => {
     return statuses;
 };
 
-export type LangResult = ParseResult<any> & { trace: Event[]; validation?: ValidateResult<Type> | null };
+export const findSpans = (items: Src[]) => {
+    const spans: Record<string, string[]> = {};
+
+    items.forEach((src) => {
+        if (src.right) {
+            if (!spans[src.left]) spans[src.left] = [];
+            if (!spans[src.left].includes(src.right)) spans[src.left].push(src.right);
+        }
+    });
+
+    return spans;
+};
+
+export type LangResult = ParseResult<any> & { validation?: ValidateResult<any> | null; spans: Record<string, string[][]> };
 
 export const makeEditor = (
     selected: string,
     modules: Record<string, Module>,
-    useTick: (evt: Evt) => void,
+    useTick: (evt: Evt) => number,
     shout: (evt: Evt) => void,
-): EditorStore => {
+): EditorStoreI => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
-    const parseResults: Record<string, LangResult> = {};
+    // const parseResults: Record<string, LangResult> = {};
+    // Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
+    //     parseResults[key] = doParse(language, top);
+    // });
 
-    Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
-        parseResults[key] = doParse(language, top);
-    });
+    const store = new EditorStore(modules[selected], language);
 
     return {
         // selected,
         useTopParseResults(top: string) {
             useTick(`top:${top}:parse-results`);
-            return parseResults[top];
+            return {
+                ...store.state.parseResults[top],
+                validation: store.state.validationResults[store.state.dependencies.components.pointers[top]],
+                spans: {},
+            };
+            // return parseResults[top];
+        },
+        getTop(top: string) {
+            return modules[selected].toplevels[top];
+        },
+        useDependencyGraph() {
+            useTick(`module:${selected}:dependency-graph`);
+            return store.state.dependencies;
+        },
+        useTopSource(top: string) {
+            const [results, setResults] = useState(null as null | string);
+            useEffect(() => {
+                return store.compiler.listen('viewSource', { module: selected, top }, ({ source }) => setResults(source));
+            }, [top]);
+            return results;
+        },
+        useTopFailure(top: string) {
+            const [results, setResults] = useState(null as null | FailureKind[]);
+            useEffect(() => {
+                return store.compiler.listen('failure', { module: selected, top }, (results) => setResults(results));
+            }, [top]);
+            return results;
+        },
+        useTopResults(top: string) {
+            const [results, setResults] = useState(null as null | EvaluationResult[]);
+            useEffect(() => {
+                return store.compiler.listen('results', { module: selected, top }, ({ results }) => setResults(results));
+            }, [top]);
+            return results;
         },
         useParseResults() {
             useTick(`module:${selected}:parse-results`);
-            return parseResults;
+            return store.state.parseResults;
         },
         useModule() {
             useTick(`module:${selected}`);
@@ -95,6 +141,8 @@ export const makeEditor = (
             const old = selectionStatuses;
             selectionStatuses = recalcSelectionStatuses(mod);
 
+            const changedTops: string[] = [];
+
             Object.entries(result.tops).forEach(([key, top]) => {
                 if (!mod.toplevels[key]) {
                     mod.toplevels[key] = top;
@@ -121,24 +169,20 @@ export const makeEditor = (
                 }
 
                 if (nodesChanged) {
-                    const result = doParse(language, mod.toplevels[key]);
-                    Object.entries(result.ctx.meta).forEach(([key, value]) => {
-                        if (!parseResults[key]) changed[key] = true;
-                        else if (!equal(value, parseResults[key].ctx.meta[key])) {
-                            changed[key] = true;
-                        }
-                    });
-                    Object.entries(result.validation?.annotations ?? {}).forEach(([key, value]) => {
-                        if (!parseResults[key] || !parseResults[key].validation?.annotations) changed[key] = true;
-                        else if (!equal(value, parseResults[key].validation.annotations[key])) {
-                            changed[key] = true;
-                        }
-                    });
-                    parseResults[key] = result;
-                    shout(`module:${selected}:parse-results`);
-                    shout(`top:${key}:parse-results`);
+                    changedTops.push(key);
                 }
             });
+
+            if (changedTops.length) {
+                const keys: Record<string, true> = {};
+                store.updateTops(changedTops, changed, keys);
+                shout(`module:${selected}:dependency-graph`);
+                Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
+                shout(`module:${selected}:parse-results`);
+                changedTops.forEach((key) => {
+                    shout(`top:${key}:parse-results`);
+                });
+            }
 
             if (mod.roots !== result.roots) {
                 mod.roots = result.roots;
@@ -162,23 +206,36 @@ export const makeEditor = (
                 }
             });
 
-            Object.keys(result.tops).forEach((tid) => {
-                const top = mod.toplevels[tid];
-                // parser
-            });
-
             saveModule(mod);
         },
         useTop(top: string) {
             useTick(`top:${top}`);
             return {
+                useAnnotations(key: string) {
+                    const tick = useTick(`annotation:${key}`);
+                    return useMemo(() => {
+                        const hid = store.state.dependencies.components.pointers[top];
+                        return store.state.validationResults[hid]?.annotations[top][key];
+                    }, [tick, key]);
+                },
                 useNode(path: Path) {
-                    useTick(`node:${lastChild(path)}`);
+                    const loc = lastChild(path);
+                    useTick(`node:${loc}`);
+                    const results = store.state.parseResults[top];
+                    let meta = store.state.parseResults[top]?.ctx.meta[loc];
+                    const refs = results?.internalReferences[loc];
+                    if (refs) {
+                        if (refs.usages.length === 0 && (results.kind.type !== 'definition' || !results.kind.provides.some((r) => r.loc === loc))) {
+                            meta = { kind: 'unused' };
+                        } else {
+                            meta = { kind: 'used' };
+                        }
+                    }
                     return {
-                        node: modules[selected].toplevels[top].nodes[lastChild(path)],
+                        node: modules[selected].toplevels[top].nodes[loc],
                         sel: selectionStatuses[pathKey(path)],
-                        meta: parseResults[top]?.ctx.meta[lastChild(path)],
-                        annotations: parseResults[top]?.validation?.annotations[lastChild(path)],
+                        meta,
+                        spans: store.state.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
                     };
                 },
                 useRoot() {
@@ -193,22 +250,36 @@ export const makeEditor = (
     };
 };
 
-const doParse = (language: Language<any, any, any, any>, top: Toplevel): LangResult => {
-    const node = root<Loc>({ top });
-    const trace: Event[] = [];
-    const TRACE = false;
-    const result = language.parser.parse(
-        [],
-        node,
-        TRACE
-            ? (evt) => {
-                  trace.push(evt);
-              }
-            : undefined,
-    );
-    let validation = null;
-    if (result.result && language.validate) {
-        validation = language.validate(result.result);
+export type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
+
+export const partition = (better: string[][], children: string[]) => {
+    const stack: Grouped[] = [{ children: [] }];
+
+    for (let i = 0; i < children.length; i++) {
+        const current = stack[stack.length - 1];
+        const spans = better[i];
+        const child = children[i];
+        if (!spans.length) {
+            current.children.push(child);
+            while (stack[stack.length - 1].end === child) {
+                stack.pop();
+            }
+            continue;
+        }
+
+        spans.forEach((id) => {
+            const inner: Grouped = { end: id, children: [], id: `${child}:${id}` };
+            stack[stack.length - 1].children.push(inner);
+            stack.push(inner);
+        });
+        stack[stack.length - 1].children.push(child);
     }
-    return { ...result, trace, validation };
+    if (stack.length !== 1) {
+        // So... this happens when the /end/ of a span isn't actually within the children, right?
+        // or when things are out of order somehow?
+        // I'll just ignore for the moment.
+    }
+    return stack[0];
 };
+
+export const srcKey = (src: Src) => (src.right ? `${src.left}:${src.right}` : src.left);

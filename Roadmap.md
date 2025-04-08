@@ -1,11 +1,413 @@
 
+I should really write up my thoughts about the architecture here.
+in a way that other people can comment on.
+
+# Validator - know where a reference resolved from
+will be necessary for codegen
+
+- [x] give all AST nodes unique IDs (put it on Src, yay)
+- [x] make Tenv scope know where something comes from
+  - ergh this is where my lack of unit tests comes to bite me.
+- [x] when resolving a `var`, link the usage back
+- [x] hang on to those resolutions as ValidationInfo
+- [x] track module through somehowwww
+- [x] do a little compiler
+- [x] nowwww let's toss that into a web worker pls
+- [ ] want to restart the worker when its ded
+- [ ] anddd that means we need to like load up the infos again, right?
+- [ ] aslooo, we want to handle multi module situations
+- [x] BUG mutual recursive values aren't being exported
+
+- [ ] testssssss
+
+- [ ] hovering something that has a warning or error should ALSO bring up the warning or error.
+
+- [x] debug sidebar type inference, fix it
+- [ ] parse debugging, would be good to have that enableable.
+
+- [x] indicate errors happening at different levels
+- [ ] IF a toplevel /fails/ to execute, we need to pause any downstreamers.
+  like they can type check, but should not execute
+
+- [ ] I also super want tests. definitely tests.
+- [ ] additionally, if it's not too much trouble, persist the files to the backend.
+
+- [ ] modules ... I need to do a dependency graph of modules too
+
+WHAT ABOUT SUBMODULES
+you know what, I think I do want submodules.
+In fact, which if I use nesting as being submodules? that seems kinda natural, right?
+a module can be anonymous, in which case it can't really be referenced
+but it can also be named
+
+ok so you can like have a definition, and the anonymous submodule inhabited by the toplevel's children
+has like ... documentation? and tests? that's kinda cool.
+
+OR you could have a docstring toplevel, and have the submodule be named, and the docstring is the documentation for the thing.
+
+## A Little Compiler
+
+- [ ] want to be able to show in the debug sidebar ... the compiled output of a thing.
+  - this would involve ... putting a `listener` on the compiler probably
+
+
+# COMPILE
+
+compile/link/exec?
+
+and can that encompass the 'eval' case as well?
+seems like the whole compiler should be on the other side of a bridge (websocket / webworker)
+
+also, type inference scope should know if something comes from (builtin | toplevel | import)
+
+also we want to be able to batch executions, probably by module? So we can rerun all the tests in a module at once.
+
+andddd something about determining if a given toplevel is ~serializeable. so it can be cached instead of recomputed.
+
+///
+
+What would this look like for:
+- js (mut vs immut)
+- wasm
+- python
+- go
+
+----
+
+compile : (IR) -> ...
+
+ok, so if I want to do "whole program optimization", the "compile -> link" story gets weirder. Right?
+For example: if I want to monomorphize generic functions.
+
+would I just ... have a different "link" story, and do more of the compiling there?
+
+ALTERNATIVELY
+we could leave this up to the compiler, right?
+simplify the interface to:
+
+"here are the updates ... let me know what you find out"
+so (intern) is also irrelevant to our purposes.
+we'd provide the compiler a way to cache things if it wanted.
+
+but we don't actually need anything beyond:
+
+`evaluate`
+
+right?
+I guess at some point I might want an `export` function.
+ok so we're lookin at some persistence here.
+So, `compiler()` returns an object that is expected to have
+some persistence.
+
+EditorStore is working at the level of an individual module.
+but we're going to need to think bigger.
+
+# So a compiler
+
+Do we ... give it the whole dependency graph? each time?
+because it needs to be able to know what should be brought in.
+
+update(moduleId: string, deps: Dependencies, tops: Record<string, {ast: AST, info: ValidationInfo}>)
+
+...
+
+and then it responds with ... like ... "toplevelOutput: {id, data}"
+
+right?
+
+NOTE: Dependencies should encapsulate cross-module deps as well.
+
+
+# Thinking about modules
+
+Ok I do think that imports should be defined outside of parseable syntax.
+can have much better autocomplete that way maybeee and definitely automatic updating of stuff for renames,
+and also auto-importing stuff
+
+# Major usability things:
+
+- [x] up/down arrow keys
+- [-] click anywhere to select
+  - [ ] it doesn't really work, needs some tuning
+- [ ] click + drag
+- [ ] alt / ctrl arrow
+- [ ] move between toplevels
+- [ ] enter to create a new toplevellll
+
+# Ok but let's be running...
+
+Do I have a way to indicate that a toplevel should be evaluated?
+
+- definition
+- evaluation
+- test
+
+this locks down that you can't both define and evaluate in the same toplevel.
+
+loc(something, 'name')
+ctx.ref<string>('name') <- gives you the loc of the node
+
+- [x] we need to put the multi-stmt thing into validation inferStmts so we
+  correctly generalize stuff.
+- [x] ok, so: error reporting. gotta get the `src`s right.
+
+...
+
+- [x] get updates working
+- [x] make sure errors still make sense?
+- [x] make parser indicate (definition | evaluation | test)
+  - this is helpful for ... dependency cycle determination, right?
+- [ ] make validator ... know what's a definition vs evaluation vs test? idk if that's critical
+  - or maybe just `validateGroup` vs `validate` idk
+- [x] let's indicate mutual recursion groups, pleease
+  ya know, we could just number the toplevels
+- [x] if a toplevel /leaves/ a recursion group, the other members need to be notified
+
+- [ ] show the dependency graph in the sidebar please
+
+annnnnd also evaluation, rite
+
+# THinking about fixture tests
+
+could be a input plugin?
+can input plugins do that?
+might have to be something special.
+What I'm thinking of for input plugins is:
+- it can present an alternative UI
+  - and embed CST nodes as well
+  - and it /reduces/ to CST nodes, which are passed to the parser.
+
+But a fixture tests thing would want:
+[fn under test]
+[Pass/Fail] | [name] | [input] | [expected]
+
+And if output differs from expected, want a way to
+update the [expected] with that output.
+
+(optional additions include: "a fn to convert the output to CST ndoes" and "a fn to compare output to expected")
+
+ALSO I want to be able to ... select an individual test for (tracing) and (coverage display)
+
+so it seems like that would be .. a custom toplevel somehow.
+
+OR ... I could have a special CST node type that's like ... 'this should be ... replaced at render-time
+with some output'.
+Is that possible? hm. No, it would have to be the full "compare and maybe update". Which is pretty specialized.
+OR WAIT it could be ...
+like an output-only node, right?
+yeah ok: so ... there's a ... cst node type, which is like a placehodler. And there's a ... function at runtime,
+which you can call, with ... the cst or whatever that should populate that placeholder.
+
+Thenn all we need is also a way to have an onclick function that updates the value in the [expected] column with the
+actual output.
+
+# Deep Dependencies
+
+now we want a function to go through the dependency graph, and make it deep.
+Top down? or bottom up?
+
+top down: we would ... keep a list of the places we'd come from? and add to each of them in turn.
+bottom up: we would need a reverse mapping (parents), and we'd keep a ... list of the path we'd taken so far,
+which we'd add at each spot.
+
+Ok, so now whenever we /update/ a thing (if the dependencies don't change), we:
+
+- make a
+
+
+# EditorStore
+
+Ok, so....
+there's some initial 'set everything up'
+which is maybe just 'parse everything'
+
+and then there'll be an `update` function
+which will impact 1 or more toplevels.
+
+then we'll re-parse and potentially re-graph
+things.
+
+and then we traverse the graph, doing first validation
+and then evaluation.
+
+- [ ] initial parse
+- [ ] something updates the module,
+  and determines what has changed.
+  but that's not the editor store.
+  - that thing tells the editorStore to recalculate (parse)
+    and such. and then we do it.
+
+
+
+editorStore.constructor() ...
+  .update(topIds: string[])
+    -> for each updated top, reparse
+    -> if any updated top has different external references
+       from before, (adjust the graph | rebuild the graph)
+    -> then we ... hmm ...
+       if there are multiple changed tops, we need to determine
+       the proper traversal. potentially merging deep dependencies lists.
+       but anyway, once we've made a total ordering of all the tops that
+       need to be re-type-checked & re-evaluated, we do that.
+
+  at the same time, we expose a list of ... changes.
+  like, nodes whose meta has changed, or spans[][] have changed, stuff like that.
+
+Q: we can skip re-type-checking iff all dependencies types haven't changed.
+... I'll want to expose a way to ... determine if that's the case.
+
+Other things to keep in mind:
+- [ ] supporting (trace)s
+- [ ] supporting coverage indicators
+- [ ] some kind of tests setup. probably fixtures based.
+
+
+
+#
+
+arright
+So now, parsing will do ... resolution for us, at a local level.
+the next thing, is we need to ...
+...
+ugh
+ok, we need to set up the whole like graph and stuff.
+
+ok, so, we load up a module.
+and then we parse everything in it
+and then we construct a graph
+and then we do type checking on everything
+and then evaluation on everything, presumably
+and ... through it all, we can tell react about it
+
+andddd some quantity of this wants to be happening in a webworker?
+definintely the evaluation, but probably the type cehcking as well
+and maybe parsing? idk I want parsing to be veryyy responsive
+
+Ok, hmm. The current `store` stuff feels ... too tied to react n stuff?
+
+# Scopings
+
+- [ ] when I .. have my cursor over a node, and it is a definition
+  or a reference, the other paired things should be highlighted.
+- [x] also indicate unused variablers htanks
+
+... sooo ... toplevel lack of use is a nonlocal property.
+
+- [ ] OH can we have an up/down please?
+- [ ] I guess we'll need click-to-select overall as well...
+
+...
+so, first off:
+...
+let's override the `Meta`
+of nodes that are declarations.
+...
+and unused ones, let's make that clear too
+
+# ALRIGHT
+so, now we get to the part of the show
+where toplevels can depend on each other
+for type information.
+
+- [x] we have some persistence-of-errors issues here
+
+And thennnn I'll look into the ... dependency stuff?
+questions include:
+do I ... enforce a single namespace on everything.
+that seems a bit reductive.
+
+ok so I guess ... what we'd do is say:
+'your toplevel depended on [these things],
+and [these toplevels] claimed to provide them,
+do now I've given you [the infos] from those
+toplevels, and you get to work things out.`
+
+That feels like a good match of flexibility & structure.
+
+# Other interesting runtime-representation-things
+
+- having builtin support for CRDTs. in some interesting way.
+  like make it really easy to say "this type is crdt'd"
+
+# Debuggging values like we mean it
+
+What would it mean for a language to provide unexpectedly helpful value debugging?
+- make it really easy to pull up a graph of the code, and to trace
+  "where are all of the places this data could have originated"
+- make it really easy to attach a stack trace to an object...
+  like a `getTrace()` function that gives you a uuid that the
+  debugger can then reconnect with the trace of how you got to where
+  you were
+- automatically track runtime provenance of ... all values? or something.
+  or be able to mark a ~type as provenance-tracking.
+
+# DSL should handle references & products for me
+at least somewhat.
+
+// so, some understanding of ... scopes ...
+
+Kinds of scopes that there can be:
+- [ ] nonrecursive: things can only be used /after/ they are defined, and cannot be recursive
+- [ ] unordered: anything within a scope can use anything else
+- [ ] ordered: things can be used after *or within* their definition
+
+In order of "how much of a hassle is this",
+- ordered definitely wins
+- unordered requires some bookkeeping for "this might be defined later
+  and we'll match them up"
+- nonrecursive requires you to be able to /defer/ the resolution of something
+  until after the value, which seems annoying.
+
+So I think I'll just do ordered for now.
+
+
+I want something like `this is a scope, it makes a new scope`
+and I would do it at the:
+- `block` (maybe)
+- `lambda`
+- `the case of a switch`
+
+SCOPES can be `ordered` or `unordered` or `nonrecursive`.
+
+a nonrecursive scope would need ... some extra mucking about
+to be able to say "patterns after this
+
+
+OK but I also need something like a `recursive-scope` or maybe
+a `self-scope`.
+
+# Ok I need constructors
+which means I need deftypes?
+
+- [ ] parse errors don't really show up...
+
+
+# Wpans
+we need to ... have `useNode` respond with `spans` that we get from parsing.
+and it's just the spans for the children. of the node.
+so it could be like a list of spans.
+and it could be a string[][], one for each child.
+
+spans are great. wraps are great.
+IFF there's an expr that spans multiple items of a non-smoosh non-space list, we will need
+to fix the RenderList to make spans for it. just fyi
+
+# I had a thought
+about mutability
+
+for js--, where mutability might lurk around every corner,
+we just say "cache nothing. re-evaluate literally everything all the time".
+
+For a hypothetical js-, where we have really good mutability tracking, we might
+be able to label toplevels as "safe to cache" and "unsafe to cache".
+
+
 # Named Arguments
 
 tale as old as time, what do you do about lambdas.
 I say, that directly calling a toplevel function puts you in magic territory.
 So if the target resolves to a `var`, and that `var` resolves to a named-function-type,
 then we're good.
-
 # Typed FFI
 
 Ok y'all, we're gonna need to talk about typed ffi.
@@ -59,10 +461,14 @@ let's try that.
 - [x] need to debug type inference, if only I could
 - [x] render type errors really
 - [x] hover for annotations plssss
-- [ ] get binops infering
-- [ ] get .attribute and [index] doing reasonable things
+- [x] get binops infering
+- [x] get .attribute and [index] doing reasonable things
+- [x] I HSOULD DO SPANS.. like the <Wrap> that I had going.
+- [ ] and now objects
 
-- [ ] I HSOULD DO SPANS.. like the <Wrap> that I had going.
+ok trying to figure out types for ... dsl3.
+
+- [ ] ok and before I do real good imports, I can make some builtins, its fine
 
 # Type thoughts
 

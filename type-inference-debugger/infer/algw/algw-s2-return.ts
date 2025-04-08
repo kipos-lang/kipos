@@ -118,6 +118,7 @@ export const tenvFree = (tenv: Tenv) => merge(...Object.values(tenv.scope).map(s
 export type Subst = Record<string, Type>;
 
 export const gtypeApply = (type: Type): Type => {
+    if (!type) debugger;
     return typeApply(globalState.subst, type);
 };
 export const typeApply = (subst: Subst, type: Type): Type => {
@@ -497,7 +498,7 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
         }
         case 'var':
             const got = tenv.scope[expr.name];
-            if (!got) throw new Error(`variable not found in scope ${expr.name}`);
+            if (!got) throw new Error(`variable not found in scope: ${expr.name}`);
             if (got.vars.length) {
                 stackPush(
                     expr.src,

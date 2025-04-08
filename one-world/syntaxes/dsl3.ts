@@ -1,33 +1,16 @@
 import equal from 'fast-deep-equal';
 import { isTag } from '../keyboard/handleNav';
 import { ListKind, Loc, NodeID, RecNode, TableKind, TextSpan } from '../shared/cnodes';
+import { genId } from '../keyboard/ui/genId';
 
 export type MatchParent = {
+    type: 'match_parent';
     nodes: RecNode[];
     loc: Loc;
     sub?: { type: 'text'; index: number } | { type: 'table'; row: number } | { type: 'xml'; which: 'tag' | 'attributes' };
 };
-export type Span = { start: Loc; end?: Loc };
 
-/*
-
-ok, I tried some things
-but
-
-now i'm back to thinking I want objects, not functions.
-
-+
-*
-?
-| or
-seq
-ref
-^
-$
-
-*/
-
-export type Src = { left: Loc; right?: Loc };
+export type Src = { type: 'src'; left: Loc; right?: Loc; id: string };
 
 type AutoComplete = string;
 
@@ -42,6 +25,11 @@ export type Event =
 
 export type Ctx = {
     ref<T>(name: string): T;
+    scopes: { name: string; kind: string; loc: string }[][];
+    usages: {
+        [src: string]: { name: string; kind: string; usages: string[] };
+    };
+    externalUsages: { name: string; kind: string; loc: string }[];
     rules: Record<string, Rule<any>>;
     trace?: (evt: Event) => undefined;
     scope?: null | Record<string, any>;
@@ -56,7 +44,7 @@ export type Ctx = {
 
 export type Rule<T> =
     | { type: 'or'; opts: Rule<T>[] }
-    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src) => T }
+    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src & { id: string }) => T }
     | { type: 'meta'; meta: string; inner: Rule<T> }
     | { type: 'kwd'; kwd: string; meta?: string }
     | { type: 'ref'; name: string; bind?: string }
@@ -64,7 +52,13 @@ export type Rule<T> =
     | { type: 'group'; name: string; inner: Rule<T> }
     | { type: 'star'; inner: Rule<unknown> }
     | { type: 'opt'; inner: Rule<unknown> }
+    | { type: 'loc'; name: string; inner: Rule<unknown> }
     | { type: 'any' }
+    | { type: 'none' }
+    // usage tracking : TODO: support "unordered" scope, and maybe nonrecursive
+    | { type: 'scope'; inner: Rule<T> }
+    | { type: 'declaration'; kind: string }
+    | { type: 'reference'; kind: string }
     //
     | { type: 'id'; kind?: string | null }
     | { type: 'number'; just?: 'int' | 'float' }
@@ -74,6 +68,12 @@ export type Rule<T> =
 
 const show = (rule: Rule<unknown>): string => {
     switch (rule.type) {
+        case 'scope':
+            return `scope(${show(rule.inner)})`;
+        case 'reference':
+            return `reference(${rule.kind})`;
+        case 'declaration':
+            return `declaration(${rule.kind})`;
         case 'kwd':
             return rule.kwd;
         case 'ref':
@@ -84,6 +84,8 @@ const show = (rule: Rule<unknown>): string => {
             return `seq(${rule.rules.map(show).join(' ')})`;
         case 'star':
             return `${show(rule.inner)}*`;
+        case 'loc':
+            return `loc(${show(rule.inner)})`;
         case 'opt':
             return `${show(rule.inner)}?`;
         case 'id':
@@ -102,6 +104,8 @@ const show = (rule: Rule<unknown>): string => {
             return show(rule.inner);
         case 'group':
             return show(rule.inner);
+        case 'none':
+            return '<none>';
         case 'any':
             return '<any>';
         case 'number':
@@ -128,7 +132,7 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
     ctx.trace?.({
         type: 'stack-push',
         loc: parent.nodes[at]?.loc,
-        text: ['> ', { type: 'rule', rule }],
+        text: ['> ' + ctx.scopes.length, ' ', { type: 'rule', rule }],
     });
     // console.log(`> `.padStart(2 + indent), show(rule));
     // indent++;
@@ -148,9 +152,36 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
+        case 'reference': {
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
+            let src = undefined;
+            for (let i = ctx.scopes.length - 1; i >= 0; i--) {
+                const got = ctx.scopes[i].findLast((d) => d.name === node.text && d.kind === rule.kind);
+                if (got) {
+                    src = got.loc;
+                    break;
+                }
+            }
+
+            if (src) {
+                ctx.usages[src].usages.push(node.loc);
+            } else {
+                ctx.externalUsages.push({ name: node.text, kind: rule.kind, loc: node.loc });
+            }
+            return { value: node, consumed: 1 };
+        }
+        case 'declaration': {
+            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
+            if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
+            ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
+            ctx.usages[node.loc] = { name: node.text, kind: rule.kind, usages: [] };
+            return { value: node, consumed: 1 };
+        }
         case 'id':
             if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
-            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id' });
+            ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             return { value: node, consumed: 1 };
         case 'number': {
             if (node?.type !== 'id' || !node.text) return ctx.trace?.({ type: 'mismatch', message: 'not id' });
@@ -168,7 +199,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             for (let i = 0; i < node.spans.length; i++) {
                 const span = node.spans[i];
                 if (span.type === 'embed') {
-                    const m = match(rule.embed, ctx, { nodes: [span.item], loc: node.loc, sub: { type: 'text', index: i } }, 0);
+                    const m = match(rule.embed, ctx, { type: 'match_parent', nodes: [span.item], loc: node.loc, sub: { type: 'text', index: i } }, 0);
                     if (!m) return; // recovery
                     spans.push({ ...span, item: m.value });
                 } else {
@@ -182,9 +213,21 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'table') return;
             const res: any[] = [];
             for (let i = 0; i < node.rows.length; i++) {
-                const m = match(rule.row, { ...ctx, scope: null }, { nodes: node.rows[i], loc: node.loc, sub: { type: 'table', row: i } }, 0);
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['table(', node.rows.map((_, j) => (j === i ? '*' : '_')), ')'] });
+
+                const m = match(
+                    rule.row,
+                    { ...ctx, scope: null },
+                    { type: 'match_parent', nodes: node.rows[i], loc: node.loc, sub: { type: 'table', row: i } },
+                    0,
+                );
                 if (m) {
                     res.push(m.value);
+                } else {
+                    node.rows[i].forEach((node) => {
+                        ctx.meta[node.loc] = { kind: 'unparsed' };
+                    });
                 }
             }
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a table' });
@@ -195,13 +238,23 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (node?.type !== 'list') return;
             if (isTag(node.kind)) {
                 if (!isTag(rule.kind)) return;
-                const tag = match(rule.kind.node, ctx, { nodes: [node.kind.node], loc: node.loc, sub: { type: 'xml', which: 'tag' } }, 0);
+                const tag = match(
+                    rule.kind.node,
+                    ctx,
+                    { type: 'match_parent', nodes: [node.kind.node], loc: node.loc, sub: { type: 'xml', which: 'tag' } },
+                    0,
+                );
                 if (!tag) return; // TODO recovery?
                 if (rule.kind.attributes) {
                     const attributes = match(
                         rule.kind.attributes,
                         ctx,
-                        { nodes: node.kind.attributes ? [node.kind.attributes] : [], loc: node.loc, sub: { type: 'xml', which: 'attributes' } },
+                        {
+                            type: 'match_parent',
+                            nodes: node.kind.attributes ? [node.kind.attributes] : [],
+                            loc: node.loc,
+                            sub: { type: 'xml', which: 'attributes' },
+                        },
                         0,
                     );
                     // console.log('rule kind', attributes, node.kind.attributes);
@@ -214,7 +267,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                 return;
             }
 
-            const res = match(rule.item, ctx, { nodes: node.children, loc: node.loc }, 0);
+            const res = match(rule.item, ctx, { type: 'match_parent', nodes: node.children, loc: node.loc }, 0);
             if (res && res.consumed < node.children.length) {
                 for (let i = res.consumed; i < node.children.length; i++) {
                     const child = node.children[i];
@@ -225,16 +278,42 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
         }
 
         case 'opt': {
-            // if (!node) return { consumed: 0 };
+            if (!node) return { consumed: 0 };
             const inner = match(rule.inner, ctx, parent, at);
             // console.log('matching opt', inner, rule.inner);
             if (!inner) return { consumed: 0 };
             return inner;
         }
 
+        case 'loc': {
+            if (!node) return;
+            const inner = match(rule.inner, ctx, parent, at);
+            if (inner) {
+                if (!ctx.scope) throw new Error(`not in a scoped context, cant save 'loc' as ${rule.name}`);
+                ctx.scope[rule.name] = node.loc;
+            }
+            return inner;
+        }
+
+        case 'none':
+            return;
+
         case 'any':
             if (!node) return;
             return { consumed: 1, value: node };
+
+        case 'scope': {
+            const inner = match(
+                rule.inner,
+                {
+                    ...ctx,
+                    scopes: ctx.scopes.concat([[]]),
+                },
+                parent,
+                at,
+            );
+            return inner;
+        }
         case 'meta': {
             const inner = match(rule.inner, ctx, parent, at);
             if (inner) ctx.meta[node.loc] = { kind: rule.meta };
@@ -300,7 +379,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (rat >= parent.nodes.length) throw new Error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             // if (rat >= parent.nodes.length) console.error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             const right = m.consumed > 1 && rat < parent.nodes.length ? parent.nodes[at + m.consumed - 1].loc : undefined;
-            return { value: rule.f(ictx, { left, right }), consumed: m.consumed };
+            return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
         }
         case 'group': {
             if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);
@@ -344,9 +423,10 @@ const isBlank = (node: RecNode) => node.type === 'id' && node.text === '';
 
 // regex stuff
 export const or = <T>(...opts: Rule<T>[]): Rule<T> => ({ type: 'or', opts });
-export const tx = <T>(inner: Rule<any>, f: (ctx: Ctx, src: Src) => T): Rule<T> => ({ type: 'tx', inner, f });
+export const tx = <T>(inner: Rule<any>, f: (ctx: Ctx, src: Src & { id: string }) => T): Rule<T> => ({ type: 'tx', inner, f });
 export const ref = <T>(name: string, bind?: string): Rule<T> => ({ type: 'ref', name, bind });
 export const opt = <T>(inner: Rule<T>): Rule<T | null> => ({ type: 'opt', inner });
+export const loc = <T>(name: string, inner: Rule<T>): Rule<T> => ({ type: 'loc', name, inner });
 export const seq = (...rules: Rule<any>[]): Rule<unknown> => ({ type: 'seq', rules });
 export const group = <T>(name: string, inner: Rule<T>): Rule<T> => ({ type: 'group', name, inner });
 export const star = <T>(inner: Rule<T>): Rule<T[]> => ({ type: 'star', inner });
@@ -366,6 +446,10 @@ const float: Rule<number> = { type: 'number', just: 'float' };
 export const number: Rule<number> = { type: 'number' };
 export const list = <T>(kind: ListKind<Rule<unknown>>, item: Rule<T>): Rule<T> => ({ type: 'list', kind, item });
 export const table = <T>(kind: TableKind, row: Rule<T>): Rule<T> => ({ type: 'table', kind, row });
+
+export const scope = (inner: Rule<unknown>): Rule<unknown> => ({ type: 'scope', inner });
+export const declaration = (kind: string): Rule<unknown> => ({ type: 'declaration', kind });
+export const reference = (kind: string): Rule<unknown> => ({ type: 'reference', kind });
 
 /*
 

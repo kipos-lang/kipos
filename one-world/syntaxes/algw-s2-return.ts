@@ -1,13 +1,119 @@
 // import { js, TestParser } from '../keyboard/test-utils';
 import { Id, Loc, NodeID, RecNode, TextSpan } from '../shared/cnodes';
-import { Ctx, list, match, or, Rule, ref, tx, seq, kwd, group, id, star, Src, number, text, table, opt, meta, Event } from './dsl3';
+import {
+    Ctx,
+    list,
+    match,
+    or,
+    Rule,
+    ref,
+    tx,
+    seq,
+    kwd,
+    group,
+    id,
+    star,
+    Src,
+    number,
+    text,
+    table,
+    opt,
+    meta,
+    Event,
+    declaration,
+    reference,
+    scope,
+    loc,
+} from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
-import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, Type } from './algw-s2-types';
+import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, TopItem, Type } from './algw-s2-types';
+import { genId } from '../keyboard/ui/genId';
 
-export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'case', 'else', 'let', 'const', '=', '..', '.', 'fn'];
+export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
+
+const toplevels_spaced: Record<string, Rule<TopItem>> = {
+    test_stmt: tx<TopItem>(
+        seq(
+            kwd('test'),
+            meta(group('name', text({ type: 'none' })), 'text'),
+            group(
+                'cases',
+                table(
+                    'curly',
+                    tx(
+                        seq(
+                            meta(group('name', or(text({ type: 'none' }), id(null))), 'text'),
+                            group('input', ref('expr')),
+                            loc('outloc', group('output', ref('expr'))),
+                        ),
+                        (ctx, src) => {
+                            const name = ctx.ref<Id<string> | TextSpan<any, any>[]>('name');
+                            return {
+                                name: Array.isArray(name) ? name.map((s) => (s.type === 'text' ? s.text : '**')).join('') : name.text,
+                                input: ctx.ref<Expr>('input'),
+                                output: ctx.ref<Expr>('output'),
+                                outloc: ctx.ref<string>('outloc'),
+                                src,
+                            };
+                        },
+                    ),
+                ),
+            ),
+        ),
+        (ctx, src) => ({
+            type: 'test',
+            name: ctx
+                .ref<TextSpan<any, any>[]>('name')
+                .map((s) => (s.type === 'text' ? s.text : '**'))
+                .join(''),
+            cases: ctx.ref<{ name?: string; input: Expr; output: Expr; outloc: string; src: Src }[]>('cases'),
+            src,
+        }),
+    ),
+    type_stmt: tx<TopItem>(
+        seq(
+            kwd('type'),
+            group('name', declaration('type')),
+            kwd('=', 'punct'),
+            group(
+                'constructors',
+                table(
+                    'curly',
+                    tx(
+                        seq(
+                            group('name', declaration('constructor')),
+                            group(
+                                'args',
+                                table(
+                                    'round',
+                                    tx(seq(group('name', id(null)), ref('type', 'value'), opt(ref('expr', 'default'))), (ctx, src) => ({
+                                        name: textLoc(ctx.ref<Id<string>>('name')),
+                                        value: ctx.ref<Type>('value'),
+                                        default: ctx.ref<Expr | undefined>('default'),
+                                    })),
+                                ),
+                            ),
+                        ),
+                        (ctx, src) => ({
+                            type: 'constructor',
+                            name: textLoc(ctx.ref<Id<string>>('name')),
+                            args: ctx.ref<{}[]>('args'),
+                        }),
+                    ),
+                ),
+            ),
+        ),
+        (ctx, src) => ({
+            type: 'type',
+            src,
+            name: textLoc(ctx.ref<Id<string>>('name')),
+            constructors: ctx.ref('constructors'),
+        }),
+    ),
+};
 
 const stmts_spaced: Record<string, Rule<Stmt>> = {
     let: tx<Stmt>(seq(kwd('let'), ref('pat', 'pat'), kwd('=', 'punct'), ref('expr ', 'value')), (ctx, src) => ({
@@ -32,15 +138,6 @@ const stmts_spaced: Record<string, Rule<Stmt>> = {
             src,
         }),
     ),
-    // throw: tx<Stmt>(seq(kwd('throw'), ref('expr ', 'value')), (ctx, src) => ({
-    //     type: 'throw',
-    //     value: ctx.ref<Expr>('value'),
-    //     src,
-    // })),
-    // // just for show, not going to be part of js--
-    // switch: tx<Stmt>(seq(kwd('switch'), list('round', ref('expr', 'target')), table('curly', seq(ref('expr'), ref('stmt')))), (_, __) => ({
-    //     type: 'show',
-    // })),
 };
 
 export type Suffix =
@@ -49,18 +146,17 @@ export type Suffix =
     | CallArgs
     | { type: 'attribute'; attribute: Id<Loc>; src: Src };
 
-const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src): Expr => {
+const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }): Expr => {
     if (!suffixes.length) return base;
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
-                base = { type: 'attribute', target: base, attribute: textLoc(suffix.attribute), src: mergeSrc(base.src, nodesSrc(suffix.attribute)) };
-                // base = {
-                //     type: 'app',
-                //     target: { type: 'var', name: suffix.attribute.text, src: nodesSrc(suffix.attribute) },
-                //     args: [base],
-                //     src: mergeSrc(base.src, suffix.src),
-                // };
+                base = {
+                    type: 'attribute',
+                    target: base,
+                    attribute: textLoc(suffix.attribute),
+                    src: mergeSrc(base.src, nodesSrc(suffix.attribute)),
+                };
                 return;
             case 'named':
             case 'unnamed':
@@ -94,7 +190,7 @@ const textLoc = (id: Id<Loc>): { text: string; loc: Loc } => ({ text: id.text, l
 
 const exprs: Record<string, Rule<Expr>> = {
     'expr num': tx(group('value', number), (ctx, src) => ({ type: 'prim', prim: { type: 'int', value: ctx.ref<number>('value') }, src })),
-    'expr var': tx(group('id', meta(id(null), 'ref')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+    'expr var': tx(group('id', meta(reference('value'), 'ref')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
     'expr text': tx(group('spans', meta(text(ref('expr')), 'text')), (ctx, src) => ({
         type: 'str',
         src,
@@ -111,38 +207,40 @@ const exprs: Record<string, Rule<Expr>> = {
     ),
     'expr object': tx<Expr>(group('rows', table('curly', or(ref('spread'), ref('object row')))), (ctx, src) => ({
         type: 'object',
-        rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src })[]>('rows'),
+        rows: ctx.ref<(Spread<Expr> | { type: 'row'; name: Expr; value: Expr; src: Src & { id: string } })[]>('rows'),
         src,
     })),
-    // ({ type:'str', spans: ctx.ref<TextSpan<Expr>[]>('spans'), src })),
     'expr tuple': tx<Expr>(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
         return { type: 'tuple', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
     'expr array': tx(list('square', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => {
         return { type: 'array', src, items: ctx.ref<(Expr | Spread<Expr>)[]>('items') };
     }),
-    // 'expr table': tx(
-    //     group(
-    //         'rows',
-    //         table(
-    //             'curly',
-    //             tx(seq(group('key', id(null)), ref('expr', 'value')), (ctx, src) => ({
-    //                 name: ctx.ref<Id<Loc>>('key').text,
-    //                 value: ctx.ref<Expr>('value'),
-    //             })),
-    //         ),
-    //     ),
-    //     (ctx, src) => ({ type: 'object', items: ctx.ref<{ name: Id<Loc>; value: Expr }[]>('rows'), src }),
-    // ),
     'expr!': list('smooshed', ref('expr..')),
     'expr wrap': tx(list('round', ref('expr', 'inner')), (ctx, _) => ctx.ref<Expr>('inner')),
 };
 
 const rules = {
+    toplevel_spaced: or(...Object.keys(toplevels_spaced).map((name) => ref<TopItem>(name))),
+    toplevel: or<TopItem>(
+        list(
+            'spaced',
+            or(
+                ref<TopItem>('toplevel_spaced'),
+                tx<TopItem>(ref<Stmt>('stmt_spaced', 'stmt'), (ctx, src) => ({ type: 'stmt', stmt: ctx.ref<Stmt>('stmt'), src })),
+            ),
+        ),
+        tx(ref('expr', 'expr'), (ctx, src) => ({
+            type: 'stmt',
+            stmt: { type: 'expr', expr: ctx.ref<Expr>('expr'), src: { ...src, id: genId() } },
+            src,
+        })),
+    ),
+    stmt_spaced: or(...Object.keys(stmts_spaced).map((name) => ref<Stmt>(name))),
     stmt: or<Stmt>(
-        list('spaced', or(...Object.keys(stmts_spaced).map((name) => ref<Stmt>(name)))),
+        list('spaced', ref('stmt_spaced')),
         // tx(ref('block'), (ctx, src),
-        // tx(kwd('return'), (_, src) => ({ type: 'return', value: null, src })),
+        tx<Stmt>(kwd('return'), (_, src) => ({ type: 'return', value: undefined, src })),
         // kwd('continue'),
         tx(ref('expr', 'expr'), (ctx, src) => ({ type: 'expr', expr: ctx.ref<Expr>('expr'), src })),
     ),
@@ -152,10 +250,10 @@ const rules = {
         value: ctx.ref<Pat>('value'),
         src,
     })),
-    'call row': tx<CallRow>(seq(group('name', id(null)), ref('expr', 'value')), (ctx, src) => ({
+    'call row': tx<CallRow>(seq(group('name', id(null)), opt(ref('expr', 'value'))), (ctx, src) => ({
         type: 'row',
         name: textLoc(ctx.ref<Id<Loc>>('name')),
-        value: ctx.ref<Expr>('value'),
+        value: ctx.ref<Expr | undefined>('value'),
         src,
     })),
     'object row': tx<ObjectRow>(seq(ref('expr', 'name'), ref('expr', 'value')), (ctx, src) => ({
@@ -170,7 +268,7 @@ const rules = {
             args: ctx.ref<(Pat | Spread<Pat>)[]>('args'),
             src,
         })),
-        tx<PatArgs>(group('args', table('round', star(or(ref('spread pat'), ref('pat call row'))))), (ctx, src) => ({
+        tx<PatArgs>(group('args', table('round', or(ref('spread pat'), ref('pat call row')))), (ctx, src) => ({
             type: 'named',
             args: ctx.ref<PatCallRow[]>('args'),
             src,
@@ -182,11 +280,31 @@ const rules = {
             args: ctx.ref<(Expr | Spread<Expr>)[]>('args'),
             src,
         })),
-        tx<CallArgs>(group('args', table('round', star(or(ref('spread'), ref('call row'))))), (ctx, src) => ({
+        tx<CallArgs>(group('args', table('round', or(ref('spread'), ref('call row')))), (ctx, src) => ({
             type: 'named',
             args: ctx.ref<CallRow[]>('args'),
             src,
         })),
+    ),
+    type: or<Type>(
+        tx(group('id', meta(reference('type'), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+        tx(
+            list('smooshed', seq(group('name', meta(reference('type'), 'constructor')), list('round', group('args', star(ref('type')))))),
+            (ctx, src) => ({
+                type: 'app',
+                target: {
+                    type: 'con',
+                    name: ctx.ref<Id<Loc>>('name').text,
+                    src: {
+                        type: 'src',
+                        left: ctx.ref<Id<Loc>>('name').loc,
+                        id: genId(),
+                    },
+                },
+                args: ctx.ref<Type[]>('args'),
+                src,
+            }),
+        ),
     ),
     pat: or<Pat>(
         tx(kwd('_'), (ctx, src) => ({ type: 'any', src })),
@@ -202,13 +320,16 @@ const rules = {
             prim: { type: 'bool', value: ctx.ref<Id<Loc>>('value').text === 'true' },
             src,
         })),
-        tx(group('id', meta(id(null), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
-        tx(list('smooshed', seq(kwd('.'), group('name', meta(id(null), 'constructor')), ref('pat-call-args', 'args'))), (ctx, src) => ({
-            type: 'con',
-            name: ctx.ref<Id<Loc>>('name').text,
-            args: ctx.ref<PatArgs>('args'),
-            src,
-        })),
+        tx(group('id', meta(declaration('value'), 'decl')), (ctx, src) => ({ type: 'var', name: ctx.ref<Id<Loc>>('id').text, src })),
+        tx(
+            list('smooshed', seq(kwd('.'), group('name', meta(reference('constructor'), 'constructor')), ref('pat-call-args', 'args'))),
+            (ctx, src) => ({
+                type: 'con',
+                name: ctx.ref<Id<Loc>>('name').text,
+                args: ctx.ref<PatArgs>('args'),
+                src,
+            }),
+        ),
         tx<Pat>(list('round', group('items', star(ref('pat')))), (ctx, src) => {
             const items = ctx.ref<Pat[]>('items');
             return { type: 'tuple', items, src };
@@ -216,42 +337,26 @@ const rules = {
     ),
     comment: meta(list('smooshed', seq(kwd('//', 'comment'), star(meta({ type: 'any' }, 'comment')))), 'comment'),
     block: tx<Block>(
-        list(
-            'curly',
-            group(
-                'contents',
-                star(
-                    or(
-                        tx(list({ type: 'plain' }, star({ type: 'any' })), (_, __) => true),
-                        ref('stmt'),
+        scope(
+            list(
+                'curly',
+                group(
+                    'contents',
+                    star(
+                        or(
+                            tx(list({ type: 'plain' }, star({ type: 'any' })), (_, __) => true),
+                            ref('stmt'),
+                        ),
                     ),
                 ),
             ),
         ),
         (ctx, src) => {
-            // let result = null as null | Expr;
-            // const items = ctx.ref<(BareLet | Expr | true)[]>('contents').filter((x) => x !== true);
-            // if (!items.length) {
-            //     return { type: 'var', name: 'null', src };
-            // }
-            // while (items.length) {
-            //     const last = items.pop()!;
-            //     if (last.type === 'bare-let') {
-            //         result = {
-            //             type: 'let',
-            //             vbls: [{ pat: last.pat, init: last.init }],
-            //             body: result ?? { type: 'var', name: 'void', src: last.src },
-            //             src: last.src,
-            //         };
-            //     } else {
-            //         result = result ?? last;
-            //     }
-            // }
-            // return result ?? { type: 'var', name: 'empty-block', src };
             return { type: 'block', stmts: ctx.ref<Stmt[]>('contents'), src };
         },
     ),
     ...stmts_spaced,
+    ...toplevels_spaced,
     // typ_quote: tx<Expr>(
     //     seq(kwd('@'), kwd('t'), list('round', ref('type', 'contents'))),
     //     (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'type', contents: ctx.ref<Type>('contents') } }),
@@ -273,7 +378,6 @@ const rules = {
         ref('unquote'),
         ref('raw_quote'),
         ref('pat_quote'),
-        // ref('typ_quote'),
         ref('quote'),
         tx<Expr>(
             seq(
@@ -293,11 +397,6 @@ const rules = {
                                 src,
                             })),
                             ref('call-args'),
-                            // tx(list('round', group('items', star(or(ref('spread'), ref('expr'))))), (ctx, src) => ({
-                            //     type: 'call',
-                            //     items: ctx.ref<(Expr | Spread<Expr>)[]>('items'),
-                            //     src,
-                            // })),
                         ),
                     ),
                 ),
@@ -324,18 +423,13 @@ const rules = {
             type: 'if',
             cond: ctx.ref<Expr>('cond'),
             yes: ctx.ref<Block>('yes'),
-            no: ctx.ref<undefined | Expr>('no'),
+            no: ctx.ref<undefined | Block | (Expr & { type: 'if' })>('no'),
             src,
         }),
     ),
     'expr ': or(
         tx<Expr>(
-            seq(
-                // or(group('args', table('round', seq(id(null), opt(ref('pat'))))),
-                meta(list('round', group('args', star(ref('pat')))), 'fn-args'),
-                kwd('=>'),
-                group('body', or(ref('block'), ref('expr '))),
-            ),
+            scope(seq(meta(list('round', group('args', star(ref('pat')))), 'fn-args'), kwd('=>'), group('body', or(ref('block'), ref('expr '))))),
             (ctx, src) => ({
                 type: 'lambda',
                 args: ctx.ref<Pat[]>('args'),
@@ -395,6 +489,9 @@ const rules = {
 
 export const ctx: Ctx = {
     rules,
+    scopes: [],
+    usages: {},
+    externalUsages: [],
     ref(name) {
         if (!this.scope) throw new Error(`no  scope`);
         return this.scope[name];
@@ -442,7 +539,7 @@ export const parser = {
     },
     spans: () => [],
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {
-        const myctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace };
+        const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
         macros.forEach((macro) => {
             if (!myctx.rules[macro.parent]) {
                 console.warn(`Specified macro parent ${macro.parent} not found`);
@@ -451,7 +548,10 @@ export const parser = {
                 myctx.rules[macro.parent] = or(macro.body, ref(macro.id));
             }
         });
-        const res = match<Stmt>({ type: 'ref', name: 'stmt' }, myctx, { nodes: [node], loc: '' }, 0);
-        return { result: res?.value, ctx: { meta: myctx.meta } };
+        const res = match<TopItem>({ type: 'ref', name: 'toplevel' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        // console.log(myctx.usages, myctx.externalUsages);
+        // if (res?.value?.type === 'let')
+        // console.log('provides', myctx.scopes);
+        return { result: res?.value, ctx: myctx };
     },
 };

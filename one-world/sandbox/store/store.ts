@@ -7,9 +7,9 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
 import { LangResult, makeEditor } from './makeEditor';
-import { Annotation, Meta } from './language';
-import { ParseResult } from '../../syntaxes/algw-s2-return';
+import { Annotation, EvaluationResult, FailureKind, Meta, ParseResult } from './language';
 import { Event } from '../../syntaxes/dsl3';
+import { Dependencies } from './editorStore';
 
 export type ModuleTree = {
     node?: Module;
@@ -26,17 +26,22 @@ interface Store {
     addModule(module: Module): void;
     updateeModule(update: ModuleUpdate): void;
     // get selectedModule(): string
-    useEditor(): EditorStore;
+    useEditor(): EditorStoreI;
     useSelected(): string;
     useModuleTree(): ModuleTree;
 }
 
-export interface EditorStore {
+export interface EditorStoreI {
     useTopParseResults(top: string): LangResult;
-    useParseResults(): Record<string, LangResult>;
+    useParseResults(): Record<string, ParseResult<any>>;
+    useDependencyGraph(): Dependencies;
+    useTopResults(top: string): null | EvaluationResult[];
+    useTopFailure(top: string): null | FailureKind[];
+    useTopSource(top: string): null | string; // make it cst pleeeease
     useModule(): Module;
     useSelection(): NodeSelection[];
     useTop(id: string): TopStore;
+    getTop(id: string): Toplevel;
     update(action: Action): void;
 }
 
@@ -45,12 +50,19 @@ export type SelStatus = {
     highlight?: Highlight;
 };
 
-export type UseNode = (path: Path) => { node: Node; sel?: SelStatus; meta?: Meta; annotations?: Annotation[] };
+export type UseNode = (path: Path) => {
+    //
+    node: Node;
+    sel?: SelStatus;
+    meta?: Meta;
+    spans?: string[][];
+};
 
 interface TopStore {
     top: Toplevel;
     useRoot(): string;
     useNode: UseNode;
+    useAnnotations(key: string): undefined | Annotation[];
 }
 
 export const newModule = (name = 'NewModule'): Module => {
@@ -62,9 +74,7 @@ export const newModule = (name = 'NewModule'): Module => {
         name,
         history: [],
         pluginConfig: {},
-        pluginImports: [],
-        macroImports: [],
-        ffiImports: [],
+        imports: { macros: [], ffi: [], plugins: [], normal: [] },
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
@@ -98,7 +108,14 @@ const makeModuleTree = (modules: Record<string, Module>) => {
 
 export const defaultLanguageConfig = 'default';
 
-export type Evt = 'modules' | 'selected' | `top:${string}` | `node:${string}` | `module:${string}` | `module:${string}:roots`;
+export type Evt =
+    | 'modules'
+    | 'selected'
+    | `annotation:${string}`
+    | `top:${string}`
+    | `node:${string}`
+    | `module:${string}`
+    | `module:${string}:roots`;
 
 // const makeLanguage = (configurations: Record<string, LanguageConfiguration>) => {
 //     const languages = {};
@@ -135,13 +152,21 @@ const createStore = (): Store => {
     const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
 
     const useTick = (evt: Evt) => {
-        const [_, setTick] = useState(0);
+        const [ticker, setTick] = useState(0);
         useEffect(() => {
             return listen(evt, () => setTick((t) => t + 1));
         }, [evt]);
+        return ticker;
     };
 
-    const editors: Record<string, EditorStore> = {};
+    const f = () => {
+        const id = location.hash.slice(1);
+        selected = id;
+        shout('selected');
+    };
+    window.addEventListener('hashchange', f);
+
+    const editors: Record<string, EditorStoreI> = {};
 
     return {
         module(id: string) {
@@ -191,15 +216,6 @@ const StoreCtx = createContext({ store: null } as { store: null | Store });
 export const useStore = (): Store => {
     const v = useContext(StoreCtx);
     if (!v.store) v.store = createStore();
-
-    useEffect(() => {
-        const f = () => {
-            const id = location.hash.slice(1);
-            v.store!.select(id);
-        };
-        window.addEventListener('hashchange', f);
-        return () => window.removeEventListener('hashchange', f);
-    }, []);
 
     return v.store;
 };

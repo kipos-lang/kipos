@@ -10,7 +10,6 @@ import {
     inferExpr,
     inferStmt,
     resetState,
-    schemeApply,
     StackText,
     State,
     Subst,
@@ -22,7 +21,7 @@ import {
 import { Expr, Stmt, traverseStmt, Type } from '../infer/algw/Type';
 import { Src } from '../lang/parse-dsl';
 import { RenderEvent } from './RenderEvent';
-import { colors, hlShadow, RenderScheme, RenderType } from './RenderType';
+import { hlShadow, RenderType } from './RenderType';
 import { interleave } from './interleave';
 import { ShowStacks } from './ShowText';
 import { Numtip } from './Numtip';
@@ -30,6 +29,7 @@ import { LineManager, LineNumber, RenderNode } from './RenderNode';
 import { zedcolors } from './colors';
 import { currentTheme } from './themes';
 import { Meta } from '../../one-world/sandbox/store/language';
+import { ShowScope } from './ShowScope';
 
 // const LEFT_WIDTH = 460
 // const LEFT_WIDTH = 360;
@@ -134,7 +134,7 @@ const traverse = (id: string, nodes: Nodes, f: (node: Node, path: string[]) => v
 //     }
 // });
 
-type NodeClick = { type: 'var'; name: string } | { type: 'ref'; loc: string } | { type: 'decl'; loc: string };
+export type NodeClick = { type: 'var'; name: string } | { type: 'ref'; loc: string } | { type: 'decl'; loc: string };
 
 export const hlNode = {
     background: 'rgb(206 206 249)', //colors.accentLightRgba,
@@ -477,79 +477,6 @@ const Sidebar = ({
     );
 };
 
-const ShowScope = ({ smap, scope, highlightVars, ctx }: { ctx: Ctx; smap: Subst; scope: Tenv['scope']; highlightVars: string[] }) => {
-    const keys = Object.keys(scope);
-    const firstNonBuiltin = useMemo(() => keys.findIndex((k) => !builtinEnv().scope[k]), [scope]);
-    return (
-        <div
-            style={{
-                border: `1px solid ${colors.accent}`,
-                textAlign: 'center',
-                width: 400,
-            }}
-        >
-            <div
-                style={{ backgroundColor: colors.accent, color: 'black', gridColumn: '1/3', marginBottom: 8, fontFamily: 'Lora', fontWeight: 'bold' }}
-            >
-                Scope
-            </div>
-            {!Object.keys(scope).length ? (
-                <div
-                    style={{
-                        marginTop: 24,
-                        marginBottom: 16,
-                    }}
-                >
-                    No variables defined
-                </div>
-            ) : (
-                <div
-                    style={{
-                        display: 'grid',
-                        // marginTop: 24,
-                        marginBottom: 16,
-                        gridTemplateColumns: 'max-content 1fr',
-                        gridTemplateRows: 'max-content',
-                        fontFamily: 'Jet Brains',
-                        columnGap: 12,
-                        minWidth: 200,
-                    }}
-                >
-                    <div style={{ gridColumn: '1/3', marginBottom: 16, fontFamily: 'Lora', textAlign: 'left', marginLeft: 16 }}>Builtins</div>
-                    {keys.map((k) => (
-                        <div key={k} style={{ display: 'contents' }}>
-                            {k === keys[firstNonBuiltin] ? (
-                                <>
-                                    <div
-                                        style={{
-                                            gridColumn: '1/3',
-                                            height: 1,
-                                            backgroundColor: colors.accent,
-                                            marginTop: 8,
-                                            marginBottom: 8,
-                                        }}
-                                    ></div>
-                                    <div style={{ gridColumn: '1/3', marginBottom: 16, fontFamily: 'Lora', textAlign: 'left', marginLeft: 16 }}>
-                                        Locals
-                                    </div>
-                                </>
-                            ) : null}
-                            <div style={{ textAlign: 'right', marginLeft: 16 }}>{k}</div>
-                            <div style={{ textAlign: 'left' }}>
-                                <RenderScheme
-                                    s={schemeApply(smap, scope[k])}
-                                    highlightVars={highlightVars}
-                                    onClick={(name) => ctx.onClick({ type: 'var', name })}
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
 const Substs = ({ subst }: { subst: { name: string; type: Type }[] }) => {
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', justifyContent: 'flex-start', gridAutoRows: 'max-content' }}>
@@ -620,19 +547,28 @@ type Grouped = { id?: string; end?: string; children: (string | Grouped)[] };
 export const partition = (ctx: Ctx, children: string[]) => {
     // const groups: Grouped = {children: []}
     const stack: Grouped[] = [{ children: [] }];
+
+    const better = children.map((child) => {
+        if (!ctx.spans[child]) return [];
+        return ctx.spans[child]
+            .map((id) => ({ id, idx: children.indexOf(id) }))
+            .sort((a, b) => b.idx - a.idx)
+            .map((s) => s.id);
+    });
+
     for (let i = 0; i < children.length; i++) {
         const current = stack[stack.length - 1];
+        const spans = better[i];
         const child = children[i];
-        if (!ctx.spans[child]) {
+        if (!spans.length) {
             current.children.push(child);
             while (stack[stack.length - 1].end === child) {
                 stack.pop();
             }
             continue;
         }
-        const spans = ctx.spans[child].map((id) => ({ id, idx: children.indexOf(id) })).sort((a, b) => b.idx - a.idx);
 
-        spans.forEach(({ id, idx }) => {
+        spans.forEach((id) => {
             const inner: Grouped = { end: id, children: [], id: `${child}:${id}` };
             stack[stack.length - 1].children.push(inner);
             stack.push(inner);

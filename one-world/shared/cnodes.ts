@@ -7,7 +7,6 @@
 //
 
 import { isTag } from '../keyboard/handleNav';
-import { Update } from '../keyboard/utils';
 
 /*
 
@@ -332,7 +331,7 @@ export const fromMap = <Loc>(id: NodeID, nodes: Nodes, toLoc: (l: NodeID) => Loc
 
 export const fromRec = <Loc>(
     node: RecNodeT<Loc>,
-    map: Nodes | Update['nodes'],
+    map: Nodes | Record<NodeID, Node | null>,
     get: (l: Loc, node: null, path: NodeID[]) => NodeID,
     path: NodeID[] = [],
 ): NodeID => {

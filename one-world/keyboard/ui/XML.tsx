@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { XML } from '../../syntaxes/xml';
 import React from 'react';
 import { NodeSelection, SelectionStatuses, Top } from '../utils';
-import { allPaths, Src } from '../handleShiftNav';
 import { Loc } from '../../shared/cnodes';
+import { Src } from '../../syntaxes/dsl3';
 
 type Path = (string | number)[];
 type State = { pinned: Path[]; expanded: Path[]; extra: number };
@@ -13,7 +13,7 @@ const peq = (one: Path, two: Path) => one.length === two.length && one.every((n,
 const pstartsWith = (one: Path, prefix: Path, maxDepth: number) =>
     one.length >= prefix.length && one.length <= maxDepth + prefix.length && prefix.every((p, i) => p === one[i]);
 
-const chop = (t: string, max: number) => (t.length > max ? t.slice(0, max - 3) + '...' : t);
+const chop = (t: string, max: number) => (t.length > max ? t.slice(0, max / 2 - 3) + '...' + t.slice(-max / 2) : t);
 
 const attrs = (v: Record<string, any>) => {
     return Object.keys(v)
@@ -89,6 +89,7 @@ export const XMLNode = ({
                 style={{ display: 'flex', ...style }}
                 onMouseOver={() => setHover(node.src)}
                 onMouseOut={() => setHover(null)}
+                title={JSON.stringify(node.src)}
             >
                 <div style={{ width: 10 }} onClick={() => toggle(path)}>
                     -
@@ -109,6 +110,7 @@ export const XMLNode = ({
                 style={{ display: 'flex', ...style }}
                 onMouseOver={() => setHover(node.src)}
                 onMouseOut={() => setHover(null)}
+                title={JSON.stringify(node.src)}
             >
                 <div style={{ width: 10 }} onClick={() => toggle(path)}>
                     {exact ? '•' : ''}
@@ -128,6 +130,7 @@ export const XMLNode = ({
                 onMouseOver={() => setHover(node.src)}
                 onMouseOut={() => setHover(null)}
                 onClick={() => onClick(node.src)}
+                title={JSON.stringify(node.src)}
             >
                 <div style={{ width: 10 }} onClick={() => toggle(path)}>
                     {exact ? '•' : ''}

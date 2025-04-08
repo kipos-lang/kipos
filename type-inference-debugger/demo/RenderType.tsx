@@ -47,6 +47,7 @@ export const hlShadow: React.CSSProperties = {
 };
 
 export const RenderScheme = ({ s, highlightVars, onClick }: { s: Scheme; highlightVars: string[]; onClick(vname: string): void }) => {
+    if (!s || !s.vars) return <div>{JSON.stringify(s)}</div>;
     if (!s.vars.length) return <RenderType t={s.body} highlightVars={highlightVars} onClick={onClick} />;
     highlightVars = highlightVars.filter((h) => !s.vars.includes(h));
     return (

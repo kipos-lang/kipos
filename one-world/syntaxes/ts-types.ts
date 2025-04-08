@@ -1,17 +1,20 @@
-import { Src } from '../keyboard/handleShiftNav';
+import { genId } from '../keyboard/ui/genId';
 import { TextSpan, Id, Loc, RecNode } from '../shared/cnodes';
+import { Src } from './dsl3';
 
-export const mergeSrc = (one: Src, two?: Src): Src => ({ left: one.left, right: two?.right ?? two?.left ?? one.right });
+export const mergeSrc = (one: Src, two?: Src): Src => ({ type: 'src', left: one.left, right: two?.right ?? two?.left ?? one.right, id: genId() });
 
 export const nodesSrc = (nodes: RecNode | RecNode[]): Src =>
     Array.isArray(nodes)
         ? nodes.length === 1
-            ? { left: nodes[0].loc }
+            ? { type: 'src', left: nodes[0].loc, id: genId() }
             : {
+                  type: 'src',
                   left: nodes[0].loc,
                   right: nodes[nodes.length - 1].loc,
+                  id: genId(),
               }
-        : { left: nodes.loc };
+        : { type: 'src', left: nodes.loc, id: genId() };
 
 type Err = { type: 'error'; src: Src };
 

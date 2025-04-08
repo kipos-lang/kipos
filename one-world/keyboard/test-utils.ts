@@ -17,7 +17,6 @@ import {
 // import { Ctx, ParseResult } from '../syntaxes/dsl';
 import { TESTING_CTREE } from './applyUpdate';
 import { fixTextSel } from './ctdt-test-utils';
-import { selEnd, Src } from './handleShiftNav';
 import { charClass } from './insertId';
 import { initial } from './update/crdt/ctree.test';
 import { CollectionCursor, Cursor, IdCursor, ListWhere, NodeSelection, Path, selStart, TextCursor, Top } from './utils';

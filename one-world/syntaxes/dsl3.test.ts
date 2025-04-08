@@ -39,7 +39,7 @@ const fixes = {
 const run = (input: string, matcher: string, mctx = ctx) => {
     const state = cread(splitGraphemes(input), js);
     const rt = root(state, (idx) => idx);
-    const res = match({ type: 'ref', name: matcher }, mctx, { nodes: [rt], loc: '' }, 0);
+    const res = match({ type: 'ref', name: matcher }, mctx, { type: 'match_parent', nodes: [rt], loc: '' }, 0);
     return res;
 };
 
@@ -57,6 +57,9 @@ test.skip('meta from one path doesnt pollute another', () => {
     const mctx: Ctx = {
         meta: {},
         kwds: [],
+        externalUsages: [],
+        scopes: [],
+        usages: {},
         ref(name) {
             throw new Error('no');
         },
@@ -67,7 +70,7 @@ test.skip('meta from one path doesnt pollute another', () => {
             ),
         },
     };
-    const res = match({ type: 'ref', name: 'top' }, mctx, { nodes: [rt], loc: '' }, 0);
+    const res = match({ type: 'ref', name: 'top' }, mctx, { type: 'match_parent', nodes: [rt], loc: '' }, 0);
     expect(res?.value).toEqual({ which: 2 });
     expect(mctx.meta).toEqual({});
 });

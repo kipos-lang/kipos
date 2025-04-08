@@ -1,3 +1,4 @@
+import { genId } from '../../../keyboard/ui/genId';
 import { Id, Loc, RecNode } from '../../../shared/cnodes';
 import { Expr } from '../../../syntaxes/algw-s2-types';
 import { Src } from '../../../syntaxes/dsl3';
@@ -25,23 +26,25 @@ const dataToExpr = (data: Data | Expr): Expr => {
     const right = dataToExpr(data.right);
     return {
         type: 'app',
-        target: { type: 'var', name: data.op.text, src: { left: data.op.loc } },
+        target: { type: 'var', name: data.op.text, src: { type: 'src', left: data.op.loc, id: genId() } },
         args: { type: 'unnamed', src: data.src, args: [left, right] },
         src: data.src,
     };
 };
 
-const mergeSrc = (one: Src, two?: Src): Src => ({ left: one.left, right: two?.right ?? two?.left ?? one.right });
+const mergeSrc = (one: Src, two?: Src): Src => ({ type: 'src', left: one.left, right: two?.right ?? two?.left ?? one.right, id: genId() });
 
 export const nodesSrc = (nodes: RecNode | RecNode[]): Src =>
     Array.isArray(nodes)
         ? nodes.length === 1
-            ? { left: nodes[0].loc }
+            ? { type: 'src', left: nodes[0].loc, id: genId() }
             : {
+                  type: 'src',
                   left: nodes[0].loc,
                   right: nodes[nodes.length - 1].loc,
+                  id: genId(),
               }
-        : { left: nodes.loc };
+        : { type: 'src', left: nodes.loc, id: genId() };
 
 // This is probably the same algorithm as the simple precedence parser
 // https://en.wikipedia.org/wiki/Simple_precedence_parser
