@@ -158,7 +158,7 @@ export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean 
         <div
             className={css({
                 display: 'flex',
-                flexDirection: 'row',
+                flexDirection: 'column',
                 alignItems: 'flex-start',
                 padding: '12px',
                 margin: '12px',
@@ -170,9 +170,9 @@ export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean 
         >
             {results.map((res, i) =>
                 res.type === 'plain' ? (
-                    <pre style={{ margin: 0, padding: 0 }}>{res.data}</pre>
+                    <pre style={{ display: 'block', margin: 0, padding: 0 }}>{res.data}</pre>
                 ) : (
-                    <pre style={{ margin: 0, padding: 0 }}>{JSON.stringify(res)}</pre>
+                    <pre style={{ display: 'block', margin: 0, padding: 0 }}>{JSON.stringify(res)}</pre>
                 ),
             )}
         </div>

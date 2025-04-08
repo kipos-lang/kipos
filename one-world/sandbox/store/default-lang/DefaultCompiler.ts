@@ -1,9 +1,10 @@
+import equal from 'fast-deep-equal';
 import { RecNode } from '../../../shared/cnodes';
 import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
 import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind } from '../language';
 import { TInfo } from './default-lang';
-import { Resolutions, stmtToString, toString } from './to-string';
+import { Resolutions, stmtToString, testToString, toString } from './to-string';
 
 const addFn = <K extends keyof CompilerEvents>(
     key: string,
@@ -34,6 +35,31 @@ and mutability be darned.
 
 
 */
+
+const test = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
+    const f = new Function(
+        'deps',
+        '$$check',
+        Object.entries(names)
+            .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
+            .join('') + `\n\n${source}`,
+    );
+    const results: EvaluationResult[] = [];
+    try {
+        f(deps, (name: string, input: any, output: any, outloc: string) => {
+            // TODO: want to be able to exception guard the input
+            if (equal(input, output)) {
+                results.push({ type: 'plain', data: `✅ ${name}` });
+            } else {
+                results.push({ type: 'plain', data: `🚨 ${name}` });
+            }
+        });
+    } catch (err) {
+        results.push({ type: 'exception', message: (err as Error).message });
+    }
+    return results;
+};
+
 const evaluate = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
     const f = new Function(
         'deps',
@@ -52,6 +78,7 @@ const evaluate = (source: string, deps: Record<string, any>, names: Record<strin
         return [{ type: 'exception', message: (err as Error).message }];
     }
 };
+
 const define = (source: string, provides: string[], deps: Record<string, any>, names: Record<string, string>) => {
     const f = new Function(
         'deps',
@@ -61,6 +88,7 @@ const define = (source: string, provides: string[], deps: Record<string, any>, n
     );
     return f(deps);
 };
+
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
 export class DefaultCompiler implements Compiler<TopItem, TInfo> {
@@ -206,6 +234,23 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         this.logFailure(module, top, null);
                     } else if (asts[top].kind.type === 'definition') {
                         throw new Error(`unreachable`);
+                    }
+                } else if (single.type === 'test') {
+                    const code = testToString(single, fixedSources);
+                    const source = toString(code);
+                    this.code[module][top] = source;
+                    this.emit('viewSource', { module, top }, { source });
+
+                    if (missingDeps.length) {
+                        this.logFailure(module, top, { type: 'dependencies', deps: missingDeps });
+                        return; // skip it
+                    }
+
+                    if (asts[top].kind.type === 'test') {
+                        const result = test(source, depValues, names);
+                        this._results[module][top] = { type: 'evaluate', result };
+                        this.emit('results', { module, top }, { results: result });
+                        this.logFailure(module, top, null);
                     }
                 } else {
                     throw new Error(`cant evaluate ${single.type}`);

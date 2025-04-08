@@ -682,6 +682,10 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
             return gtypeApply(arrayType);
         }
         case 'var':
+            if (!expr.name.trim()) {
+                stackError([expr.src], 'expected identifier, found a blank');
+                return newTypeVar({ type: 'free', prev: expr.name }, expr.src);
+            }
             const got = tenv.scope[expr.name];
             if (!got) {
                 stackError([expr.src], `variable not found in scope: ${expr.name}`);

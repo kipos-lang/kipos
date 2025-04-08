@@ -1,5 +1,5 @@
 import { interleaveF } from '../../../keyboard/interleave';
-import { Expr, Pat, Block, Stmt } from '../../../syntaxes/algw-s2-types';
+import { Expr, Pat, Block, Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Source } from './validate';
 
 /*
@@ -228,6 +228,34 @@ const ifToString = (iff: Expr & { type: 'if' }, res: Resolutions, vbl?: string |
         ...(iff.no ? [` else `, iff.no.type === 'if' ? ifToString(iff.no, res, vbl) : blockToString(iff.no, res, vbl)] : []),
     ]);
 };
+
+/*
+
+ok so
+we go through each test
+and do a little equivocarion
+
+*/
+
+export const testToString = (test: TopItem & { type: 'test' }, res: Resolutions): TraceableString => {
+    return group(
+        test.src.id,
+        test.cases.map(({ name, input, output, outloc, src }) => {
+            return group(src.id, [
+                `$$check(`,
+                JSON.stringify(name),
+                ', ',
+                exprToString(input, res),
+                ', ',
+                exprToString(output, res),
+                ', ',
+                JSON.stringify(outloc),
+                ');\n',
+            ]);
+        }),
+    );
+};
+
 export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string): TraceableString => {
     switch (stmt.type) {
         // case 'test':

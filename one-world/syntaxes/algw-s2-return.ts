@@ -56,6 +56,7 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
                                 input: ctx.ref<Expr>('input'),
                                 output: ctx.ref<Expr>('output'),
                                 outloc: ctx.ref<string>('outloc'),
+                                src,
                             };
                         },
                     ),

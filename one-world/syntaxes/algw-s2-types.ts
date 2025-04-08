@@ -5,7 +5,7 @@ export type Src = { type: 'src'; left: string; right?: string; id: string };
 export type Prim = { type: 'int'; value: number } | { type: 'bool'; value: boolean };
 export type Block = { type: 'block'; stmts: Stmt[]; src: Src };
 export type TopItem =
-    | { type: 'test'; name: string; src: Src; cases: { name?: string; input: Expr; output: Expr; outloc: string }[] }
+    | { type: 'test'; name: string; src: Src; cases: { name?: string; input: Expr; output: Expr; outloc: string; src: Src }[] }
     | {
           type: 'type';
           name: { text: string; loc: string };

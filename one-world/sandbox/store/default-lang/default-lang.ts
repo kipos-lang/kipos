@@ -4,7 +4,19 @@ import { Event, Rule } from '../../../syntaxes/dsl3';
 import { Annotation, AnnotationText, Language } from '../language';
 import { srcKey } from '../makeEditor';
 import { DefaultCompiler } from './DefaultCompiler';
-import { builtinEnv, getGlobalState, inferStmt, inferLets, resetState, Scheme, Source, typeApply, typeToNode, Event as VEvent } from './validate';
+import {
+    builtinEnv,
+    getGlobalState,
+    inferStmt,
+    inferLets,
+    resetState,
+    Scheme,
+    Source,
+    typeApply,
+    typeToNode,
+    Event as VEvent,
+    inferToplevel,
+} from './validate';
 import { WorkerCompiler } from './WorkerCompiler';
 
 type Macro = {
@@ -46,7 +58,9 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 kind:
                     result.result?.type === 'stmt' && result.result?.stmt.type === 'expr'
                         ? { type: 'evaluation' }
-                        : { type: 'definition', provides: result.ctx.scopes[0] },
+                        : result.result?.type === 'test'
+                          ? { type: 'test' }
+                          : { type: 'definition', provides: result.ctx.scopes[0] },
             };
         },
         spans(ast) {
@@ -112,21 +126,17 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 // const lets = stmts as (Stmt & { type: 'let'; pat: { type: 'var' }; init: { type: 'lambda' } })[];
             } else {
                 const single = asts[0].ast;
-                if (single.type === 'stmt') {
-                    const result = inferStmt(env, single.stmt);
-                    if (result.scope) {
-                        Object.entries(result.scope).forEach(([key, scheme]) => {
-                            scope[key] = {
-                                scheme,
-                                source: { type: 'toplevel', name: key, toplevel: asts[0].tid, module: moduleId, src: scheme.src },
-                            };
-                        });
-                    }
-                    res = [result.value];
-                    eventsByTop.push(glob.events.slice());
-                } else {
-                    throw new Error('not inferringg');
+                const result = inferToplevel(env, single);
+                if (result.scope) {
+                    Object.entries(result.scope).forEach(([key, scheme]) => {
+                        scope[key] = {
+                            scheme,
+                            source: { type: 'toplevel', name: key, toplevel: asts[0].tid, module: moduleId, src: scheme.src },
+                        };
+                    });
                 }
+                res = [result.value];
+                eventsByTop.push(glob.events.slice());
             }
         } catch (err) {
             console.log('bad inference', err);
