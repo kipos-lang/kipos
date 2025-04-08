@@ -9,6 +9,8 @@ Kipos is:
 - a playground for experimenting with new type system, compiler, and syntax features.
 - my attempt to advance the state of the art of programming language design.
 
+![screenshot of kipos](./screenshot.png)
+
 ## How to get started
 
 - `pnpm i`

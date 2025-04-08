@@ -203,7 +203,6 @@ export const Editor = () => {
     return (
         <>
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
-                Editor here
                 <KeyHandler refs={refs} />
                 <Drag>
                     {module.roots.map(

@@ -9,6 +9,7 @@ import { Event, TraceText, Rule } from '../syntaxes/dsl3';
 import { toXML } from '../syntaxes/xml';
 import { useEditor } from './Editor';
 import { currentTheme } from './themes';
+import { zedlight } from './zedcolors';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -232,7 +233,6 @@ const ShowSource = () => {
     const results = editor.useTopSource(top);
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
-            <h3>Source</h3>
             <pre>{results ?? 'No source...'}</pre>
         </div>
     );
@@ -246,11 +246,20 @@ const Collapsible = ({ title, children }: { title: string; children: React.React
                 onClick={() => setOpen(!open)}
                 className={css({
                     cursor: 'pointer',
+                    padding: '4px 8px',
                     '&:hover': {
                         background: currentTheme.metaNode.punct.color,
                         color: 'white',
                     },
                 })}
+                style={
+                    open
+                        ? {
+                              background: zedlight.syntax.attribute.color,
+                              color: 'white',
+                          }
+                        : undefined
+                }
             >
                 {title}
             </div>

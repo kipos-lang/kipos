@@ -110,8 +110,9 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                     full.events.forEach(([start, end]) => {
                         eventsByTop.push(glob.events.slice(start, end));
                     });
+                } else {
+                    throw new Error('not all let lambdas');
                 }
-                throw new Error('not all let lambdas');
                 // for (let stmt of stmts) {
                 //     if (stmt.type !== 'let') {
                 //         throw new Error(`mutual recursion must be "let"s`);
