@@ -16,7 +16,9 @@ will be necessary for codegen
 - [ ] want to restart the worker when its ded
 - [ ] anddd that means we need to like load up the infos again, right?
 - [ ] aslooo, we want to handle multi module situations
-- [ ] BUG mut recursive values aren't being exported
+- [x] BUG mutual recursive values aren't being exported
+
+- [ ] testssssss
 
 - [ ] hovering something that has a warning or error should ALSO bring up the warning or error.
 

@@ -557,6 +557,15 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
         }
         case 'type':
             return { value: { type: 'con', name: 'void', src: stmt.src } };
+        case 'test': {
+            const { name, src, cases } = stmt;
+            cases.forEach(({ input, output, outloc }) => {
+                const itype = inferExpr(tenv, input);
+                const otype = inferExpr(tenv, output);
+                unify(itype, otype, input.src, 'input', 'output');
+            });
+            return { value: { type: 'con', name: 'void', src } }; // basic case, types equal
+        }
         case 'let': {
             const { pat, init, src } = stmt;
             stackPush(src, kwd('let'), ' ', hole(), ' = ', hole());

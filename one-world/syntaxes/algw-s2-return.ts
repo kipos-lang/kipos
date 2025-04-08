@@ -23,6 +23,7 @@ import {
     declaration,
     reference,
     scope,
+    loc,
 } from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
@@ -30,10 +31,47 @@ import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, Type } from './algw-s2-types';
 import { genId } from '../keyboard/ui/genId';
 
-export const kwds = ['for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
+export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
 
 const stmts_spaced: Record<string, Rule<Stmt>> = {
+    test_stmt: tx<Stmt>(
+        seq(
+            kwd('test'),
+            group('name', text({ type: 'none' })),
+            group(
+                'cases',
+                table(
+                    'curly',
+                    tx(
+                        seq(
+                            group('name', or(text({ type: 'none' }), id(null))),
+                            group('input', ref('expr')),
+                            loc('outloc', group('output', ref('expr'))),
+                        ),
+                        (ctx, src) => {
+                            const name = ctx.ref<Id<string> | TextSpan<any, any>[]>('name');
+                            return {
+                                name: Array.isArray(name) ? name.map((s) => (s.type === 'text' ? s.text : '**')).join('') : name.text,
+                                input: ctx.ref<Expr>('input'),
+                                output: ctx.ref<Expr>('output'),
+                                outloc: ctx.ref<string>('outloc'),
+                            };
+                        },
+                    ),
+                ),
+            ),
+        ),
+        (ctx, src) => ({
+            type: 'test',
+            name: ctx
+                .ref<TextSpan<any, any>[]>('name')
+                .map((s) => (s.type === 'text' ? s.text : '**'))
+                .join(''),
+            cases: ctx.ref<{ name?: string; input: Expr; output: Expr; outloc: string }[]>('cases'),
+            src,
+        }),
+    ),
     type_stmt: tx<Stmt>(
         seq(
             kwd('type'),

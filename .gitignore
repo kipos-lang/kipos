@@ -2,3 +2,4 @@ node_modules
 coverage
 run.js
 worker.js
+types

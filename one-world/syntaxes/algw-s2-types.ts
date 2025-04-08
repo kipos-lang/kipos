@@ -4,10 +4,8 @@ export type Src = { type: 'src'; left: string; right?: string; id: string };
 
 export type Prim = { type: 'int'; value: number } | { type: 'bool'; value: boolean };
 export type Block = { type: 'block'; stmts: Stmt[]; src: Src };
-export type Stmt =
-    | { type: 'for'; init: Stmt; cond: Expr; update: Expr; body: Block; src: Src }
-    | { type: 'let'; pat: Pat; init: Expr; src: Src }
-    | { type: 'expr'; expr: Expr; src: Src }
+export type Toplevel =
+    | { type: 'test'; name: string; src: Src; cases: { name?: string; input: Expr; output: Expr; outloc: string }[] }
     | {
           type: 'type';
           name: { text: string; loc: string };
@@ -18,6 +16,11 @@ export type Stmt =
               args: { name: { text: string; loc: string }; value: Type; default?: Expr }[];
           }[];
       }
+    | { type: 'stmt'; stmt: Stmt };
+export type Stmt =
+    | { type: 'for'; init: Stmt; cond: Expr; update: Expr; body: Block; src: Src }
+    | { type: 'let'; pat: Pat; init: Expr; src: Src }
+    | { type: 'expr'; expr: Expr; src: Src }
     | { type: 'return'; value?: Expr; src: Src };
 export type Spread<T> = { type: 'spread'; inner: T; src: Src };
 export type ObjectRow = { type: 'row'; name: Expr; value?: Expr; src: Src } | Spread<Expr>;

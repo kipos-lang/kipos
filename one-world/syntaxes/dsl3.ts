@@ -52,7 +52,9 @@ export type Rule<T> =
     | { type: 'group'; name: string; inner: Rule<T> }
     | { type: 'star'; inner: Rule<unknown> }
     | { type: 'opt'; inner: Rule<unknown> }
+    | { type: 'loc'; name: string; inner: Rule<unknown> }
     | { type: 'any' }
+    | { type: 'none' }
     // usage tracking : TODO: support "unordered" scope, and maybe nonrecursive
     | { type: 'scope'; inner: Rule<T> }
     | { type: 'declaration'; kind: string }
@@ -82,6 +84,8 @@ const show = (rule: Rule<unknown>): string => {
             return `seq(${rule.rules.map(show).join(' ')})`;
         case 'star':
             return `${show(rule.inner)}*`;
+        case 'loc':
+            return `loc(${show(rule.inner)})`;
         case 'opt':
             return `${show(rule.inner)}?`;
         case 'id':
@@ -100,6 +104,8 @@ const show = (rule: Rule<unknown>): string => {
             return show(rule.inner);
         case 'group':
             return show(rule.inner);
+        case 'none':
+            return '<none>';
         case 'any':
             return '<any>';
         case 'number':
@@ -279,6 +285,19 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return inner;
         }
 
+        case 'loc': {
+            if (!node) return;
+            const inner = match(rule.inner, ctx, parent, at);
+            if (inner) {
+                if (!ctx.scope) throw new Error(`not in a scoped context, cant save 'loc' as ${rule.name}`);
+                ctx.scope[rule.name] = node.loc;
+            }
+            return inner;
+        }
+
+        case 'none':
+            return;
+
         case 'any':
             if (!node) return;
             return { consumed: 1, value: node };
@@ -407,6 +426,7 @@ export const or = <T>(...opts: Rule<T>[]): Rule<T> => ({ type: 'or', opts });
 export const tx = <T>(inner: Rule<any>, f: (ctx: Ctx, src: Src & { id: string }) => T): Rule<T> => ({ type: 'tx', inner, f });
 export const ref = <T>(name: string, bind?: string): Rule<T> => ({ type: 'ref', name, bind });
 export const opt = <T>(inner: Rule<T>): Rule<T | null> => ({ type: 'opt', inner });
+export const loc = <T>(name: string, inner: Rule<T>): Rule<T> => ({ type: 'loc', name, inner });
 export const seq = (...rules: Rule<any>[]): Rule<unknown> => ({ type: 'seq', rules });
 export const group = <T>(name: string, inner: Rule<T>): Rule<T> => ({ type: 'group', name, inner });
 export const star = <T>(inner: Rule<T>): Rule<T[]> => ({ type: 'star', inner });

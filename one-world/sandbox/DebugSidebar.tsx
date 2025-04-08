@@ -102,6 +102,7 @@ const ruleSummary = (rule: Rule<any>): string => {
         case 'seq':
         case 'or':
         case 'opt':
+        case 'loc':
         case 'group':
         case 'scope':
             return `${rule.type}(...)`;
@@ -111,6 +112,7 @@ const ruleSummary = (rule: Rule<any>): string => {
         case 'list':
             return `${rule.type}(...,${JSON.stringify(rule.kind)})`;
         case 'any':
+        case 'none':
         case 'number':
         case 'kwd':
         case 'id':
