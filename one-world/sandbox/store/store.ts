@@ -78,7 +78,7 @@ export const newModule = (name = 'NewModule'): Module => {
         name,
         history: [],
         pluginConfig: {},
-        imports: { macros: [], ffi: [], plugins: [], normal: [] },
+        imports: [],
         roots: [tid],
         parent: 'root',
         selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],

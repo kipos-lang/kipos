@@ -5,8 +5,51 @@ yeah. that'll test a bunch of stuff.
 
 INCLUDING:
 - [ ] ffi types y'all.
+- [ ] and ffi values. for the dsl3 stuff
+- [ ] and, like, imports
+
+Ok we'll do normal imports firsttttt
+
+arright.
+
+## ORder of operations:
+
+- [ ] vendored imports, because we ... don't have to build them?
+- [ ] eh ok I think I need to lift the compiler story a bit first.
 
 -
+
+
+
+# Let's talk FFI
+
+When using a module w/ a foreign language, there needs to exist:
+- a thing that does the compatability. that takes (types from that language) and translates them to (types from this language)
+and values as well, for that matter.
+
+This seems like the kind of thing you'd want to define once, and have apply generally.
+/however/ I can also imagine wanting to "try out" a new compatability layer in just a single module.
+So I'll leave the door open for that.
+
+For the /vendor/ thing, for now I'll just, like, let you type in anything.
+
+Things I'll make available as "builtin" vendored stuff:
+- `builtin:dsl`
+- `builtin:cst`
+- `builtin:ast` <- the builtin language
+
+oh hey, but I can make those available in the builtin-language, so I don't have to mess with FFI stuff yet.
+that is nice.
+
+# Imports
+
+Things that are special:
+- macros
+- editor plugins
+Neither of those get ~made available at the language level, so we don't need to worry about, like, scope issues.
+
+Macros do have the potential to have ordering issues. so there's that.
+
 
 
 #

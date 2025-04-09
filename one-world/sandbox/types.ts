@@ -11,20 +11,22 @@ export type Module = {
     toplevels: Record<string, Toplevel>;
 
     imports: {
-        macros: { module: string; macros: true | string[] }[]; // true for "all" (recursive)
-        // hmmm. So I want to be able to, like, import the constructors of a type. right?
-        // so it would be from abc import Node.*, which would import the .constructors.
-        // because otherwise the constructors wouldn't be ... on the namespace?
-        // OR should we make it so that "imports" can have hangers-on? I'd definitely want
-        // to be able to have a setup where the constructors were automatically imported.
-        // And like, maybe I want to support first-class modules or something.
-        // what if I just wanted to `from abc import Node.id`?
-        //
-        // I'm maybe making this too complicated for the moment.
-        normal: { module: string; items: { name: string; kind: string; rename?: string }[] }[];
-        ffi: { module: string; items: { name: string; kind: string; rename?: string }[]; languageConfiguration: string }[];
-        plugins: { module: string; names: string[]; languageConfiguration: string }[];
-    };
+        source:
+            | {
+                  type: 'local';
+                  module: string;
+                  // TODO: allow specifying a custom interpreter from [them] to [us]
+                  foreign?: string; // languageConfiguration, if different then our own
+              }
+            | {
+                  type: 'vendor';
+                  src: string; // this is like probably a url. and we cache it.
+                  foreign?: string;
+              };
+        macros: string[];
+        plugins: string[];
+        items: { name: string; kind: string; rename?: string }[];
+    }[];
 
     pluginConfig: Record<string, any>;
     roots: string[];

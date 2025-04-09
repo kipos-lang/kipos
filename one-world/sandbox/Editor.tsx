@@ -128,7 +128,7 @@ const useMakeHover = () => {
                 hover = null;
             },
         };
-    }, []);
+    }, [selected]);
 };
 
 // const useMakeHover = () => {

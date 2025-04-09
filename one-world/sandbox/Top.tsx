@@ -257,7 +257,6 @@ export const useTestTracker = (results: null | EvaluationResult[]) => {
         state.byLoc = byLoc;
         Object.keys(notify).forEach((k) => {
             if (state.listeners[k]) {
-                console.log('results change, notify', k);
                 state.listeners[k](byLoc[k]);
             }
         });
