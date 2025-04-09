@@ -10,6 +10,7 @@ import { toXML } from '../syntaxes/xml';
 import { useEditor } from './Editor';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
+import { Resizebar } from './ModuleSidebar';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -270,24 +271,26 @@ export const DebugSidebar = () => {
     const top = editor.useSelectedTop();
 
     return (
-        <div style={{ overflow: 'auto', maxWidth: '40vw', padding: '8px', minWidth: '300px', backgroundColor: zedlight['border.selected'] }}>
-            <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Debugging</div>
-            <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
-            <Collapsible title="CST">
-                <ShowCST />
-            </Collapsible>
-            <Collapsible title="AST">
-                <ShowAST />
-            </Collapsible>
-            <Collapsible title="Type Inference">
-                <ShowTypeInference />
-                <Collapsible title="Error Annotations">
-                    <ShowErrorAnnotations />
+        <Resizebar id="debug" side="left">
+            <div style={{ overflow: 'auto', padding: '8px', flex: 1, minWidth: '300px', backgroundColor: zedlight['border.selected'] }}>
+                <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Debugging</div>
+                <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
+                <Collapsible title="CST">
+                    <ShowCST />
                 </Collapsible>
-            </Collapsible>
-            <Collapsible title="Compiled Source">
-                <ShowSource />
-            </Collapsible>
-        </div>
+                <Collapsible title="AST">
+                    <ShowAST />
+                </Collapsible>
+                <Collapsible title="Type Inference">
+                    <ShowTypeInference />
+                    <Collapsible title="Error Annotations">
+                        <ShowErrorAnnotations />
+                    </Collapsible>
+                </Collapsible>
+                <Collapsible title="Compiled Source">
+                    <ShowSource />
+                </Collapsible>
+            </div>
+        </Resizebar>
     );
 };
