@@ -1,6 +1,6 @@
 import { css } from 'goober';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { EditIcon } from './icons';
+import { EditIcon, HDots } from './icons';
 import { useStore, newModule } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
@@ -72,7 +72,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                     }
                 }}
             >
-                <EditIcon />
+                <HDots />
             </div>
         </div>
     );
