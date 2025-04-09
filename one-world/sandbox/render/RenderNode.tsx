@@ -43,13 +43,15 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
                     style={{
                         width: 400,
                         position: 'absolute',
-                        opacity: 0.8,
+                        // opacity: 0.8,
                         pointerEvents: 'none',
                         display: 'inline-block',
                         // top: '100%',
                         left: 0,
-                        top: '100%',
-                        marginTop: 8,
+                        // top: '100%',
+                        bottom: '100%',
+                        marginBottom: 8,
+                        // marginTop: 8,
                         zIndex: 100,
                         backgroundColor: 'white',
                         boxShadow: '1px 1px 4px #aaa',
@@ -71,40 +73,21 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
             )}
         </span>
     );
-    const t = useRef(null as null | Timer);
-
-    const DELAY = errors?.length ? 200 : 1000;
 
     return (
         <span
-            // onMouseDownCapture={(evt) => {
-            //     clearTimeout(t.current!);
-            //     clearHover();
-            // }}
-            onMouseOver={
+            onMouseMove={
                 hasOverlay
                     ? (evt) => {
                           evt.stopPropagation();
-                          t.current = setTimeout(() => setHover(true), DELAY);
-                          // setHover(true);
+                          setHover(true);
                       }
                     : undefined
             }
-            // onMouseMove={
-            //     hasOverlay
-            //         ? (evt) => {
-            //               evt.stopPropagation();
-            //               clearTimeout(t.current!);
-            //               // hmm check for if its selected?
-            //               t.current = setTimeout(() => setHover(true), DELAY);
-            //           }
-            //         : undefined
-            // }
             onMouseOut={
                 hasOverlay
                     ? (evt) => {
                           evt.stopPropagation();
-                          clearTimeout(t.current!);
                           setHover(false);
                       }
                     : undefined

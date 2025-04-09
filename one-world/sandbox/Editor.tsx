@@ -85,11 +85,23 @@ const useMakeHover = () => {
         let lastClear = Date.now();
         const MIN = 500;
 
-        cleanup.current = store.listen(`module:${selected}:selection`, () => {
+        let t: Timer | null = null;
+
+        const mv = () => {
+            clearTimeout(t!);
+        };
+        document.addEventListener('mousemove', mv);
+
+        const unlisten = store.listen(`module:${selected}:selection`, () => {
+            clearTimeout(t!);
             lastClear = Date.now();
             listeners[hover?.key!]?.(false);
             hover = null;
         });
+        cleanup.current = () => {
+            document.removeEventListener('mousemove', mv);
+            unlisten();
+        };
 
         return {
             onHover(key?: string) {
@@ -105,7 +117,13 @@ const useMakeHover = () => {
             },
             setHover(key: string, on: boolean, persistent: boolean) {
                 if (on) {
-                    if (hover?.key === key) return;
+                    if (hover?.key === key) {
+                        clearTimeout(t!);
+                        t = setTimeout(() => {
+                            listeners[hover?.key!]?.(true);
+                        }, 400);
+                        return;
+                    }
                     if (hover?.persistent && !persistent) return; // ignore
                     listeners[hover?.key!]?.(false);
                     if (!persistent && !hover && Date.now() - lastClear < MIN) {
@@ -114,7 +132,10 @@ const useMakeHover = () => {
                         return;
                     }
                     hover = { key, persistent };
-                    listeners[hover.key]?.(true);
+                    clearTimeout(t!);
+                    t = setTimeout(() => {
+                        listeners[hover?.key!]?.(true);
+                    }, 400);
                 } else {
                     if (hover?.key !== key) return;
                     // lastClear = Date.now();

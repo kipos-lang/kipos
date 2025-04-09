@@ -19,6 +19,8 @@ arright.
 
 -
 
+- [ ] much better hover situation
+
 
 
 # Let's talk FFI
