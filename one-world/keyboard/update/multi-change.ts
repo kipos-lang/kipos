@@ -134,7 +134,7 @@ const copyDeep = (loc: NodeID, top: Top, dest: Nodes) => {
 
 export type CopiedValues = { tree: RecNodeT<NodeID>; single: boolean };
 
-export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: CopiedValues, nextLoc: () => string): void | Update => {
+export const pasteUpdate = (top: Top, path: Path, cursor: Cursor | undefined, values: CopiedValues, nextLoc: () => string): void | Update => {
     const nodes: Nodes = {};
 
     const root = fromRec(values.tree, nodes, (l) => {
@@ -147,40 +147,39 @@ export const pasteUpdate = (top: Top, path: Path, cursor: Cursor, values: Copied
     // options include:
     // it's just an ID, and we're in an ID.
     const node = top.nodes[lastChild(path)];
-    if (node.type === 'id') {
-        if (node.text === '') {
-            const rootNode = nodes[root]!;
-            const pnode = top.nodes[parentLoc(path)];
-            if (!values.single && rootNode.type === 'list' && pnode?.type === 'list' && rootNode.kind === pnode.kind) {
-                const upnode = replaceIn(pnode, node.loc, ...rootNode.children);
-                nodes[upnode.loc] = upnode;
-                const update: Update = { nodes };
+    if (!cursor || (node.type === 'id' && node.text === '')) {
+        const rootNode = nodes[root]!;
+        const pnode = top.nodes[parentLoc(path)];
+        if (!values.single && rootNode.type === 'list' && pnode?.type === 'list' && rootNode.kind === pnode.kind) {
+            const upnode = replaceIn(pnode, node.loc, ...rootNode.children);
+            nodes[upnode.loc] = upnode;
+            const update: Update = { nodes };
 
-                rebalanceSmooshed(update, top);
-                joinSmooshed(update, top);
-                disolveSmooshed(update, top);
+            rebalanceSmooshed(update, top);
+            joinSmooshed(update, top);
+            disolveSmooshed(update, top);
 
-                const stop = { ...top, nodes: updateNodes(top.nodes, update.nodes) };
-                const selS = selectStart(pathWithChildren(parentPath(path), rootNode.children[0]), stop);
-                const selE = selectEnd(pathWithChildren(parentPath(path), rootNode.children[rootNode.children.length - 1]), stop);
-                if (selS && selE) {
-                    return { ...update, selection: { start: selS, end: selE } };
-                }
+            const stop = { ...top, nodes: updateNodes(top.nodes, update.nodes) };
+            const selS = selectStart(pathWithChildren(parentPath(path), rootNode.children[0]), stop);
+            const selE = selectEnd(pathWithChildren(parentPath(path), rootNode.children[rootNode.children.length - 1]), stop);
+            if (selS && selE) {
+                return { ...update, selection: { start: selS, end: selE } };
             }
-
-            nodes[node.loc] = { ...rootNode!, loc: node.loc };
-            delete nodes[root];
-
-            const stop = { ...top, nodes: updateNodes(top.nodes, nodes) };
-            const st = selectStart(path, stop);
-            const ed = selectEnd(path, stop);
-
-            if (st && ed) {
-                return { nodes, selection: { start: st, end: ed } };
-            }
-            return;
         }
 
+        nodes[node.loc] = { ...rootNode!, loc: node.loc };
+        delete nodes[root];
+
+        const stop = { ...top, nodes: updateNodes(top.nodes, nodes) };
+        const st = selectStart(path, stop);
+        const ed = selectEnd(path, stop);
+
+        if (st && ed) {
+            return { nodes, selection: { start: st, end: ed } };
+        }
+        return;
+    }
+    if (node.type === 'id') {
         if (values.tree.type === 'id' && cursor.type === 'id') {
             const grems = splitGraphemes(node.text);
             const nws = splitGraphemes(values.tree.text);

@@ -143,7 +143,7 @@ export type KeyAction =
     | { type: 'join-list'; path: Path; child: { loc: NodeID; cursor: Cursor } }
     | { type: 'join-table'; path: Path; child: { loc: NodeID; cursor: Cursor }; at: { row: number; col: number } }
     // Selections
-    | { type: 'paste'; path: Path; cursor: Cursor; values: CopiedValues }
+    | { type: 'paste'; path: Path; cursor?: Cursor; values: CopiedValues }
     | { type: 'move'; sel: SelStart; end?: SelStart }
     | { type: 'sel-expand'; sel: SelStart }
     // Deletion n stuch

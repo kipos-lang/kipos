@@ -44,7 +44,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
 
     const results = editor.useTopResults(id);
     const onTestLoc = useTestTracker(results);
-    const nonLocTestResults = results; // results?.filter((r) => r.type !== 'test-result' || !r.loc);
+    const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
 
     const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (

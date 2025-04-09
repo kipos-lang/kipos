@@ -6,8 +6,8 @@ import { Mods } from '../../keyboard/handleShiftNav';
 import { KeyAction, keyActionToUpdate } from '../../keyboard/keyActionToUpdate';
 import { Config } from '../../keyboard/test-utils';
 import { keyUpdate, Visual } from '../../keyboard/ui/keyUpdate';
-import { CopiedValues } from '../../keyboard/update/multi-change';
-import { NodeSelection, selStart, Top } from '../../keyboard/utils';
+import { CopiedValues, pasteUpdate } from '../../keyboard/update/multi-change';
+import { NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../history';
 import { Toplevel } from '../types';
 import { selectStart } from '../../keyboard/handleNav';
@@ -117,7 +117,7 @@ export type Action =
     | { type: 'selections'; selections: NodeSelection[] }
     | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'rm-tl'; id: string }
-    | { type: 'paste'; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
+    | { type: 'paste'; replace?: Path; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
     | { type: 'undo' }
     | { type: 'redo' };
 
@@ -275,7 +275,17 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         case 'paste': {
             console.log('pasting', action.data);
             if (action.data.type !== 'json') {
+                console.error('not handling plain pasts yet');
                 return state;
+            }
+            if (action.replace) {
+                let top = state.tops[action.replace.root.top];
+                if (action.data.data.length !== 1) throw new Error(`trying to replace-paste multiple values; not supported`);
+                const update = pasteUpdate(top, action.replace, undefined, action.data.data[0], nextLoc);
+                const result = applyNormalUpdate({ top, sel: state.selections[0], nextLoc }, update);
+                const tops = { ...state.tops };
+                tops[top.id] = result.top;
+                return recordHistory(state, { ...state, tops, selections: [result.sel] }, noJoin);
             }
             const selections = state.selections.slice();
 

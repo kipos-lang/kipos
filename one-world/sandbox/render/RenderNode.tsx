@@ -11,6 +11,7 @@ import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
 import { useEditor, useHover } from '../Editor';
+import { pathWith } from '../../keyboard/ctdt-test-utils';
 
 const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) {
     switch (node.type) {
@@ -72,7 +73,7 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
     );
     const t = useRef(null as null | Timer);
 
-    const DELAY = 200;
+    const DELAY = errors?.length ? 200 : 1000;
 
     return (
         <span
@@ -119,7 +120,7 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
             {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
             {/* {annotations ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(annotations)}</span> : null} */}
             {overlay}
-            {testResult ? <ShowTestResult id={id} result={testResult} /> : null}
+            {testResult ? <ShowTestResult id={id} result={testResult} parent={parent} /> : null}
             {children}
         </span>
         // <span data-self={JSON.stringify(self)} data-id={id}>
@@ -137,12 +138,13 @@ const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
     pass: <BadgeCheck style={{ color: 'green' }} />,
 };
 
-const ShowFullTestResult = ({ result }: { result: LocatedTestResult }) => {
+const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedTestResult }) => {
     const editor = useEditor();
 
     switch (result.result.type) {
         case 'mismatch': {
-            if (result.result.actual) {
+            const { actual, expected } = result.result;
+            if (actual) {
                 return (
                     <div
                         style={{ color: 'black' }}
@@ -154,11 +156,22 @@ const ShowFullTestResult = ({ result }: { result: LocatedTestResult }) => {
                         }}
                     >
                         <div style={{ fontWeight: 'bold' }}>Actual</div>
-                        <RenderStaticNode root={{ node: result.result.actual, meta: {} }} />
-                        {result.result.expected ? (
+                        <RenderStaticNode root={{ node: actual, meta: {} }} />
+                        <button
+                            onClick={() => {
+                                editor.update({
+                                    type: 'paste',
+                                    replace: pathWithChildren(parent, result.loc!),
+                                    data: { type: 'json', data: [{ tree: actual, single: true }] },
+                                });
+                            }}
+                        >
+                            Replace
+                        </button>
+                        {expected ? (
                             <>
                                 <div style={{ fontWeight: 'bold' }}>Expected</div>
-                                <RenderStaticNode root={{ node: result.result.expected, meta: {} }} />
+                                <RenderStaticNode root={{ node: expected, meta: {} }} />
                             </>
                         ) : null}
                     </div>
@@ -169,7 +182,7 @@ const ShowFullTestResult = ({ result }: { result: LocatedTestResult }) => {
     return JSON.stringify(result.result);
 };
 
-const ShowTestResult = ({ result, id }: { id: string; result: LocatedTestResult }) => {
+const ShowTestResult = ({ result, id, parent }: { parent: Path; id: string; result: LocatedTestResult }) => {
     const { isHovered, setHover } = useHover(id + ':test-result', true);
     const icon = icons[result.result.type];
     return (
@@ -198,7 +211,7 @@ const ShowTestResult = ({ result, id }: { id: string; result: LocatedTestResult 
                         border: '1px solid magenta',
                     })}
                 >
-                    <ShowFullTestResult result={result} />
+                    <ShowFullTestResult result={result} parent={parent} />
                 </div>
             ) : null}
         </span>

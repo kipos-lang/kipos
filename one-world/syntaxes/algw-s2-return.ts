@@ -125,11 +125,14 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
                                 'args',
                                 table(
                                     'round',
-                                    tx(seq(group('name', id(null)), ref('type', 'value'), opt(ref('expr', 'default'))), (ctx, src) => ({
-                                        name: textLoc(ctx.ref<Id<string>>('name')),
-                                        value: ctx.ref<Type>('value'),
-                                        default: ctx.ref<Expr | undefined>('default'),
-                                    })),
+                                    tx(
+                                        seq(group('name', meta(id(null), 'attribute')), ref('type', 'value'), opt(ref('expr', 'default'))),
+                                        (ctx, src) => ({
+                                            name: textLoc(ctx.ref<Id<string>>('name')),
+                                            value: ctx.ref<Type>('value'),
+                                            default: ctx.ref<Expr | undefined>('default'),
+                                        }),
+                                    ),
                                 ),
                             ),
                         ),
