@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Action, AppState } from './state';
 import { Node } from '../../shared/cnodes';
 import { useHash } from '../../useHash';
@@ -40,6 +40,8 @@ export interface EditorStoreI {
     useTopSource(top: string): null | string; // make it cst pleeeease
     useModule(): Module;
     useSelection(): NodeSelection[];
+    useIsSelectedTop(top: string): boolean;
+    useSelectedTop(): string;
     useTop(id: string): TopStore;
     getTop(id: string): Toplevel;
     update(action: Action): void;
@@ -151,10 +153,29 @@ const createStore = (): Store => {
     };
     const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
 
+    const useTickCompute = <T>(evt: Evt, initial: T, f: (c: T) => T) => {
+        const [ticker, setTick] = useState(initial);
+        const latest = useRef(ticker);
+        latest.current = ticker;
+        useEffect(() => {
+            return listen(evt, () => {
+                const n = f(latest.current);
+                if (latest.current !== n) {
+                    console.log('tick', evt);
+                    setTick(n);
+                }
+            });
+        }, [evt]);
+        return ticker;
+    };
+
     const useTick = (evt: Evt) => {
         const [ticker, setTick] = useState(0);
         useEffect(() => {
-            return listen(evt, () => setTick((t) => t + 1));
+            return listen(evt, () => {
+                console.log('tick', evt);
+                setTick((t) => t + 1);
+            });
         }, [evt]);
         return ticker;
     };
@@ -203,7 +224,7 @@ const createStore = (): Store => {
         useEditor() {
             useTick(`selected`);
             if (!editors[selected]) {
-                editors[selected] = makeEditor(selected, modules, useTick, shout);
+                editors[selected] = makeEditor(selected, modules, useTick, useTickCompute, shout);
             }
             useTick(`module:${selected}:roots`);
             return editors[selected];

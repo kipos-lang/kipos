@@ -50,6 +50,7 @@ export const makeEditor = (
     selected: string,
     modules: Record<string, Module>,
     useTick: (evt: Evt) => number,
+    useTickCompute: <T>(evt: Evt, initial: T, f: (c: T) => T) => T,
     shout: (evt: Evt) => void,
 ): EditorStoreI => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
@@ -112,6 +113,16 @@ export const makeEditor = (
         useSelection() {
             useTick(`module:${selected}:selection`);
             return modules[selected].selections;
+        },
+        useIsSelectedTop(top: string) {
+            return useTickCompute(`module:${selected}:selection`, modules[selected].selections[0].start.path.root.top === top, (old) => {
+                return modules[selected].selections[0].start.path.root.top === top;
+            });
+        },
+        useSelectedTop() {
+            return useTickCompute(`module:${selected}:selection`, modules[selected].selections[0].start.path.root.top, (old) => {
+                return modules[selected].selections[0].start.path.root.top;
+            });
         },
         update(action: Action) {
             const mod = modules[selected];

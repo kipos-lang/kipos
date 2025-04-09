@@ -20,12 +20,13 @@ in a way that other people can comment on.
 - [ ] make it so you can place the "check mark" somewhere other than the (otherloc)
 - [ ] make a popover explaining the datas
 - [ ] make it so you can replace the (otherloc) with the (actual) with a click
+  - this one
 
 - [x] table backspace isnt owrking?
 
 OK I really need to get hovers under control.
 
-1) centralize it again:
+1) [ ] centralize it again:
   - when showing a hover, need to check up the tree to see if there are errors/warnings that need to be shown
   - if you click, it should cancel the hover.
   - keydown should dismiss for goodness sake.

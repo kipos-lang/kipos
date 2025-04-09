@@ -26,7 +26,6 @@ import { interleave } from './interleave';
 import { ShowStacks } from './ShowText';
 import { Numtip } from './Numtip';
 import { LineManager, LineNumber, RenderNode } from './RenderNode';
-import { zedcolors } from './colors';
 import { currentTheme } from './themes';
 import { Meta } from '../../one-world/sandbox/store/language';
 import { ShowScope } from './ShowScope';
@@ -646,32 +645,6 @@ export const stackForEvt = (at: number, events: Event[]) => {
         }
     }
     return num;
-};
-
-const square = (name: string, color: string) => (
-    <React.Fragment key={name}>
-        <div style={{ color, fontFamily: 'Jet Brains' }}>{name}</div>
-        <div
-            style={{
-                background: color,
-                width: 20,
-                height: 20,
-                border: '1px solid black',
-            }}
-        />
-    </React.Fragment>
-);
-
-const Colors = () => {
-    const bg = '#dcdcddff';
-    // zedcolors.bg = {color: bg}
-
-    return (
-        <div style={{ background: bg, padding: 32, display: 'grid', gridTemplateColumns: 'max-content max-content' }}>
-            {square('bg', bg)}
-            {Object.keys(zedcolors).map((name) => square(name, zedcolors[name as 'attribute'].color))}
-        </div>
-    );
 };
 
 export const findSpans = (glob: State) => {

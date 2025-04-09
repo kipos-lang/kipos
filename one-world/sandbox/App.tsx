@@ -3,6 +3,7 @@ import { selStart } from '../keyboard/utils';
 import { SelStatus, useStore } from './store/store';
 import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
+import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
 
 export const App = () => {
     return (
@@ -16,6 +17,7 @@ export const App = () => {
         >
             <ModuleSidebar />
             <Editor />
+            {/* <ShowColors /> */}
         </div>
     );
 };

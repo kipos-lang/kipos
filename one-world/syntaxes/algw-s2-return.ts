@@ -39,7 +39,7 @@ const tableConfig = tx(
         'items',
         table(
             'curly',
-            tx(seq(group('name', id(null)), ref('expr', 'value')), (ctx, src) => ({
+            tx(seq(group('name', meta(id(null), 'attribute')), ref('expr', 'value')), (ctx, src) => ({
                 name: ctx.ref<Id<string>>('name'),
                 value: ctx.ref<Expr>('value'),
             })),

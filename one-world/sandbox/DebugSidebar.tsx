@@ -123,8 +123,7 @@ const ruleSummary = (rule: Rule<any>): string => {
 
 const ShowTypeInference = () => {
     const editor = useEditor();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
     const results = editor.useTopParseResults(top);
 
     const events = results?.validation?.events ?? [];
@@ -174,8 +173,7 @@ const ShowTypeInference = () => {
 
 const ShowErrorAnnotations = () => {
     const editor = useEditor();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
     const results = editor.useTopParseResults(top);
 
     if (!results.validation) return <span>No validation info</span>;
@@ -202,8 +200,7 @@ const ShowErrorAnnotations = () => {
 
 const ShowCST = () => {
     const editor = useEditor();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
     const results = editor.useTopParseResults(top);
     if (!results) return null;
     return (
@@ -215,8 +212,7 @@ const ShowCST = () => {
 
 const ShowAST = () => {
     const editor = useEditor();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
     const results = editor.useTopParseResults(top);
     if (!results) return null;
     return (
@@ -228,8 +224,7 @@ const ShowAST = () => {
 
 const ShowSource = () => {
     const editor = useEditor();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
     const results = editor.useTopSource(top);
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
@@ -267,11 +262,11 @@ const Collapsible = ({ title, children }: { title: string; children: React.React
         </div>
     );
 };
+
 export const DebugSidebar = () => {
     const editor = useEditor();
     const results = editor.useParseResults();
-    const sel = editor.useSelection();
-    const top = sel[0].start.path.root.top;
+    const top = editor.useSelectedTop();
 
     return (
         <div style={{ overflow: 'auto', maxWidth: '40vw', padding: '8px 16px', minWidth: '300px' }}>

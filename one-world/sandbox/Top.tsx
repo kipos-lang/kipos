@@ -22,15 +22,14 @@ export const TestResultsCtx = createContext<(id: string) => LocatedTestResult | 
     return null;
 });
 
-export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
+export const Top = React.memo(function Top({ id, name }: { id: string; name: string }) {
     const store = useStore();
     const editor = store.useEditor();
     const top = editor.useTop(id);
 
     const getTop = useCallback(() => editor.getTop(id), [id]);
 
-    const sel = editor.useSelection();
-    const isSelected = sel[0].start.path.root.top === id;
+    const isSelected = editor.useIsSelectedTop(id);
 
     const root = top.useRoot();
     const rootPath = useMemo(
@@ -60,6 +59,7 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                     borderRadius: '4px',
                     boxShadow: '0px 1px 3px #ccc',
                     fontFamily: 'Jet Brains',
+                    color: '#8c8d93',
                     position: 'relative',
                 })}
                 style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
@@ -189,9 +189,13 @@ export const TopReults = ({ id, results, isSelected }: { results: EvaluationResu
         >
             {results.map((res, i) =>
                 res.type === 'plain' ? (
-                    <pre style={{ display: 'block', margin: 0, padding: 0 }}>{res.data}</pre>
+                    <pre key={i} style={{ display: 'block', margin: 0, padding: 0 }}>
+                        {res.data}
+                    </pre>
                 ) : (
-                    <pre style={{ display: 'block', margin: 0, padding: 0 }}>{JSON.stringify(res)}</pre>
+                    <pre key={i} style={{ display: 'block', margin: 0, padding: 0 }}>
+                        {JSON.stringify(res)}
+                    </pre>
                 ),
             )}
         </div>

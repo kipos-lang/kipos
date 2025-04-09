@@ -10,12 +10,15 @@ import { SelStatus } from '../store/store';
 import { Meta } from '../store/language';
 import { metaStyles } from './metaStyles';
 
-export const RenderId = ({ node, sel, self, meta }: { meta?: Meta; node: Node & { type: 'id' }; sel?: SelStatus; self: Path }) => {
+export function RenderId({ node, sel, self, meta }: { meta?: Meta; node: Node & { type: 'id' }; sel?: SelStatus; self: Path }) {
     const hl = sel?.highlight?.type === 'full' || (sel?.highlight?.type === 'list' && sel.highlight.opener && sel.highlight.closer);
     let style: undefined | React.CSSProperties = hl
         ? { borderRadius: '2px', backgroundColor: lightColor, outline: `2px solid ${lightColor}` }
         : undefined;
-    if (meta?.kind && metaStyles[meta.kind as 'ref']) {
+    if (meta?.kind) {
+        // if (!metaStyles[meta.kind as 'ref']) {
+        //     console.log(`no style for `, meta.kind);
+        // }
         style = { ...style, ...metaStyles[meta.kind as 'ref'] };
     }
 
@@ -70,4 +73,4 @@ export const RenderId = ({ node, sel, self, meta }: { meta?: Meta; node: Node & 
             />
         </span>
     );
-};
+}

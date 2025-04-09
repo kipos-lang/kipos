@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Showsel } from './App';
 import { Top } from './Top';
@@ -51,22 +51,68 @@ export const useEditor = () => {
     return store.useEditor();
 };
 
-// type HoverCtxT = { onHover(key?: string): boolean; setHover(key?: string | null): void };
-// const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {} });
+type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean): void; clearHover(): void };
+const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {}, clearHover() {} });
 
-// export const useHover = (key?: string) => {
-//     const hover = useContext(HoverCtx);
-//     const isHovered = hover.onHover(key);
-//     return { isHovered, setHover: useCallback((yes: boolean) => hover.setHover(yes ? key : null), [key]) };
-// };
+export const useHover = (key?: string) => {
+    const hover = useContext(HoverCtx);
+    const isHovered = hover.onHover(key);
+    return { isHovered, setHover: useCallback((yes: boolean) => (key ? hover.setHover(key, yes) : null), [key]), clearHover: hover.clearHover };
+};
 
-// export const useProvideHover = () => {
-//     const hover = useMakeHover();
-//     return useCallback(
-//         ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
-//         [hover],
-//     );
-// };
+export const useProvideHover = () => {
+    const hover = useMakeHover();
+    return useCallback(
+        ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
+        [hover],
+    );
+};
+
+const useMakeHover = () => {
+    return useMemo((): HoverCtxT => {
+        const listeners: Record<string, (v: boolean) => void> = {};
+        let hover: null | string = null;
+        let lastClear = Date.now();
+        const MIN = 500;
+
+        return {
+            onHover(key?: string) {
+                const [isHovered, setHovered] = useState(false);
+                useEffect(() => {
+                    if (!key) return;
+                    listeners[key] = setHovered;
+                    return () => {
+                        if (listeners[key] === setHovered) delete listeners[key];
+                    };
+                }, [key]);
+                return isHovered;
+            },
+            setHover(key: string, on: boolean) {
+                if (on) {
+                    if (hover === key) return;
+                    listeners[hover!]?.(false);
+                    if (!hover && Date.now() - lastClear < MIN) {
+                        console.log('too soon');
+                        hover = null;
+                        return;
+                    }
+                    hover = key;
+                    listeners[hover!]?.(true);
+                } else {
+                    if (hover !== key) return;
+                    // lastClear = Date.now();
+                    listeners[hover!]?.(false);
+                    hover = null;
+                }
+            },
+            clearHover() {
+                lastClear = Date.now();
+                listeners[hover!]?.(false);
+                hover = null;
+            },
+        };
+    }, []);
+};
 
 // const useMakeHover = () => {
 //     return useMemo((): HoverCtxT => {
@@ -179,7 +225,7 @@ export const Editor = () => {
     const refs = useMemo((): Record<string, HTMLElement> => ({}), []);
 
     const Drag = useProvideDrag(refs);
-    // const Hover = useProvideHover();
+    const Hover = useProvideHover();
     const module = editor.useModule();
 
     const deps = editor.useDependencyGraph();
@@ -204,13 +250,15 @@ export const Editor = () => {
         <>
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 <KeyHandler refs={refs} />
-                <Drag>
-                    {module.roots.map(
-                        (id, i): React.ReactNode => (
-                            <Top id={id} key={id} name={names[i]} />
-                        ),
-                    )}
-                </Drag>
+                <Hover>
+                    <Drag>
+                        {module.roots.map(
+                            (id, i): React.ReactNode => (
+                                <Top id={id} key={id} name={names[i]} />
+                            ),
+                        )}
+                    </Drag>
+                </Hover>
                 <button
                     className={css({ marginBlock: '12px' })}
                     onClick={() => {
@@ -228,8 +276,8 @@ export const Editor = () => {
 
 const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
     const editor = useEditor();
+    const tid = editor.useSelectedTop();
     const sel = editor.useSelection();
-    const tid = sel[0].start.path.root.top;
     // const pr = editor.useTopParseResults(tid)
     const top = editor.useTop(tid);
 

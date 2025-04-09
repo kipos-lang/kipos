@@ -10,8 +10,9 @@ import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
+import { useHover } from '../Editor';
 
-const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
+const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) {
     switch (node.type) {
         case 'id':
             return <RenderId node={node} meta={meta} sel={sel} self={self} />;
@@ -24,26 +25,26 @@ const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; me
     }
 });
 
-export const Wrap = ({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) => {
+export function Wrap({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) {
     const top = useStore().useEditor().useTop(parent.root.top);
     const annotations = top.useAnnotations(id);
     const testResult = useContext(TestResultsCtx)(id);
 
     const errors = annotations?.filter((e) => e.type === 'error');
     const warnings = annotations?.filter((e) => e.type === 'warning');
-    const [hover, setHover] = useState(false);
-
-    useEffect(() => {
-        if (!hover) return;
-        const f = () => {
-            setHover(false);
-        };
-        document.addEventListener('keydown', f);
-        return () => document.removeEventListener('keydown', f);
-    }, [hover]);
-
     const hasOverlay = annotations?.length;
     // errors?.length || warnings?.length;
+    // const [hover, setHover] = useState(false);
+    const { isHovered: hover, setHover, clearHover } = useHover(hasOverlay ? id : undefined);
+
+    // useEffect(() => {
+    //     if (!hover) return;
+    //     const f = () => {
+    //         setHover(false);
+    //     };
+    //     document.addEventListener('keydown', f);
+    //     return () => document.removeEventListener('keydown', f);
+    // }, [hover]);
 
     const overlay = //hover ? (
         (
@@ -94,7 +95,7 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
         <span
             onMouseDownCapture={(evt) => {
                 clearTimeout(t.current!);
-                setHover(false);
+                clearHover();
             }}
             onMouseOver={
                 hasOverlay
@@ -143,7 +144,7 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
         //     {JSON.stringify(sel)} */}
         // {/* </span> */}
     );
-};
+}
 
 const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
     fail: <CancelIcon style={{ color: 'red' }} />,
@@ -166,7 +167,7 @@ const ShowTestResult = ({ result }: { result: LocatedTestResult }) => {
     );
 };
 
-export const RenderNode = React.memo(({ id, parent }: { id: string; parent: Path }) => {
+export const RenderNode = React.memo(function RenderNode({ id, parent }: { id: string; parent: Path }) {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
     const { node, sel, meta, spans } = useContext(UseNodeCtx)(self);
     // const top = useStore().useEditor().useTop(parent.root.top);
