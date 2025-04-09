@@ -19,7 +19,7 @@ arright.
 
 -
 
-- [ ] much better hover situation
+- [x] much better hover situation
 
 
 

@@ -205,6 +205,7 @@ const ShowCST = () => {
     if (!results) return null;
     return (
         <div>
+            <div style={{ fontSize: '80%', paddingBlock: 16 }}>Toplevel id: {top}</div>
             <ShowXML root={toXML(results.input)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
         </div>
     );
@@ -216,7 +217,7 @@ const ShowAST = () => {
     const results = editor.useTopParseResults(top);
     if (!results) return null;
     return (
-        <div>
+        <div style={{ overflow: 'auto' }}>
             <ShowXML root={toXML(results.result)} onClick={() => {}} sel={[]} setHover={() => {}} statuses={{}} />
         </div>
     );
@@ -269,9 +270,8 @@ export const DebugSidebar = () => {
     const top = editor.useSelectedTop();
 
     return (
-        <div style={{ overflow: 'auto', maxWidth: '40vw', padding: '8px 16px', minWidth: '300px' }}>
-            <div>Debug sidebar</div>
-            <div style={{ fontSize: '80%' }}>{top}</div>
+        <div style={{ overflow: 'auto', maxWidth: '40vw', padding: '8px', minWidth: '300px', backgroundColor: zedlight['border.selected'] }}>
+            <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Debugging</div>
             <div>{results[top]?.trace?.length ? <ParseTrace trace={results[top].trace} /> : null}</div>
             <Collapsible title="CST">
                 <ShowCST />
