@@ -263,7 +263,12 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                     }
 
                     if (asts[top].kind.type === 'test') {
+                        // could we ... use the type information...
+                        // from these things, to know how to serialize them?
+                        // or to know whether they are serializeable?
+                        // Seems like that would be totally doable.
                         const result = test(source, depValues, names);
+                        // infos[top].resolutions
                         this._results[module][top] = { type: 'evaluate', result };
                         this.emit('results', { module, top }, { results: result });
                         this.logFailure(module, top, null);

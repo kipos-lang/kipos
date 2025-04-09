@@ -89,13 +89,14 @@ export type TestResult =
     | { type: 'mismatch'; actual: any; message?: string }
     | { type: 'error'; message?: string };
 
+export type LocatedTestResult = {
+    type: 'test-result';
+    result: TestResult;
+    name?: string;
+    loc?: string;
+};
 export type EvaluationResult =
-    | {
-          type: 'test-result';
-          result: TestResult;
-          name?: string;
-          loc?: string;
-      }
+    | LocatedTestResult
     | { type: 'exception'; message: string }
     | { type: 'plain'; data: string; mime?: string }
     // | { type: 'structured', data: any }

@@ -1,14 +1,15 @@
-import React, { useMemo, useContext, useState, useRef } from 'react';
+import React, { useMemo, useContext, useState, useRef, useEffect } from 'react';
 import { Path, pathWithChildren } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
-import { RenderStaticNode, UseNodeCtx } from '../Top';
+import { RenderStaticNode, TestResultsCtx, UseNodeCtx } from '../Top';
 import { SelStatus, useStore } from '../store/store';
 import { RenderText } from './RenderText';
 import { RenderId } from './RenderId';
 import { RenderList } from './RenderList';
 import { RenderTable } from './RenderTable';
-import { Meta } from '../store/language';
+import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
+import { BadgeCheck, CheckIcon } from '../icons';
 
 const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
@@ -26,10 +27,20 @@ const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; me
 export const Wrap = ({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) => {
     const top = useStore().useEditor().useTop(parent.root.top);
     const annotations = top.useAnnotations(id);
+    const testResult = useContext(TestResultsCtx)(id);
 
     const errors = annotations?.filter((e) => e.type === 'error');
     const warnings = annotations?.filter((e) => e.type === 'warning');
     const [hover, setHover] = useState(false);
+
+    useEffect(() => {
+        if (!hover) return;
+        const f = () => {
+            setHover(false);
+        };
+        document.addEventListener('keydown', f);
+        return () => document.removeEventListener('keydown', f);
+    }, [hover]);
 
     const hasOverlay = annotations?.length;
     // errors?.length || warnings?.length;
@@ -81,6 +92,10 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
 
     return (
         <span
+            onMouseDownCapture={(evt) => {
+                clearTimeout(t.current!);
+                setHover(false);
+            }}
             onMouseOver={
                 hasOverlay
                     ? (evt) => {
@@ -90,15 +105,16 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
                       }
                     : undefined
             }
-            onMouseMove={
-                hasOverlay
-                    ? (evt) => {
-                          evt.stopPropagation();
-                          clearTimeout(t.current!);
-                          t.current = setTimeout(() => setHover(true), DELAY);
-                      }
-                    : undefined
-            }
+            // onMouseMove={
+            //     hasOverlay
+            //         ? (evt) => {
+            //               evt.stopPropagation();
+            //               clearTimeout(t.current!);
+            //               // hmm check for if its selected?
+            //               t.current = setTimeout(() => setHover(true), DELAY);
+            //           }
+            //         : undefined
+            // }
             onMouseOut={
                 hasOverlay
                     ? (evt) => {
@@ -119,12 +135,33 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
             {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
             {/* {annotations ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(annotations)}</span> : null} */}
             {overlay}
+            {testResult ? <ShowTestResult result={testResult} /> : null}
             {children}
         </span>
         // <span data-self={JSON.stringify(self)} data-id={id}>
         //     {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>
         //     {JSON.stringify(sel)} */}
         // {/* </span> */}
+    );
+};
+
+const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
+    fail: '🚨',
+    error: '🚧',
+    mismatch: <span style={{ color: 'red' }}>!=</span>,
+    pass: <BadgeCheck style={{ color: 'green' }} />,
+};
+
+const ShowTestResult = ({ result }: { result: LocatedTestResult }) => {
+    const icon = icons[result.result.type];
+    return (
+        <span
+            className={css({
+                marginRight: '8px',
+            })}
+        >
+            {icon}
+        </span>
     );
 };
 

@@ -1,19 +1,25 @@
 import { css } from 'goober';
-import React, { useMemo, useCallback, createContext } from 'react';
+import React, { useMemo, useCallback, createContext, useEffect, useRef, useState } from 'react';
 import { genId } from '../keyboard/ui/genId';
-import { Path, lastChild } from '../keyboard/utils';
+import { Path, lastChild, pathWithChildren } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
 import { DragCtx, noopDrag, useEditor } from './Editor';
 import { RenderNode } from './render/RenderNode';
-import { AnnotationText, FailureKind, Meta } from './store/language';
+import { AnnotationText, EvaluationResult, FailureKind, LocatedTestResult, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
 import { currentTheme } from './themes';
 import { TopGrab } from './TopGrab';
 import { zedlight } from './zedcolors';
 import { Toplevel } from './types';
+import equal from 'fast-deep-equal';
+import { selectEnd, selectStart } from '../keyboard/handleNav';
 
 export const GetTopCtx = createContext<() => Toplevel>(() => {
     throw new Error('no');
+});
+
+export const TestResultsCtx = createContext<(id: string) => LocatedTestResult | null>(() => {
+    return null;
 });
 
 export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
@@ -37,6 +43,10 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
 
     const parseResult = editor.useTopParseResults(id);
 
+    const results = editor.useTopResults(id);
+    const onTestLoc = useTestTracker(results);
+    const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
+
     const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (
         <div>
@@ -53,13 +63,24 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                     position: 'relative',
                 })}
                 style={isSelected ? { boxShadow: '0px 1px 3px ' + zedlight.syntax.attribute.color } : {}}
+                onMouseDown={(evt) => {
+                    evt.stopPropagation();
+                    const box = evt.currentTarget.getBoundingClientRect();
+                    const top = evt.clientY < box.top + box.height / 2;
+                    const sel = top ? selectStart(pathWithChildren(rootPath, root), getTop()) : selectEnd(pathWithChildren(rootPath, root), getTop());
+                    if (sel) {
+                        editor.update({ type: 'selections', selections: [{ start: sel }] });
+                    }
+                }}
             >
                 <TopFailure id={id} />
                 <TopGrab name={name} id={id} />
                 <div style={{ flexBasis: 12 }} />
                 <GetTopCtx.Provider value={getTop}>
                     <UseNodeCtx.Provider value={useNode}>
-                        <RenderNode parent={rootPath} id={root} />
+                        <TestResultsCtx.Provider value={onTestLoc}>
+                            <RenderNode parent={rootPath} id={root} />
+                        </TestResultsCtx.Provider>
                     </UseNodeCtx.Provider>
                 </GetTopCtx.Provider>
                 <div
@@ -85,7 +106,7 @@ export const Top = React.memo(({ id, name }: { id: string; name: string }) => {
                         : null}
                 </div>
             </div>
-            <TopReults id={id} isSelected={isSelected} />
+            {nonLocTestResults?.length ? <TopReults results={nonLocTestResults} id={id} isSelected={isSelected} /> : null}
         </div>
     );
 });
@@ -151,11 +172,7 @@ export const TopFailure = ({ id }: { id: string }) => {
     );
 };
 
-export const TopReults = ({ id, isSelected }: { id: string; isSelected: boolean }) => {
-    const editor = useEditor();
-    const results = editor.useTopResults(id);
-    if (results == null) return null;
-
+export const TopReults = ({ id, results, isSelected }: { results: EvaluationResult[]; id: string; isSelected: boolean }) => {
     return (
         <div
             className={css({
@@ -210,3 +227,49 @@ export const RenderStaticNode = ({ root }: { root: { node: RecNode; meta: Record
 export const UseNodeCtx = React.createContext<UseNode>((path) => {
     throw new Error('n');
 });
+
+export const useTestTracker = (results: null | EvaluationResult[]) => {
+    // NOTE: only one result per loc allowed at the moment
+    const prev = useMemo(
+        () => ({ listeners: {} as Record<string, (tr: LocatedTestResult | null) => void>, byLoc: {} as Record<string, LocatedTestResult> }),
+        [],
+    );
+    useEffect(() => {
+        const byLoc: Record<string, LocatedTestResult> = {};
+        let notify: Record<string, true> = {};
+        results?.forEach((res) => {
+            if (res.type === 'test-result' && res.loc != null) {
+                if (!equal(prev.byLoc[res.loc], res)) {
+                    notify[res.loc] = true;
+                    byLoc[res.loc] = res;
+                }
+            }
+        });
+        Object.keys(prev.byLoc).forEach((k) => {
+            if (!byLoc[k]) {
+                notify[k] = true;
+            }
+        });
+        prev.byLoc = byLoc;
+        Object.keys(notify).forEach((k) => {
+            if (prev.listeners[k]) {
+                prev.listeners[k](byLoc[k]);
+            }
+        });
+    }, [results]);
+
+    const onTestLoc = useCallback((loc: string) => {
+        const [got, setGot] = useState(null as null | LocatedTestResult);
+        useEffect(() => {
+            prev.listeners[loc] = setGot;
+            return () => {
+                if (prev.listeners[loc] === setGot) {
+                    delete prev.listeners[loc];
+                }
+            };
+        }, [loc, setGot]);
+        return got;
+    }, []);
+
+    return onTestLoc;
+};

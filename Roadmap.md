@@ -6,13 +6,29 @@ in a way that other people can comment on.
 
 - [x] yay
 - [ ] want to show the pass/fail inline (with outloc)
+  this is ... annotations, right?
 - [ ] clicking the /fail/ should show a popover, allowing you to show a diff
   - hmm I wonder about, like, having a display setting to "show failures inline" or something
-- [ ] clicking a toplevel should select it somehow.
-- [ ] there should be a way to specify the /function to run/
-- [ ] tests should isolate filures in the input & output evaluation
+- [x] clicking a toplevel should select it somehow.
+- [x] there should be a way to specify the /function to run/
+- [x] tests should isolate filures in the input & output evaluation
 
 - [ ] gotta lift the `compiler` to the main store level, not the editorStore.
+
+- [ ] make it so you can place the "check mark" somewhere other than the (otherloc)
+- [ ] make a popover explaining the datas
+- [ ] make it so you can replace the (otherloc) with the (actual) with a click
+
+- [ ] table backspace isnt owrking?
+
+OK I really need to get hovers under control.
+
+1) centralize it again:
+  - when showing a hover, need to check up the tree to see if there are errors/warnings that need to be shown
+  - if you click, it should cancel the hover.
+  - keydown should dismiss for goodness sake.
+  - bad to have multiple hovers be able to be active at once
+
 
 
 # Modules and dependencies

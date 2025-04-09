@@ -1,6 +1,6 @@
 import React from 'react';
 import { lightColor } from '../../keyboard/ui/colors';
-import { TextWithCursor } from '../../keyboard/ui/cursor';
+import { TextWithCursor, Zwd } from '../../keyboard/ui/cursor';
 import { Path, selStart, IdCursor } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
 import { splitGraphemes } from '../../splitGraphemes';
@@ -42,7 +42,7 @@ export const RenderId = ({ node, sel, self, meta }: { meta?: Meta; node: Node & 
                     }
                 }}
             >
-                {node.text}
+                {node.text.length ? node.text : <Zwd />}
             </span>
         );
     return (
