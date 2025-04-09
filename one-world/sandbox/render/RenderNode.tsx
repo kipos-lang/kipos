@@ -33,60 +33,43 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
     const errors = annotations?.filter((e) => e.type === 'error');
     const warnings = annotations?.filter((e) => e.type === 'warning');
     const hasOverlay = annotations?.length;
-    // errors?.length || warnings?.length;
-    // const [hover, setHover] = useState(false);
     const { isHovered: hover, setHover, clearHover } = useHover(hasOverlay ? id : undefined);
 
-    // useEffect(() => {
-    //     if (!hover) return;
-    //     const f = () => {
-    //         setHover(false);
-    //     };
-    //     document.addEventListener('keydown', f);
-    //     return () => document.removeEventListener('keydown', f);
-    // }, [hover]);
-
-    const overlay = //hover ? (
-        (
-            <span style={{ position: 'relative' }}>
-                {hover ? (
-                    <div
-                        style={{
-                            width: 400,
-                            position: 'absolute',
-                            opacity: 0.8,
-                            pointerEvents: 'none',
-                            display: 'inline-block',
-                            // top: '100%',
-                            left: 0,
-                            top: '100%',
-                            marginTop: 8,
-                            zIndex: 100,
-                            backgroundColor: 'white',
-                            boxShadow: '1px 1px 4px #aaa',
-                            padding: '8px 16px',
-                        }}
-                    >
-                        {annotations?.map((ann, i) => (
-                            <div key={i}>
-                                {ann.type === 'type' ? (
-                                    <RenderStaticNode root={ann.annotation} />
-                                ) : (
-                                    ann.message.map((item, i) =>
-                                        typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />,
-                                    )
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div style={{ position: 'absolute' }} />
-                )}
-            </span>
-        );
-    // ) : (
-    //     <span />
-    // );
+    const overlay = (
+        <span style={{ position: 'relative' }}>
+            {hover ? (
+                <div
+                    style={{
+                        width: 400,
+                        position: 'absolute',
+                        opacity: 0.8,
+                        pointerEvents: 'none',
+                        display: 'inline-block',
+                        // top: '100%',
+                        left: 0,
+                        top: '100%',
+                        marginTop: 8,
+                        zIndex: 100,
+                        backgroundColor: 'white',
+                        boxShadow: '1px 1px 4px #aaa',
+                        padding: '8px 16px',
+                    }}
+                >
+                    {annotations?.map((ann, i) => (
+                        <div key={i}>
+                            {ann.type === 'type' ? (
+                                <RenderStaticNode root={ann.annotation} />
+                            ) : (
+                                ann.message.map((item, i) => (typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />))
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div style={{ position: 'absolute' }} />
+            )}
+        </span>
+    );
     const t = useRef(null as null | Timer);
 
     const DELAY = 200;
@@ -136,7 +119,7 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
             {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
             {/* {annotations ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(annotations)}</span> : null} */}
             {overlay}
-            {testResult ? <ShowTestResult result={testResult} /> : null}
+            {testResult ? <ShowTestResult id={id} result={testResult} /> : null}
             {children}
         </span>
         // <span data-self={JSON.stringify(self)} data-id={id}>
@@ -154,15 +137,38 @@ const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
     pass: <BadgeCheck style={{ color: 'green' }} />,
 };
 
-const ShowTestResult = ({ result }: { result: LocatedTestResult }) => {
+const ShowTestResult = ({ result, id }: { id: string; result: LocatedTestResult }) => {
+    const { isHovered, setHover } = useHover(id + ':test-result', true);
     const icon = icons[result.result.type];
     return (
-        <span
-            className={css({
-                marginRight: '8px',
-            })}
-        >
-            {icon}
+        <span style={{ position: 'relative' }}>
+            <span
+                onMouseDown={(evt) => {
+                    evt.stopPropagation();
+                    setHover(true);
+                }}
+                className={css({
+                    marginRight: '8px',
+                })}
+            >
+                {icon}
+            </span>
+            {isHovered ? (
+                <div
+                    className={css({
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        zIndex: 200,
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        background: 'white',
+                        border: '1px solid magenta',
+                    })}
+                >
+                    {JSON.stringify(result.result)}
+                </div>
+            ) : null}
         </span>
     );
 };

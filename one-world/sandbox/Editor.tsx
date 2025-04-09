@@ -51,13 +51,17 @@ export const useEditor = () => {
     return store.useEditor();
 };
 
-type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean): void; clearHover(): void };
+type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean, persistent: boolean): void; clearHover(): void };
 const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {}, clearHover() {} });
 
-export const useHover = (key?: string) => {
+export const useHover = (key?: string, persistent = false) => {
     const hover = useContext(HoverCtx);
     const isHovered = hover.onHover(key);
-    return { isHovered, setHover: useCallback((yes: boolean) => (key ? hover.setHover(key, yes) : null), [key]), clearHover: hover.clearHover };
+    return {
+        isHovered,
+        setHover: useCallback((yes: boolean) => (key ? hover.setHover(key, yes, persistent) : null), [key]),
+        clearHover: hover.clearHover,
+    };
 };
 
 export const useProvideHover = () => {
@@ -71,7 +75,7 @@ export const useProvideHover = () => {
 const useMakeHover = () => {
     return useMemo((): HoverCtxT => {
         const listeners: Record<string, (v: boolean) => void> = {};
-        let hover: null | string = null;
+        let hover: null | { key: string; persistent: boolean } = null;
         let lastClear = Date.now();
         const MIN = 500;
 
@@ -87,27 +91,28 @@ const useMakeHover = () => {
                 }, [key]);
                 return isHovered;
             },
-            setHover(key: string, on: boolean) {
+            setHover(key: string, on: boolean, persistent: boolean) {
                 if (on) {
-                    if (hover === key) return;
-                    listeners[hover!]?.(false);
-                    if (!hover && Date.now() - lastClear < MIN) {
+                    if (hover?.key === key) return;
+                    if (hover?.persistent && !persistent) return; // ignore
+                    listeners[hover?.key!]?.(false);
+                    if (!persistent && !hover && Date.now() - lastClear < MIN) {
                         console.log('too soon');
                         hover = null;
                         return;
                     }
-                    hover = key;
-                    listeners[hover!]?.(true);
+                    hover = { key, persistent };
+                    listeners[hover.key]?.(true);
                 } else {
-                    if (hover !== key) return;
+                    if (hover?.key !== key) return;
                     // lastClear = Date.now();
-                    listeners[hover!]?.(false);
+                    listeners[hover?.key!]?.(false);
                     hover = null;
                 }
             },
             clearHover() {
                 lastClear = Date.now();
-                listeners[hover!]?.(false);
+                listeners[hover?.key!]?.(false);
                 hover = null;
             },
         };
