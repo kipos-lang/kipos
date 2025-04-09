@@ -241,8 +241,8 @@ export const useTestTracker = (results: null | EvaluationResult[]) => {
             if (res.type === 'test-result' && res.loc != null) {
                 if (!equal(prev.byLoc[res.loc], res)) {
                     notify[res.loc] = true;
-                    byLoc[res.loc] = res;
                 }
+                byLoc[res.loc] = res;
             }
         });
         Object.keys(prev.byLoc).forEach((k) => {

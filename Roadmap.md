@@ -13,7 +13,7 @@ in a way that other people can comment on.
 - [x] there should be a way to specify the /function to run/
 - [x] tests should isolate filures in the input & output evaluation
 
-- [ ] test annotations are ... waffling?
+- [x] test annotations are ... waffling?
 
 - [ ] gotta lift the `compiler` to the main store level, not the editorStore.
 

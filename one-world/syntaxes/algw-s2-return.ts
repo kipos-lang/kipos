@@ -86,7 +86,7 @@ const toplevels_spaced: Record<string, Rule<TopItem>> = {
             const config = ctx.ref<Id<string> | { type: 'tableConfig'; config: Record<string, Expr> } | TextSpan<any, any>[]>('config');
             let name: string | null = null;
             let target: undefined | Expr = undefined;
-            console.log(config);
+            // console.log(config);
             if (Array.isArray(config)) {
                 name = config.map((s) => (s.type === 'text' ? s.text : '**')).join('');
             } else if (config.type === 'tableConfig') {
