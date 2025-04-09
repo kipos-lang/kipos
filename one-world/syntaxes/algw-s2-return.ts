@@ -289,7 +289,7 @@ const rules = {
         value: ctx.ref<Pat>('value'),
         src,
     })),
-    'call row': tx<CallRow>(seq(group('name', id(null)), opt(ref('expr', 'value'))), (ctx, src) => ({
+    'call row': tx<CallRow>(seq(group('name', meta(id(null), 'attribute')), opt(ref('expr', 'value'))), (ctx, src) => ({
         type: 'row',
         name: textLoc(ctx.ref<Id<Loc>>('name')),
         value: ctx.ref<Expr | undefined>('value'),

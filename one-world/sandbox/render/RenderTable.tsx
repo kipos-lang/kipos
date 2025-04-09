@@ -62,7 +62,7 @@ export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node
                     )),
                     (j) => (
                         <span key={j} style={{ gridColumn: j * 2 + 2, gridRow: at + 1, ...currentTheme.metaNode.punct }}>
-                            :{' '}
+                            :
                         </span>
                     ),
                 )}
@@ -112,14 +112,14 @@ export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node
         >
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
-            <span style={{ marginLeft: -5, marginRight: 5 }}>:</span>
+            <span style={{ marginLeft: -6, position: 'relative', top: '-1px', marginRight: -2 }}>:</span>
             {has('inside') ? <Cursor /> : null}
             {node.forceMultiline ? (
                 <div style={{ display: 'grid', marginLeft: 32, gridAutoColumns: 'max-content', columnGap: 8 }}>{rows}</div>
             ) : (
                 interleaveF(rows, (k) => <span key={k}>; </span>)
             )}
-            <span style={{ marginRight: -5, marginLeft: 5 }}>:</span>
+            <span style={{ marginRight: -7, position: 'relative', top: -1, marginLeft: -2 }}>:</span>
             {closer[node.kind]}
             {has('after') ? <Cursor /> : null}
         </span>
