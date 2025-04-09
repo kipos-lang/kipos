@@ -10,7 +10,7 @@ import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
-import { useHover } from '../Editor';
+import { useEditor, useHover } from '../Editor';
 
 const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) {
     switch (node.type) {
@@ -76,10 +76,10 @@ export function Wrap({ parent, id, children }: { children: React.ReactNode; pare
 
     return (
         <span
-            onMouseDownCapture={(evt) => {
-                clearTimeout(t.current!);
-                clearHover();
-            }}
+            // onMouseDownCapture={(evt) => {
+            //     clearTimeout(t.current!);
+            //     clearHover();
+            // }}
             onMouseOver={
                 hasOverlay
                     ? (evt) => {
@@ -137,6 +137,38 @@ const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
     pass: <BadgeCheck style={{ color: 'green' }} />,
 };
 
+const ShowFullTestResult = ({ result }: { result: LocatedTestResult }) => {
+    const editor = useEditor();
+
+    switch (result.result.type) {
+        case 'mismatch': {
+            if (result.result.actual) {
+                return (
+                    <div
+                        style={{ color: 'black' }}
+                        onMouseDown={(evt) => {
+                            evt.stopPropagation();
+                        }}
+                        onClick={(evt) => {
+                            evt.stopPropagation();
+                        }}
+                    >
+                        <div style={{ fontWeight: 'bold' }}>Actual</div>
+                        <RenderStaticNode root={{ node: result.result.actual, meta: {} }} />
+                        {result.result.expected ? (
+                            <>
+                                <div style={{ fontWeight: 'bold' }}>Expected</div>
+                                <RenderStaticNode root={{ node: result.result.expected, meta: {} }} />
+                            </>
+                        ) : null}
+                    </div>
+                );
+            }
+        }
+    }
+    return JSON.stringify(result.result);
+};
+
 const ShowTestResult = ({ result, id }: { id: string; result: LocatedTestResult }) => {
     const { isHovered, setHover } = useHover(id + ':test-result', true);
     const icon = icons[result.result.type];
@@ -166,7 +198,7 @@ const ShowTestResult = ({ result, id }: { id: string; result: LocatedTestResult 
                         border: '1px solid magenta',
                     })}
                 >
-                    {JSON.stringify(result.result)}
+                    <ShowFullTestResult result={result} />
                 </div>
             ) : null}
         </span>

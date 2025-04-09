@@ -86,7 +86,7 @@ export type TestResult =
     | { type: 'pass'; message?: string }
     | { type: 'fail'; message?: string }
     // hrm. should this be RecNode?
-    | { type: 'mismatch'; actual: any; message?: string }
+    | { type: 'mismatch'; expected?: RecNode; actual?: RecNode; message?: string }
     | { type: 'error'; message?: string };
 
 export type LocatedTestResult = {

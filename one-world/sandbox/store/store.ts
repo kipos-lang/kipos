@@ -22,6 +22,8 @@ interface Store {
     module(id: string): Module;
     // get languageConfigs(): Record<string, LanguageConfiguration>;
     // get moduleTree(): ModuleTree;
+    listen(evt: Evt, f: () => void): () => void;
+    selected(): string;
     select(id: string): void;
     addModule(module: Module): void;
     updateeModule(update: ModuleUpdate): void;
@@ -192,6 +194,10 @@ const createStore = (): Store => {
     return {
         module(id: string) {
             return modules[id];
+        },
+        listen,
+        selected() {
+            return selected;
         },
         updateeModule(update) {
             Object.assign(modules[update.id], update);

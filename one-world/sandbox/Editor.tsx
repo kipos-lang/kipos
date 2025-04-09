@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Showsel } from './App';
 import { Top } from './Top';
@@ -73,11 +73,23 @@ export const useProvideHover = () => {
 };
 
 const useMakeHover = () => {
+    const store = useStore();
+    const selected = store.useSelected();
+    const cleanup = useRef(() => {});
+    useEffect(() => {
+        return () => cleanup.current();
+    }, []);
     return useMemo((): HoverCtxT => {
         const listeners: Record<string, (v: boolean) => void> = {};
         let hover: null | { key: string; persistent: boolean } = null;
         let lastClear = Date.now();
         const MIN = 500;
+
+        cleanup.current = store.listen(`module:${selected}:selection`, () => {
+            lastClear = Date.now();
+            listeners[hover?.key!]?.(false);
+            hover = null;
+        });
 
         return {
             onHover(key?: string) {

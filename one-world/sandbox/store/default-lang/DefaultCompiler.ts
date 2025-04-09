@@ -5,6 +5,7 @@ import { Dependencies } from '../editorStore';
 import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind } from '../language';
 import { TInfo } from './default-lang';
 import { Resolutions, stmtToString, testToString, toString } from './to-string';
+import { id, text } from '../../../keyboard/test-utils';
 
 const addFn = <K extends keyof CompilerEvents>(
     key: string,
@@ -35,6 +36,17 @@ and mutability be darned.
 
 
 */
+
+const anyToCST = (value: any): RecNode | undefined => {
+    if (value === null) return;
+    if (typeof value === 'number') {
+        return id(value.toString());
+    }
+    if (typeof value === 'string') {
+        return text([{ type: 'text', loc: '', text: value }]);
+    }
+    return;
+};
 
 const test = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
     const f = new Function(
@@ -67,7 +79,12 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
             if (equal(input, output)) {
                 results.push({ type: 'test-result', result: { type: 'pass' }, name, loc: outloc });
             } else {
-                results.push({ type: 'test-result', result: { type: 'mismatch', actual: input }, name, loc: outloc });
+                results.push({
+                    type: 'test-result',
+                    result: { type: 'mismatch', actual: anyToCST(input), expected: anyToCST(output) },
+                    name,
+                    loc: outloc,
+                });
             }
         });
     } catch (err) {
