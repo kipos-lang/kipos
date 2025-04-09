@@ -161,7 +161,7 @@ const createStore = (): Store => {
             return listen(evt, () => {
                 const n = f(latest.current);
                 if (latest.current !== n) {
-                    console.log('tick', evt);
+                    // console.log('tick', evt);
                     setTick(n);
                 }
             });
@@ -173,7 +173,7 @@ const createStore = (): Store => {
         const [ticker, setTick] = useState(0);
         useEffect(() => {
             return listen(evt, () => {
-                console.log('tick', evt);
+                // console.log('tick', evt);
                 setTick((t) => t + 1);
             });
         }, [evt]);

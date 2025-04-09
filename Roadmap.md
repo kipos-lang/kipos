@@ -2,6 +2,10 @@
 I should really write up my thoughts about the architecture here.
 in a way that other people can comment on.
 
+#
+
+PROBLEM. Expression (src) IDs are not stable between parses.
+
 # TEStss
 
 - [x] yay

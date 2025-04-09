@@ -44,7 +44,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
 
     const results = editor.useTopResults(id);
     const onTestLoc = useTestTracker(results);
-    const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
+    const nonLocTestResults = results; // results?.filter((r) => r.type !== 'test-result' || !r.loc);
 
     const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (
@@ -234,7 +234,7 @@ export const UseNodeCtx = React.createContext<UseNode>((path) => {
 
 export const useTestTracker = (results: null | EvaluationResult[]) => {
     // NOTE: only one result per loc allowed at the moment
-    const prev = useMemo(
+    const state = useMemo(
         () => ({ listeners: {} as Record<string, (tr: LocatedTestResult | null) => void>, byLoc: {} as Record<string, LocatedTestResult> }),
         [],
     );
@@ -243,32 +243,33 @@ export const useTestTracker = (results: null | EvaluationResult[]) => {
         let notify: Record<string, true> = {};
         results?.forEach((res) => {
             if (res.type === 'test-result' && res.loc != null) {
-                if (!equal(prev.byLoc[res.loc], res)) {
+                if (!equal(state.byLoc[res.loc], res)) {
                     notify[res.loc] = true;
                 }
                 byLoc[res.loc] = res;
             }
         });
-        Object.keys(prev.byLoc).forEach((k) => {
+        Object.keys(state.byLoc).forEach((k) => {
             if (!byLoc[k]) {
                 notify[k] = true;
             }
         });
-        prev.byLoc = byLoc;
+        state.byLoc = byLoc;
         Object.keys(notify).forEach((k) => {
-            if (prev.listeners[k]) {
-                prev.listeners[k](byLoc[k]);
+            if (state.listeners[k]) {
+                console.log('results change, notify', k);
+                state.listeners[k](byLoc[k]);
             }
         });
     }, [results]);
 
     const onTestLoc = useCallback((loc: string) => {
-        const [got, setGot] = useState(null as null | LocatedTestResult);
+        const [got, setGot] = useState(state.byLoc[loc] as null | LocatedTestResult);
         useEffect(() => {
-            prev.listeners[loc] = setGot;
+            state.listeners[loc] = setGot;
             return () => {
-                if (prev.listeners[loc] === setGot) {
-                    delete prev.listeners[loc];
+                if (state.listeners[loc] === setGot) {
+                    delete state.listeners[loc];
                 }
             };
         }, [loc, setGot]);
