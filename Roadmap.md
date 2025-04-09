@@ -13,13 +13,15 @@ in a way that other people can comment on.
 - [x] there should be a way to specify the /function to run/
 - [x] tests should isolate filures in the input & output evaluation
 
+- [ ] test annotations are ... waffling?
+
 - [ ] gotta lift the `compiler` to the main store level, not the editorStore.
 
 - [ ] make it so you can place the "check mark" somewhere other than the (otherloc)
 - [ ] make a popover explaining the datas
 - [ ] make it so you can replace the (otherloc) with the (actual) with a click
 
-- [ ] table backspace isnt owrking?
+- [x] table backspace isnt owrking?
 
 OK I really need to get hovers under control.
 

@@ -135,6 +135,7 @@ export const leftJoin = (state: TestState, cursor: Cursor): KeyAction[] | void =
 
         if (node.type === 'id' && node.text === '' && pnode.rows.length === 1 && pnode.rows[0].length === 1) {
             if (pnode.forceMultiline) {
+                // TODO: for table, this should be set-multiline: false
                 return [{ type: 'toggle-multiline', loc: pnode.loc }];
             }
             return [{ type: 'remove-self', path: parent }];

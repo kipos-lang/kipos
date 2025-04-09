@@ -141,6 +141,12 @@ test('table start not empty', () => {
     check(state, table('round', [[id(''), id('ha')]], true), listc('start'));
 });
 
+test('table del empty first row', () => {
+    let state = asTop(table('round', [[id('')], [id('hi', true), id('ho')]]), idc(0));
+    state = applyUpdate(state, handleDelete(state)!);
+    check(state, table('round', [[id('hi', true), id('ho')]]), idc(0));
+});
+
 test('table del column', () => {
     let state = asTop(table('round', [[id('hi'), id('', true)]]), idc(0));
     state = applyUpdate(state, handleDelete(state)!);

@@ -42,10 +42,11 @@ export const joinTable = (
 
     const rows = pnode.rows.slice();
     rows[at.row] = rows[at.row].slice();
-    rows[at.row].splice(at.col - 1, 1); // , ...result.other);
     if (pat.row !== at.row) {
-        rows[pat.row] = rows[pat.row].concat(rows[at.row]);
+        rows[pat.row] = rows[pat.row].slice(0, -1).concat(rows[at.row]);
         rows.splice(at.row, 1);
+    } else if (at.col > 0) {
+        rows[at.row].splice(at.col - 1, 1); // , ...result.other);
     }
     rows[pat.row][pat.col] = result.other[0];
 
