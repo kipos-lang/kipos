@@ -11,10 +11,7 @@ import { Annotation, EvaluationResult, FailureKind, Meta, ParseResult } from './
 import { Event } from '../../syntaxes/dsl3';
 import { Dependencies } from './editorStore';
 
-export type ModuleTree = {
-    node?: Module;
-    children: ModuleTree[];
-};
+export type ModuleChildren = Record<string, string[]>;
 
 type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>> & { id: string };
 
@@ -30,7 +27,8 @@ interface Store {
     // get selectedModule(): string
     useEditor(): EditorStoreI;
     useSelected(): string;
-    useModuleTree(): ModuleTree;
+    useModuleChildren(): ModuleChildren;
+    moduleChildren(): ModuleChildren;
 }
 
 export interface EditorStoreI {
@@ -95,19 +93,17 @@ export const newModule = (name = 'NewModule'): Module => {
 };
 
 const makeModuleTree = (modules: Record<string, Module>) => {
-    const root: ModuleTree = { children: [] };
-    const byId: Record<string, ModuleTree> = { root };
+    const children: ModuleChildren = { root: [] };
     Object.values(modules).forEach((mod) => {
-        if (!byId[mod.id]) {
-            byId[mod.id] = { children: [] };
+        if (!children[mod.id]) {
+            children[mod.id] = [];
         }
-        byId[mod.id].node = mod;
-        if (!byId[mod.parent]) {
-            byId[mod.parent] = { children: [] };
+        if (!children[mod.parent]) {
+            children[mod.parent] = [];
         }
-        byId[mod.parent].children.push(byId[mod.id]);
+        children[mod.parent].push(mod.id);
     });
-    return root;
+    return children;
 };
 
 export const defaultLanguageConfig = 'default';
@@ -132,15 +128,15 @@ const createStore = (): Store => {
     let treeCache = makeModuleTree(modules);
     let selected = location.hash.slice(1);
     if (!selected) {
-        if (treeCache.children.length && treeCache.children[0].node) {
-            selected = treeCache.children[0].node!.id;
+        if (treeCache.root.length) {
+            selected = treeCache.root[0];
         }
     }
     if (!selected) {
         const module = newModule();
         modules[module.id] = module;
         selected = module.id;
-        treeCache.children.push({ node: module, children: [] });
+        treeCache.root.push(module.id);
     }
 
     const listeners: Partial<Record<Evt, (() => void)[]>> = {};
@@ -215,7 +211,8 @@ const createStore = (): Store => {
         // get languageConfigs() {
         //     return configs;
         // },
-        useModuleTree() {
+        moduleChildren: () => treeCache,
+        useModuleChildren() {
             useTick(`modules`);
             return treeCache;
         },

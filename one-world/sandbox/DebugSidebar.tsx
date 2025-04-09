@@ -10,7 +10,7 @@ import { toXML } from '../syntaxes/xml';
 import { useEditor } from './Editor';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
-import { Resizebar } from './ModuleSidebar';
+import { Resizebar } from './Resizebar';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
