@@ -5,7 +5,7 @@ in a way that other people can comment on.
 # TEStss
 
 - [x] yay
-- [ ] want to show the pass/fail inline (with outloc)
+- [x] want to show the pass/fail inline (with outloc)
   this is ... annotations, right?
 - [ ] clicking the /fail/ should show a popover, allowing you to show a diff
   - hmm I wonder about, like, having a display setting to "show failures inline" or something

@@ -9,7 +9,7 @@ import { RenderList } from './RenderList';
 import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
-import { BadgeCheck, CheckIcon } from '../icons';
+import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon } from '../icons';
 
 const R = React.memo(({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) => {
     switch (node.type) {
@@ -146,8 +146,8 @@ export const Wrap = ({ parent, id, children }: { children: React.ReactNode; pare
 };
 
 const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
-    fail: '🚨',
-    error: '🚧',
+    fail: <CancelIcon style={{ color: 'red' }} />,
+    error: <MinusIcon style={{ color: 'red' }} />,
     mismatch: <span style={{ color: 'red' }}>!=</span>,
     pass: <BadgeCheck style={{ color: 'green' }} />,
 };
