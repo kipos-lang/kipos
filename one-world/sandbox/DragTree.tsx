@@ -34,7 +34,7 @@ export type DraggerCtxT = {
     useMouseDown: (id: string) => (evt: React.MouseEvent) => void;
     // used to check if click should be ignored
     checkClick(): boolean;
-    ref(id: string): (node: HTMLElement | null) => void;
+    ref(id: string, children: boolean): (node: HTMLElement | null) => void;
     useIsDragging: (id: string) => boolean;
 };
 
@@ -66,7 +66,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
     const listeners: Record<string, (d: boolean) => void> = useMemo(() => ({}), []);
     const latest = useLatest(dragging);
 
-    const refs: Record<string, HTMLElement> = useMemo(() => ({}), []);
+    const refs: Record<string, { node: HTMLElement; children: boolean }> = useMemo(() => ({}), []);
 
     useEffect(() => {
         if (!dragging) return;
@@ -80,19 +80,19 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                 return;
             }
             const got = Object.keys(refs).find((id) => {
-                const box = refs[id].getBoundingClientRect();
+                const box = refs[id].node.getBoundingClientRect();
                 return (
-                    box.left + (id === 'root' ? 0 : 50) <= evt.clientX &&
+                    box.left + (refs[id].children ? 0 : 50) <= evt.clientX &&
                     box.right >= evt.clientX &&
                     box.top <= evt.clientY &&
                     box.bottom >= evt.clientY
                 );
             });
-            if (!got) {
+            if (!got || got === dragging.which) {
                 if (dragging.target) return setDragging({ ...dragging, target: undefined });
                 return;
             }
-            const box = refs[got].getBoundingClientRect();
+            const box = refs[got].node.getBoundingClientRect();
             return setDragging({
                 ...dragging,
                 target: {
@@ -146,13 +146,13 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                 // idk
                 return false;
             },
-            ref(id) {
+            ref(id, children) {
                 return useCallback(
                     (node) => {
                         if (!node) delete refs[id];
-                        else refs[id] = node;
+                        else refs[id] = { node, children };
                     },
-                    [id],
+                    [id, children],
                 );
             },
             useIsDragging(id: string) {
@@ -207,7 +207,7 @@ export const DragTreeNode = React.memo(function DragTreeNode({ id }: { id: strin
     const { useNode, Render } = useContext(DragTreeCtx);
     const { children, node } = useNode(id);
     const dragger = useContext(DraggerCtx);
-    const dr = dragger.ref(id);
+    const dr = dragger.ref(id, !!children.length);
     return (
         <div>
             {node ? (
