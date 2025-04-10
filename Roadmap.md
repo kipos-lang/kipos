@@ -21,6 +21,10 @@ so,
 i've got all these interfaces.
 the EditorStoreI - the only thing it's doing is caching selectionStatuses.
 
+Ok, so game plan:
+- transition all of the `makeEditor` stuff over to ... hooks that
+  maybe just access the store?
+
 
 
 

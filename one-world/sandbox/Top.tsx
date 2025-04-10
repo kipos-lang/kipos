@@ -13,7 +13,15 @@ import { zedlight } from './zedcolors';
 import { Toplevel } from './types';
 import equal from 'fast-deep-equal';
 import { selectEnd, selectStart } from '../keyboard/handleNav';
-import { useIsSelectedTop, useTopFailure, useTopParseResults, useTopResults } from './store/editorHooks';
+import {
+    SelectionStatusCtx,
+    useIsSelectedTop,
+    useMakeSelectionStatuses,
+    useRoot,
+    useTopFailure,
+    useTopParseResults,
+    useTopResults,
+} from './store/editorHooks';
 
 export const GetTopCtx = createContext<() => Toplevel>(() => {
     throw new Error('no');
@@ -28,11 +36,11 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
     const editor = store.useEditor();
     const top = editor.useTop(id);
 
-    const getTop = useCallback(() => editor.getTop(id), [id]);
+    const getTop = useCallback(() => store.module(store.selected()).toplevels[id], [id]);
 
     const isSelected = useIsSelectedTop(id);
 
-    const root = top.useRoot();
+    const root = useRoot(id);
     const rootPath = useMemo(
         () => ({
             root: { ids: [], top: id },
@@ -46,6 +54,8 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
     const results = useTopResults(id);
     const onTestLoc = useTestTracker(results);
     const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
+
+    const onSS = useMakeSelectionStatuses(id);
 
     const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
     return (
@@ -77,13 +87,15 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
                 <TopFailure id={id} />
                 <TopGrab name={name} id={id} />
                 <div style={{ flexBasis: 12 }} />
-                <GetTopCtx.Provider value={getTop}>
-                    <UseNodeCtx.Provider value={useNode}>
-                        <TestResultsCtx.Provider value={onTestLoc}>
-                            <RenderNode parent={rootPath} id={root} />
-                        </TestResultsCtx.Provider>
-                    </UseNodeCtx.Provider>
-                </GetTopCtx.Provider>
+                <SelectionStatusCtx.Provider value={onSS}>
+                    <GetTopCtx.Provider value={getTop}>
+                        <UseNodeCtx.Provider value={useNode}>
+                            <TestResultsCtx.Provider value={onTestLoc}>
+                                <RenderNode parent={rootPath} id={root} />
+                            </TestResultsCtx.Provider>
+                        </UseNodeCtx.Provider>
+                    </GetTopCtx.Provider>
+                </SelectionStatusCtx.Provider>
                 <div
                     className={css({
                         marginLeft: '24px',

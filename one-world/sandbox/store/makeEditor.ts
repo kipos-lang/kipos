@@ -60,9 +60,6 @@ export const makeEditor = (
     let language = defaultLang;
 
     return {
-        getTop(top: string) {
-            return modules[selected].toplevels[top];
-        },
         update(action: Action) {
             const mod = modules[selected];
             const result = reduce(
@@ -162,15 +159,6 @@ export const makeEditor = (
         useTop(top: string) {
             useTick(`top:${top}`);
             return {
-                useAnnotations(key: string) {
-                    const tick = useTick(`annotation:${key}`);
-                    return useMemo(() => {
-                        // store.compiler.
-                        const hid = store.state.dependencies.components.pointers[top];
-                        const fromValidation = store.state.validationResults[hid]?.annotations[top][key];
-                        return fromValidation;
-                    }, [tick, key]);
-                },
                 useNode(path: Path) {
                     const loc = lastChild(path);
                     useTick(`node:${loc}`);
@@ -190,10 +178,6 @@ export const makeEditor = (
                         meta,
                         spans: store.state.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
                     };
-                },
-                useRoot() {
-                    useTick(`top:${top}:root`);
-                    return modules[selected].toplevels[top].root;
                 },
                 get top() {
                     return modules[selected].toplevels[top];

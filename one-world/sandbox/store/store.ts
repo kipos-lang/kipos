@@ -36,19 +36,7 @@ export interface Store {
 }
 
 export interface EditorStoreI {
-    // es: EditorStore<any, any>;
-    // useTopParseResults(top: string): LangResult;
-    // useParseResults(): Record<string, ParseResult<any>>;
-    // useDependencyGraph(): Dependencies;
-    // useTopResults(top: string): null | EvaluationResult[];
-    // useTopFailure(top: string): null | FailureKind[];
-    // useTopSource(top: string): null | string; // make it cst pleeeease
-    // useModule(): Module;
-    // useSelection(): NodeSelection[];
-    // useIsSelectedTop(top: string): boolean;
-    // useSelectedTop(): string;
     useTop(id: string): TopStore;
-    getTop(id: string): Toplevel;
     update(action: Action): void;
 }
 
@@ -67,9 +55,7 @@ export type UseNode = (path: Path) => {
 
 interface TopStore {
     top: Toplevel;
-    useRoot(): string;
     useNode: UseNode;
-    useAnnotations(key: string): undefined | Annotation[];
 }
 
 export const newModule = (name = 'NewModule'): Module => {

@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Evt, useStore } from './store';
 import { EvaluationResult, FailureKind } from './language';
+import { lastChild, mergeHighlights, Path, pathKey, SelectionStatuses } from '../../keyboard/utils';
+import { getSelectionStatuses } from '../../keyboard/selections';
+import equal from 'fast-deep-equal';
 
 export const useTickCompute = <T>(evt: Evt, initial: T, f: (c: T) => T) => {
     const store = useStore();
@@ -115,3 +118,112 @@ export function useSelectedTop() {
         return store.module(selected).selections[0].start.path.root.top;
     });
 }
+
+// Top Hooks nowww
+
+export function useAnnotations(top: string, key: string) {
+    const store = useStore();
+    const estore = store.estore(store.selected());
+    const tick = useTick(`annotation:${key}`);
+    return useMemo(() => {
+        // store.compiler.
+        const hid = estore.state.dependencies.components.pointers[top];
+        const fromValidation = estore.state.validationResults[hid]?.annotations[top][key];
+        return fromValidation;
+    }, [tick, key]);
+}
+
+export function useRoot(top: string) {
+    const store = useStore();
+    useTick(`top:${top}:root`);
+    return store.module(store.selected()).toplevels[top].root;
+}
+
+export function useNode(top: string, path: Path) {
+    const tstore = useStore();
+    const store = tstore.estore(tstore.selected());
+    const loc = lastChild(path);
+    useTick(`node:${loc}`);
+    const results = store.state.parseResults[top];
+    let meta = store.state.parseResults[top]?.ctx.meta[loc];
+    const refs = results?.internalReferences[loc];
+    const statuses = useSelectionStatuses(pathKey(path));
+    if (refs) {
+        if (refs.usages.length === 0 && (results.kind.type !== 'definition' || !results.kind.provides.some((r) => r.loc === loc))) {
+            meta = { kind: 'unused' };
+        } else {
+            meta = { kind: 'used' };
+        }
+    }
+    return {
+        node: tstore.module(tstore.selected()).toplevels[top].nodes[loc],
+        sel: statuses, // selectionStatuses[pathKey(path)],
+        meta,
+        spans: store.state.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
+    };
+}
+
+// selection statuses ... calculate once (contexttt?) thanks.
+
+// export const ProvideSelectionStatuses = ({ top }:{top:string}) => {
+//     const onSS = useMakeSelectionStatuses(top)
+//     return <SelectionStatusCtx.Provider value={onSS}>
+//     </SelectionStatusCtx.Provider>
+// }
+
+export const useMakeSelectionStatuses = (top: string) => {
+    const store = useStore();
+    const selection = useSelection();
+    const state = useMemo(
+        () => ({ listeners: {} as Record<string, (ss: SelectionStatuses[''] | null) => void>, prev: {} as SelectionStatuses }),
+        [top],
+    );
+    useEffect(() => {
+        const statuses: SelectionStatuses = {};
+        const t = store.module(store.selected()).toplevels[top];
+        selection.forEach((s) => {
+            if (s.start.path.root.top === top) {
+                const st = getSelectionStatuses(s, t);
+                Object.entries(st).forEach(([key, status]) => {
+                    if (statuses[key]) {
+                        statuses[key].cursors.push(...status.cursors);
+                        statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+                    } else {
+                        statuses[key] = status;
+                    }
+                });
+            }
+        });
+        Object.entries(statuses).forEach(([key, value]) => {
+            if (!equal(value, state.prev[key])) {
+                state.listeners[key]?.(value);
+            }
+        });
+        Object.keys(state.prev).forEach((key) => {
+            if (!statuses[key]) state.listeners[key]?.(null);
+        });
+        state.prev = statuses;
+    }, [selection]);
+
+    return useCallback(
+        (key: string) => {
+            const [value, set] = useState(state.prev[key] as null | SelectionStatuses['']);
+            useEffect(() => {
+                state.listeners[key] = set;
+                return () => {
+                    if (state.listeners[key] === set) delete state.listeners[key];
+                };
+            }, [key]);
+            return value;
+        },
+        [top],
+    );
+};
+
+export const SelectionStatusCtx = createContext<(key: string) => SelectionStatuses[''] | null>(() => {
+    return null;
+});
+
+export const useSelectionStatuses = (key: string) => {
+    return useContext(SelectionStatusCtx)(key);
+};
