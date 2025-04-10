@@ -103,8 +103,11 @@ const makeModuleTree = (modules: Record<string, Module>) => {
         }
         children[mod.parent].push(mod.id);
     });
+    Object.values(children).forEach((lst) => lst.sort((a, b) => cmp(modules[a].name, modules[b].name)));
     return children;
 };
+
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 export const defaultLanguageConfig = 'default';
 
