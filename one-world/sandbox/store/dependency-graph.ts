@@ -66,6 +66,16 @@ const findCycles = (graph: Record<string, string[]>) => {
 
     const components: string[][] = [];
 
+    console.log(graph);
+    Object.values(graph).forEach((d) => {
+        d.forEach((d) => {
+            if (!graph[d]) {
+                debugger;
+                throw new Error(`unknown id in graph: ${d}`);
+            }
+        });
+    });
+
     const dfs = (v: string) => {
         num[v] = i;
         lowest[v] = num[v];

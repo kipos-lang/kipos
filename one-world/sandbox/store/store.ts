@@ -7,9 +7,10 @@ import { TopItem } from '../../syntaxes/algw-s2-types';
 import { Module } from '../types';
 import { defaultLang, TInfo } from './default-lang/default-lang';
 import { EditorState, EditorStore } from './editorStore';
-import { Compiler, Meta, ParseKind } from './language';
-import { Action, reduce } from './state';
+import { Compiler, Language, Meta, ParseKind } from './language';
+import { Action, AppState, reduce } from './state';
 import { loadModules, saveModule } from './storage';
+import { useTick } from './editorHooks';
 
 export type ModuleChildren = Record<string, string[]>;
 
@@ -19,15 +20,11 @@ export interface Store {
     compiler(): Compiler<any, any>;
     estore(id: string): EditorStore<any, any>;
     module(id: string): Module;
-    // get languageConfigs(): Record<string, LanguageConfiguration>;
-    // get moduleTree(): ModuleTree;
     listen(evt: Evt, f: () => void): () => void;
     selected(): string;
     select(id: string): void;
     addModule(module: Module): void;
     updateModule(update: ModuleUpdate): void;
-    // get selectedModule(): string
-    // useEditor(): EditorStoreI;
     update(module: string, action: Action): void;
     useSelected(): string;
     useModuleChildren(): ModuleChildren;
@@ -49,10 +46,6 @@ export type UseNode = (path: Path) => {
     meta?: Meta;
     spans?: string[][];
 };
-
-interface TopStore {
-    useNode: UseNode;
-}
 
 export const newModule = (name = 'NewModule'): Module => {
     const id = genId();
@@ -107,13 +100,8 @@ export type Evt =
     | `module:${string}`
     | `module:${string}:roots`;
 
-// const makeLanguage = (configurations: Record<string, LanguageConfiguration>) => {
-//     const languages = {};
-// };
-
 const createStore = (): Store => {
     const modules = loadModules();
-    // const configs = loadLanguageConfigs();
 
     let treeCache = makeModuleTree(modules);
     let selected = location.hash.slice(1);
@@ -141,33 +129,6 @@ const createStore = (): Store => {
     };
     const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
 
-    const useTickCompute = <T>(evt: Evt, initial: T, f: (c: T) => T) => {
-        const [ticker, setTick] = useState(initial);
-        const latest = useRef(ticker);
-        latest.current = ticker;
-        useEffect(() => {
-            return listen(evt, () => {
-                const n = f(latest.current);
-                if (latest.current !== n) {
-                    // console.log('tick', evt);
-                    setTick(n);
-                }
-            });
-        }, [evt]);
-        return ticker;
-    };
-
-    const useTick = (evt: Evt) => {
-        const [ticker, setTick] = useState(0);
-        useEffect(() => {
-            return listen(evt, () => {
-                // console.log('tick', evt);
-                setTick((t) => t + 1);
-            });
-        }, [evt]);
-        return ticker;
-    };
-
     const f = () => {
         const id = location.hash.slice(1);
         selected = id;
@@ -178,9 +139,6 @@ const createStore = (): Store => {
     const language = defaultLang;
 
     const compiler = language.compiler();
-
-    const estores: Record<string, EditorStore<any, any>> = {};
-    const editors: Record<string, EditorStoreI> = {};
 
     const recompile = (module: string, heads: string[], state: EditorState<any, any>) => {
         const asts: Record<string, { ast: TopItem; kind: ParseKind }> = {};
@@ -201,7 +159,14 @@ const createStore = (): Store => {
             console.log(err);
         }
     };
-    // this.runCompilation(onlyUpdate ?? this.state.dependencies.traversalOrder);
+
+    const estores: Record<string, EditorStore<any, any>> = {};
+    // Object.keys(modules).forEach((id) => {
+    //     estores[id] = new EditorStore(modules[id], language);
+    //     const s = estores[id];
+    //     recompile(id, s.state.dependencies.traversalOrder, s.state);
+    //     // console.log('should have loadded', id);
+    // });
 
     return {
         compiler() {
@@ -209,6 +174,7 @@ const createStore = (): Store => {
         },
         estore(id) {
             if (!estores[id]) {
+                console.warn(`late adding module mauybe`);
                 estores[id] = new EditorStore(modules[id], language);
                 const s = estores[id];
                 recompile(id, s.state.dependencies.traversalOrder, s.state);
@@ -235,9 +201,6 @@ const createStore = (): Store => {
             treeCache = makeModuleTree(modules);
             shout('modules');
         },
-        // get languageConfigs() {
-        //     return configs;
-        // },
         moduleChildren: () => treeCache,
         useModuleChildren() {
             useTick(`modules`);
@@ -251,108 +214,27 @@ const createStore = (): Store => {
             useTick('selected');
             return selected;
         },
-        // useEditor() {
-        //     useTick(`selected`);
-        //     if (!estores[selected]) {
-        //         estores[selected] = new EditorStore(modules[selected], language);
-        //         const s = estores[selected];
-        //         recompile(selected, s.state.dependencies.traversalOrder, s.state);
-        //     }
-        //     useTick(`module:${selected}:roots`);
-        //     return editors[selected];
-        // },
         update(module: string, action: Action) {
             const mod = modules[selected];
-            const result = reduce(
-                {
-                    config: language.parser.config,
-                    tops: { ...mod.toplevels },
-                    roots: mod.roots,
-                    history: mod.history,
-                    selections: mod.selections,
-                },
-                action,
-                false,
-                genId,
-            );
-            mod.history = result.history;
-            if (mod.history.length > 200) {
-                mod.history = mod.history.slice(-200);
-            }
-            const changed = allIds(result.selections);
-            Object.assign(changed, allIds(mod.selections));
-            if (mod.selections !== result.selections) {
-                mod.selections = result.selections;
-                shout(`module:${selected}:selection`);
-            }
-
-            const changedTops: string[] = [];
-
-            Object.entries(result.tops).forEach(([key, top]) => {
-                if (!mod.toplevels[key]) {
-                    mod.toplevels[key] = top;
-                    return;
-                }
-                let nodesChanged = false;
-                Object.keys(top.nodes).forEach((k) => {
-                    if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
-                        changed[k] = true;
-                        nodesChanged = true;
-                    }
-                });
-                mod.toplevels[key].nodes = top.nodes;
-                if (mod.toplevels[key].root !== top.root) {
-                    mod.toplevels[key].root = top.root;
-                    shout(`top:${key}:root`);
-                    shout(`top:${key}`);
-                    nodesChanged = true;
-                }
-                if (top.children !== mod.toplevels[key].children) {
-                    mod.toplevels[key].children = top.children;
-                    shout(`top:${key}:children`);
-                    shout(`top:${key}`);
-                }
-
-                if (nodesChanged) {
-                    changedTops.push(key);
-                }
-            });
-
-            const estore = this.estore(module);
-
+            const { changed, changedTops, evts } = update(mod, language, action);
             if (changedTops.length) {
                 const keys: Record<string, true> = {};
+                const estore = this.estore(module);
                 const topsToCompile = estore.updateTops(changedTops, changed, keys);
                 recompile(module, topsToCompile, estore.state);
-                shout(`module:${selected}:dependency-graph`);
-                Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
-                shout(`module:${selected}:parse-results`);
+                Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
+
+                evts.push(`module:${mod.id}:dependency-graph`);
+                evts.push(`module:${mod.id}:parse-results`);
                 changedTops.forEach((key) => {
-                    shout(`top:${key}:parse-results`);
+                    evts.push(`top:${key}:parse-results`);
                 });
             }
 
-            if (mod.roots !== result.roots) {
-                mod.roots = result.roots;
-                shout(`module:${mod.id}`);
-                shout(`module:${mod.id}:roots`);
-            }
+            evts.forEach((evt) => shout(evt));
 
             Object.keys(changed).forEach((k) => {
                 shout(`node:${k}`);
-            });
-
-            mod.selections.forEach((sel) => {
-                if (!sel.start.path) {
-                    console.log('WHAT SEL');
-                    debugger;
-                }
-                try {
-                    validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
-                } catch (err) {
-                    debugger;
-                    validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
-                }
             });
 
             saveModule(mod);
@@ -383,4 +265,89 @@ const diffIds = (one: Record<string, true>, two: Record<string, true>) => {
         if (!one[k]) res[k] = true;
     });
     return res;
+};
+
+const update = (mod: Module, language: Language<any, any, any>, action: Action) => {
+    const result = reduce(
+        {
+            config: language.parser.config,
+            tops: { ...mod.toplevels },
+            roots: mod.roots,
+            history: mod.history,
+            selections: mod.selections,
+        },
+        action,
+        false,
+        genId,
+    );
+    mod.history = result.history;
+    if (mod.history.length > 200) {
+        mod.history = mod.history.slice(-200);
+    }
+
+    const { changed, changedTops, evts } = applyChanges(result, mod);
+
+    if (mod.roots !== result.roots) {
+        evts.push(`module:${mod.id}`, `module:${mod.id}:roots`);
+        mod.roots = result.roots;
+    }
+
+    mod.selections.forEach((sel) => {
+        if (!sel.start.path) {
+            console.log('WHAT SEL');
+            debugger;
+        }
+        try {
+            validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
+        } catch (err) {
+            debugger;
+            validate({ sel, top: mod.toplevels[sel.start.path.root.top] });
+        }
+    });
+
+    return { changed, changedTops, evts };
+};
+
+const applyChanges = (result: AppState, mod: Module) => {
+    const evts: Evt[] = [];
+    const changed = allIds(result.selections);
+    Object.assign(changed, allIds(mod.selections));
+    if (mod.selections !== result.selections) {
+        mod.selections = result.selections;
+        evts.push(`module:${mod.id}:selection`);
+    }
+
+    const changedTops: string[] = [];
+
+    Object.entries(result.tops).forEach(([key, top]) => {
+        if (!mod.toplevels[key]) {
+            mod.toplevels[key] = top;
+            return;
+        }
+        let nodesChanged = false;
+        Object.keys(top.nodes).forEach((k) => {
+            if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
+                changed[k] = true;
+                nodesChanged = true;
+            }
+        });
+        mod.toplevels[key].nodes = top.nodes;
+        if (mod.toplevels[key].root !== top.root) {
+            mod.toplevels[key].root = top.root;
+            evts.push(`top:${key}:root`);
+            evts.push(`top:${key}`);
+            nodesChanged = true;
+        }
+        if (top.children !== mod.toplevels[key].children) {
+            mod.toplevels[key].children = top.children;
+            evts.push(`top:${key}:children`);
+            evts.push(`top:${key}`);
+        }
+
+        if (nodesChanged) {
+            changedTops.push(key);
+        }
+    });
+
+    return { changed, changedTops, evts };
 };

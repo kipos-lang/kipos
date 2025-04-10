@@ -209,14 +209,15 @@ export class EditorStore<AST, TypeInfo> {
         Object.entries(parseResults).forEach(([tid, results]) => {
             if (results.kind.type === 'definition') {
                 results.kind.provides.forEach((item) => {
-                    if (!available[item.kind]) available[item.kind] = {};
-                    if (!available[item.kind][item.name]) available[item.kind][item.name] = [];
+                    if (!Object.hasOwn(available, item.kind)) available[item.kind] = {};
+                    if (!Object.hasOwn(available[item.kind], item.name)) available[item.kind][item.name] = [];
                     available[item.kind][item.name].push(tid);
                 });
             }
         });
         // NOTE: ignore external dependencies for the moment...
         // as they don't factor into dependency graph generation.
+        console.log(`names available for offer`, available);
 
         // NOTE: in some future time, exact dependencies ... may be only resolvable at inference time.
         // which means we'll have some spurious dependencies, but that's fine. you depend on everything that matches.
@@ -227,6 +228,7 @@ export class EditorStore<AST, TypeInfo> {
                 const sources = available[ref.kind]?.[ref.name] ?? [];
                 for (let other of sources) {
                     if (!dependencies[tid].includes(other)) {
+                        console.log(`found a source for ${ref.kind}:${ref.name}`, other);
                         dependencies[tid].push(other);
                     }
                 }

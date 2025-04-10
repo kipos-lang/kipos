@@ -30,7 +30,7 @@ Ok, so game plan:
 - [x] useSelectionStatuses
 - [x] fix highlighting of spaced stuff
 - [x] useTop is gonee
-- [ ] now to make a useUpdate fnn
+- [x] now to make a useUpdate fnn
 
 
 ## ORder of operations:
