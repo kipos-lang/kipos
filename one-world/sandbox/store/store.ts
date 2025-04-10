@@ -15,7 +15,7 @@ export type ModuleChildren = Record<string, string[]>;
 
 type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>> & { id: string };
 
-interface Store {
+export interface Store {
     module(id: string): Module;
     // get languageConfigs(): Record<string, LanguageConfiguration>;
     // get moduleTree(): ModuleTree;

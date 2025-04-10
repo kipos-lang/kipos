@@ -1,7 +1,7 @@
 import { css } from 'goober';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EditIcon, HDots } from './icons';
-import { useStore, newModule } from './store/store';
+import { useStore, newModule, Store } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
@@ -78,35 +78,8 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
     );
 };
 
-// const ShowModuleTree = ({ tree, selected }: { selected: string; tree: ModuleTree }) => {
-//     return (
-//         <div>
-//             {tree.node ? (
-//             ) : null}
-//             {tree.children.length ? (
-//                 <div style={{ marginLeft: tree.node ? 16 : 0 }}>
-//                     {tree.children.map((child, i) => (
-//                         <ShowModuleTree key={child.node?.id ?? i} selected={selected} tree={child} />
-//                     ))}
-//                     <button
-//                         onClick={() => {
-//                             const name = prompt('Name');
-//                             store.addModule(newModule(name ?? 'NewModule'));
-//                         }}
-//                         style={{ marginTop: 12 }}
-//                     >
-//                         Add module
-//                     </button>
-//                 </div>
-//             ) : null}
-//         </div>
-//     );
-// };
-
-export const ModuleSidebar = () => {
-    const store = useStore();
-
-    const dtctx: DragTreeCtxT<{ name: string }> = useMemo(
+const useDragCtx = (store: Store): DragTreeCtxT<{ name: string }> => {
+    return useMemo(
         () => ({
             useNode(id) {
                 const [data, setData] = useState(() => {
@@ -135,9 +108,17 @@ export const ModuleSidebar = () => {
                 return data;
             },
             Render: ModuleTitle,
+            onDrop(dragged, dest, location) {
+                throw new Error('not yet');
+            },
         }),
         [],
     );
+};
+
+export const ModuleSidebar = () => {
+    const store = useStore();
+    const dtctx = useDragCtx(store);
 
     return (
         <Resizebar id="modules" side="right">
