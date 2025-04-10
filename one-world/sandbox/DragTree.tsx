@@ -65,6 +65,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
     );
     const listeners: Record<string, (d: boolean) => void> = useMemo(() => ({}), []);
     const latest = useLatest(dragging);
+    const lastDrag = useRef(0);
 
     const refs: Record<string, { node: HTMLElement; children: boolean }> = useMemo(() => ({}), []);
 
@@ -106,6 +107,9 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
             });
         };
         const up = () => {
+            if (latest.current?.active) {
+                lastDrag.current = Date.now();
+            }
             setDragging(null);
         };
         document.addEventListener('mousemove', move);
@@ -136,7 +140,6 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
             useMouseDown(id: string) {
                 return useCallback(
                     (evt) => {
-                        console.log('mdd', id, evt);
                         setDragging({ which: id, pos: { x: evt.clientX, y: evt.clientY }, active: false });
                     },
                     [id],
@@ -144,7 +147,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
             },
             checkClick() {
                 // idk
-                return false;
+                return Date.now() - lastDrag.current < 100;
             },
             ref(id, children) {
                 return useCallback(

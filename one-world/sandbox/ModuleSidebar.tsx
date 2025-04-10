@@ -11,7 +11,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
     const store = useStore();
     const [editing, setEditing] = useState(null as null | string);
     const selected = store.useSelected(); // todo: useIsSelected
-    const { useMouseDown, useIsDragging } = useContext(DraggerCtx);
+    const { useMouseDown, useIsDragging, checkClick } = useContext(DraggerCtx);
     const onMouseDown = useMouseDown(id);
     const isDragging = useIsDragging(id);
 
@@ -68,6 +68,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                 onMouseDown={onMouseDown}
                 onClick={(evt) => {
                     evt.stopPropagation();
+                    if (checkClick()) return;
                     if (editing != null) {
                         if (!editing.trim() || editing === name) return setEditing(null);
                         store.updateeModule({ id: id, name: editing });
