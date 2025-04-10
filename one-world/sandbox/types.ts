@@ -3,6 +3,30 @@ import { Nodes } from '../shared/cnodes';
 import { HistoryItem } from './history';
 import { HistoryChange } from './store/state';
 
+export type Import = {
+    source:
+        | {
+              type: 'project';
+              module: string;
+              // TODO: allow specifying a custom interpreter from [them] to [us]
+              foreign?: string; // languageConfiguration, if different then our own
+          }
+        | {
+              // Submodules, yeah
+              type: 'local';
+              toplevel: string;
+              foreign?: string;
+          }
+        | {
+              type: 'vendor';
+              src: string; // this is like probably a url. and we cache it.
+              foreign?: string;
+          };
+    macros: string[];
+    plugins: string[];
+    items: { name: string; kind: string; rename?: string }[];
+};
+
 export type Module = {
     id: string;
     name: string;
@@ -10,23 +34,7 @@ export type Module = {
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
 
-    imports: {
-        source:
-            | {
-                  type: 'local';
-                  module: string;
-                  // TODO: allow specifying a custom interpreter from [them] to [us]
-                  foreign?: string; // languageConfiguration, if different then our own
-              }
-            | {
-                  type: 'vendor';
-                  src: string; // this is like probably a url. and we cache it.
-                  foreign?: string;
-              };
-        macros: string[];
-        plugins: string[];
-        items: { name: string; kind: string; rename?: string }[];
-    }[];
+    imports: Import[];
 
     pluginConfig: Record<string, any>;
     roots: string[];
@@ -39,6 +47,10 @@ export type Toplevel = {
     children: string[];
     root: string;
     nodes: Nodes;
+    // yay
+    submoduleName?: string;
+    languageConfiguration?: string;
+    imports?: Import[];
 };
 
 // Can be serialized to `module : exportedName : languageConfiguration`
