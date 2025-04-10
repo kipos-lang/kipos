@@ -71,7 +71,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                     if (checkClick()) return;
                     if (editing != null) {
                         if (!editing.trim() || editing === name) return setEditing(null);
-                        store.updateeModule({ id: id, name: editing });
+                        store.updateModule({ id: id, name: editing });
                         setEditing(null);
                     } else {
                         setEditing(name);
@@ -115,7 +115,13 @@ const useDragCtx = (store: Store): DragTreeCtxT<{ name: string }> => {
             },
             Render: ModuleTitle,
             onDrop(dragged, dest, location) {
-                throw new Error('not yet');
+                // throw new Error('not yet');
+                console.log({ dragged, dest, location });
+                if (location !== 'inside') {
+                    console.warn('nope, not happening');
+                    return;
+                }
+                store.updateModule({ id: dragged, parent: dest });
             },
         }),
         [],

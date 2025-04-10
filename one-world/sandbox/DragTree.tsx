@@ -71,6 +71,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
 
     useEffect(() => {
         if (!dragging) return;
+        const OFFSET = 24;
         const move = (evt: MouseEvent) => {
             const dragging = latest.current;
             if (!dragging) return;
@@ -80,35 +81,42 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                 setDragging({ ...dragging, active: true });
                 return;
             }
-            const got = Object.keys(refs).find((id) => {
-                const box = refs[id].node.getBoundingClientRect();
-                return (
-                    box.left + (refs[id].children ? 0 : 50) <= evt.clientX &&
-                    box.right >= evt.clientX &&
-                    box.top <= evt.clientY &&
-                    box.bottom >= evt.clientY
-                );
-            });
-            if (!got || got === dragging.which) {
+            const matching = Object.keys(refs)
+                .map((id) => {
+                    const box = refs[id].node.getBoundingClientRect();
+                    return box.left + (refs[id].children ? 0 : OFFSET) <= evt.clientX &&
+                        box.right >= evt.clientX &&
+                        box.top <= evt.clientY &&
+                        box.bottom >= evt.clientY
+                        ? { id, box }
+                        : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => a!.box.height - b!.box.height);
+            const got = matching[0];
+            if (!got || got.id === dragging.which) {
                 if (dragging.target) return setDragging({ ...dragging, target: undefined });
                 return;
             }
-            const box = refs[got].node.getBoundingClientRect();
+            const children = refs[got.id].children;
             return setDragging({
                 ...dragging,
                 target: {
-                    dest: got,
+                    dest: got.id,
                     location: 'inside',
-                    x: box.left,
-                    y: box.top,
-                    w: box.width,
-                    h: box.height,
+                    x: children ? got.box.left : got.box.left + OFFSET,
+                    y: children ? got.box.top : got.box.bottom,
+                    w: got.box.width - (children ? 0 : OFFSET),
+                    h: children ? got.box.height : 4,
                 },
             });
         };
         const up = () => {
             if (latest.current?.active) {
                 lastDrag.current = Date.now();
+            }
+            if (latest.current?.target) {
+                dtctx.onDrop(latest.current.which, latest.current.target.dest, latest.current.target.location);
             }
             setDragging(null);
         };
@@ -146,8 +154,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                 );
             },
             checkClick() {
-                // idk
-                return Date.now() - lastDrag.current < 100;
+                return Date.now() - lastDrag.current < 50;
             },
             ref(id, children) {
                 return useCallback(
@@ -186,7 +193,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                         width: dragging.target.w,
                         height: dragging.target.h,
                         // backgroundColor: 'red',
-                        border: '3px solid ' + zedlight.syntax.attribute.color,
+                        border: '3px solid ' + zedlight.syntax.keyword.color,
                         boxSizing: 'border-box',
                         // opacity: 0.1,
                         pointerEvents: 'none',
@@ -195,11 +202,6 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
             ) : null}
         </>
     );
-};
-
-export const useDragTree = () => {
-    // onMouseMove
-    // onMouseDown
 };
 
 // I think I need a .ctx for managing ... the drag & drop parts, too.
@@ -219,7 +221,7 @@ export const DragTreeNode = React.memo(function DragTreeNode({ id }: { id: strin
                 </div>
             ) : null}
             {children.length ? (
-                <div style={{ marginLeft: 8 }} ref={dr}>
+                <div style={{ marginLeft: !node ? 0 : 24 }} ref={dr}>
                     {children.map((id) => (
                         <DragTreeNode key={id} id={id} />
                     ))}

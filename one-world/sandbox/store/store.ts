@@ -23,7 +23,7 @@ export interface Store {
     selected(): string;
     select(id: string): void;
     addModule(module: Module): void;
-    updateeModule(update: ModuleUpdate): void;
+    updateModule(update: ModuleUpdate): void;
     // get selectedModule(): string
     useEditor(): EditorStoreI;
     useSelected(): string;
@@ -195,7 +195,7 @@ const createStore = (): Store => {
         selected() {
             return selected;
         },
-        updateeModule(update) {
+        updateModule(update) {
             Object.assign(modules[update.id], update);
             saveModule(modules[update.id]);
             treeCache = makeModuleTree(modules);
