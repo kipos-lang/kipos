@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { js } from '../keyboard/test-utils';
-import { Showsel } from './App';
 import { Top } from './Top';
 import { useStore } from './store/store';
 import { zedlight } from './zedcolors';
@@ -251,7 +250,6 @@ export const Editor = () => {
                 >
                     Add Toplevel
                 </button>
-                <Showsel />
             </div>
             <DebugSidebar />
         </>

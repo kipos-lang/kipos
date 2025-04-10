@@ -37,22 +37,3 @@ export const cursorPositionInSpanForEvt = (evt: React.MouseEvent, target: HTMLSp
     }
     return best ? best[1] : null;
 };
-
-export const Showsel = () => {
-    const store = useStore();
-    const editor = store.useEditor();
-    const sel = useSelection();
-
-    return (
-        <>
-            {sel.map((sel, i) => (
-                <div key={i}>
-                    <div>{sel.start.path.children.map((p) => p.slice(-5)).join('; ')}</div>
-                    {JSON.stringify(sel.start.cursor)}
-                    <div>{sel.end?.path.children.map((p) => p.slice(-5)).join('; ')}</div>
-                    {JSON.stringify(sel.end?.cursor)}
-                </div>
-            ))}
-        </>
-    );
-};

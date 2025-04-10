@@ -12,7 +12,16 @@ import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
-import { useParseResults, useSelectedTop, useTopParseResults, useTopSource } from './store/editorHooks';
+import {
+    getAllSelectionStatuses,
+    useModule,
+    useParseResults,
+    useSelectedTop,
+    useSelection,
+    useTopParseResults,
+    useTopSource,
+} from './store/editorHooks';
+import { useStore } from './store/store';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -292,10 +301,54 @@ export const DebugSidebar = () => {
                 <Collapsible title="Compiled Source">
                     <ShowSource />
                 </Collapsible>
+                <Collapsible title="Selection">
+                    <ShowSelection />
+                </Collapsible>
                 <Collapsible title="Theme Colors">
                     <ShowColors />
                 </Collapsible>
             </div>
         </Resizebar>
+    );
+};
+
+const ShowSelection = () => {
+    const sel = useSelection();
+    const tid = useSelectedTop();
+    const top = useModule().toplevels[tid];
+
+    const statuses = getAllSelectionStatuses(top, sel);
+
+    return (
+        <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'min-content min-content', columnGap: 8, rowGap: 8 }}>
+                {Object.entries(statuses).map(([key, value]) => (
+                    <React.Fragment key={key}>
+                        <div style={{ gridColumn: 1, wordBreak: 'break-all', minWidth: 100 }}>{key}</div>
+                        <div style={{ gridColumn: 2 }}>{JSON.stringify(value)}</div>
+                    </React.Fragment>
+                ))}
+            </div>
+            <strong>Selection</strong>
+            <Showsel />
+        </div>
+    );
+};
+
+export const Showsel = () => {
+    const store = useStore();
+    const sel = useSelection();
+
+    return (
+        <>
+            {sel.map((sel, i) => (
+                <div key={i}>
+                    <div>{sel.start.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.start.cursor)}
+                    <div>{sel.end?.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.end?.cursor)}
+                </div>
+            ))}
+        </>
     );
 };

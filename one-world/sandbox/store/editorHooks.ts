@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Evt, useStore } from './store';
 import { EvaluationResult, FailureKind } from './language';
-import { lastChild, mergeHighlights, Path, pathKey, SelectionStatuses } from '../../keyboard/utils';
+import { lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses } from '../../keyboard/utils';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import equal from 'fast-deep-equal';
+import { Toplevel } from '../types';
 
 export const useTickCompute = <T>(evt: Evt, initial: T, f: (c: T) => T) => {
     const store = useStore();
@@ -171,6 +172,24 @@ export function useNode(top: string, path: Path) {
 //     </SelectionStatusCtx.Provider>
 // }
 
+export const getAllSelectionStatuses = (top: Toplevel, selection: NodeSelection[]) => {
+    const statuses: SelectionStatuses = {};
+    selection.forEach((s) => {
+        if (s.start.path.root.top === top.id) {
+            const st = getSelectionStatuses(s, top);
+            Object.entries(st).forEach(([key, status]) => {
+                if (statuses[key]) {
+                    statuses[key].cursors.push(...status.cursors);
+                    statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
+                } else {
+                    statuses[key] = status;
+                }
+            });
+        }
+    });
+    return statuses;
+};
+
 export const useMakeSelectionStatuses = (top: string) => {
     const store = useStore();
     const selection = useSelection();
@@ -179,21 +198,7 @@ export const useMakeSelectionStatuses = (top: string) => {
         [top],
     );
     useEffect(() => {
-        const statuses: SelectionStatuses = {};
-        const t = store.module(store.selected()).toplevels[top];
-        selection.forEach((s) => {
-            if (s.start.path.root.top === top) {
-                const st = getSelectionStatuses(s, t);
-                Object.entries(st).forEach(([key, status]) => {
-                    if (statuses[key]) {
-                        statuses[key].cursors.push(...status.cursors);
-                        statuses[key].highlight = mergeHighlights(statuses[key].highlight, status.highlight);
-                    } else {
-                        statuses[key] = status;
-                    }
-                });
-            }
-        });
+        const statuses = getAllSelectionStatuses(store.module(store.selected()).toplevels[top], selection);
         Object.entries(statuses).forEach(([key, value]) => {
             if (!equal(value, state.prev[key])) {
                 state.listeners[key]?.(value);

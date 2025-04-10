@@ -283,6 +283,7 @@ export const compareSelections = (one: SelStart, two: SelStart, top: Top) => {
 };
 
 export const orderSelections = (one: SelStart, two: SelStart, top: { nodes: Nodes }): SelectionStatuses => {
+    if (one.path.root.top !== two.path.root.top) return {};
     const [left, neighbors, right, inside] = collectSelectedNodes(one, two, (id) => top.nodes[id]);
     const statuses: SelectionStatuses = {};
     neighbors.forEach((n) => (statuses[pathKey(n.path)] = { cursors: [], highlight: n.hl }));
