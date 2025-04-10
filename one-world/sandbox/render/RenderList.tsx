@@ -45,7 +45,11 @@ export const RenderList = ({
     if (node.kind === 'spaced' || node.kind === 'smooshed') {
         const parted = spans && spans.length === node.children.length ? partition(spans, node.children) : undefined;
         if (parted) {
-            return <RenderGrouped grouped={parted} parent={self} spaced={node.kind === 'spaced'} />;
+            return (
+                <span style={style}>
+                    <RenderGrouped grouped={parted} parent={self} spaced={node.kind === 'spaced'} />
+                </span>
+            );
         }
     }
 
