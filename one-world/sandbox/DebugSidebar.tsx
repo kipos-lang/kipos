@@ -7,7 +7,7 @@ import { ShowXML } from '../keyboard/ui/XML';
 import { shape } from '../shared/shape';
 import { Event, TraceText, Rule } from '../syntaxes/dsl3';
 import { toXML } from '../syntaxes/xml';
-import { useEditor } from './Editor';
+import { useUpdate } from './Editor';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
@@ -134,7 +134,6 @@ const ruleSummary = (rule: Rule<any>): string => {
 };
 
 const ShowTypeInference = () => {
-    const editor = useEditor();
     const top = useSelectedTop();
     const results = useTopParseResults(top);
 
@@ -143,7 +142,7 @@ const ShowTypeInference = () => {
     const [at, setAt] = useState(0);
     const breaks = useMemo(() => stackForEvt(events.length - 1, events), [events]);
 
-    const { byLoc, scope, smap, stack, highlightVars } = useMemo(() => {
+    const { scope, smap, stack, highlightVars } = useMemo(() => {
         return processStack(
             events.map((evt) =>
                 evt.type === 'scope' ? { ...evt, scope: Object.fromEntries(Object.entries(evt.scope).map(([k, v]) => [k, (v as any).scheme])) } : evt,
@@ -173,7 +172,7 @@ const ShowTypeInference = () => {
                 subst={smap}
                 stack={stack}
                 hv={highlightVars}
-                onClick={(name) => {
+                onClick={() => {
                     // onClick({ type: 'var', name })
                 }}
             />
@@ -184,7 +183,6 @@ const ShowTypeInference = () => {
 };
 
 const ShowErrorAnnotations = () => {
-    const editor = useEditor();
     const top = useSelectedTop();
     const results = useTopParseResults(top);
 
@@ -211,7 +209,6 @@ const ShowErrorAnnotations = () => {
 };
 
 const ShowCST = () => {
-    const editor = useEditor();
     const top = useSelectedTop();
     const results = useTopParseResults(top);
     if (!results) return null;
@@ -224,7 +221,6 @@ const ShowCST = () => {
 };
 
 const ShowAST = () => {
-    const editor = useEditor();
     const top = useSelectedTop();
     const results = useTopParseResults(top);
     if (!results) return null;
@@ -236,7 +232,6 @@ const ShowAST = () => {
 };
 
 const ShowSource = () => {
-    const editor = useEditor();
     const top = useSelectedTop();
     const results = useTopSource(top);
     return (
@@ -277,7 +272,6 @@ const Collapsible = ({ title, children }: { title: string; children: React.React
 };
 
 export const DebugSidebar = () => {
-    const editor = useEditor();
     const results = useParseResults();
     const top = useSelectedTop();
 
@@ -336,7 +330,6 @@ const ShowSelection = () => {
 };
 
 export const Showsel = () => {
-    const store = useStore();
     const sel = useSelection();
 
     return (

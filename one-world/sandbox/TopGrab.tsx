@@ -1,12 +1,12 @@
 import { css } from 'goober';
 import React from 'react';
 import { useState } from 'react';
-import { useEditor } from './Editor';
+import { useUpdate } from './Editor';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 
 export const TopGrab = ({ name, id }: { name: string; id: string }) => {
-    const editor = useEditor();
+    const update = useUpdate();
     const [menu, setMenu] = useState(false);
     return (
         <div style={{ position: 'relative' }}>
@@ -42,7 +42,7 @@ export const TopGrab = ({ name, id }: { name: string; id: string }) => {
                 >
                     <button
                         onClick={() => {
-                            editor.update({ type: 'rm-tl', id });
+                            update({ type: 'rm-tl', id });
                         }}
                         className={css({
                             background: 'transparent',

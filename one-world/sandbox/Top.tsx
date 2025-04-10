@@ -3,7 +3,7 @@ import React, { useMemo, useCallback, createContext, useEffect, useRef, useState
 import { genId } from '../keyboard/ui/genId';
 import { Path, lastChild, pathWithChildren } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
-import { DragCtx, noopDrag, useEditor } from './Editor';
+import { DragCtx, noopDrag, useUpdate } from './Editor';
 import { RenderNode } from './render/RenderNode';
 import { AnnotationText, EvaluationResult, FailureKind, LocatedTestResult, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
@@ -34,8 +34,7 @@ export const TestResultsCtx = createContext<(id: string) => LocatedTestResult | 
 
 export const Top = React.memo(function Top({ id, name }: { id: string; name: string }) {
     const store = useStore();
-    const editor = store.useEditor();
-    const top = editor.useTop(id);
+    const update = useUpdate();
 
     const getTop = useCallback(() => store.module(store.selected()).toplevels[id], [id]);
 
@@ -81,7 +80,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
                     const top = evt.clientY < box.top + box.height / 2;
                     const sel = top ? selectStart(pathWithChildren(rootPath, root), getTop()) : selectEnd(pathWithChildren(rootPath, root), getTop());
                     if (sel) {
-                        editor.update({ type: 'selections', selections: [{ start: sel }] });
+                        update({ type: 'selections', selections: [{ start: sel }] });
                     }
                 }}
             >
@@ -131,7 +130,7 @@ const renderMessage = (message: string | AnnotationText[]) =>
         : message.map((item, i) => (typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />));
 
 export const TopFailure = ({ id }: { id: string }) => {
-    const editor = useEditor();
+    const update = useUpdate();
     const compileFailure = useTopFailure(id);
     const parseResults = useTopParseResults(id);
     const failure: (FailureKind | { type: 'parse' | 'validation'; message: string | AnnotationText[] })[] = [...(compileFailure ?? [])];
@@ -149,7 +148,7 @@ export const TopFailure = ({ id }: { id: string }) => {
         });
     });
 
-    // const validation = editor.use
+    // const validation = update.use
     if (!failure.length) return null;
 
     return (

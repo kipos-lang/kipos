@@ -15,6 +15,7 @@ import { genId } from '../keyboard/ui/genId';
 import { Toplevel } from './types';
 import { DebugSidebar } from './DebugSidebar';
 import { useDependencyGraph, useModule, useSelectedTop, useSelection } from './store/editorHooks';
+import { Action } from './store/state';
 
 // type ECtx = {
 //     // drag
@@ -46,9 +47,14 @@ export const useDrag = () => {
     return ctx;
 };
 
-export const useEditor = () => {
+export const useUpdate = () => {
     const store = useStore();
-    return store.useEditor();
+    return useCallback(
+        (action: Action) => {
+            return store.update(store.selected(), action);
+        },
+        [store.selected()],
+    );
 };
 
 type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean, persistent: boolean): void; clearHover(): void };
@@ -165,7 +171,7 @@ export const useProvideDrag = (refs: Record<string, HTMLElement>) => {
 };
 
 export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
-    const editor = useEditor();
+    const update = useUpdate();
     return useMemo(() => {
         const up = (evt: MouseEvent) => {
             document.removeEventListener('mouseup', up);
@@ -180,21 +186,21 @@ export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
             },
             start(sel: SelStart, meta = false) {
                 if (meta) {
-                    editor.update({ type: 'add-sel', sel: { start: sel } });
+                    update({ type: 'add-sel', sel: { start: sel } });
                     // cstate.current.selections.map((s): undefined | Update => undefined).concat([{ nodes: [], selection: { start: sel } }]),
                     // [undefined, { nodes: [], selection: { start: sel } }]
                 } else {
                     drag.dragging = true;
-                    editor.update({ type: 'selections', selections: [{ start: sel }] });
+                    update({ type: 'selections', selections: [{ start: sel }] });
                     document.addEventListener('mouseup', up);
                 }
             },
             move(sel: SelStart, ctrl = false, alt = false) {
-                editor.update({ type: 'drag-sel', sel, ctrl, alt });
+                update({ type: 'drag-sel', sel, ctrl, alt });
             },
         };
         return drag;
-    }, [editor, refs]);
+    }, [update, refs]);
 };
 
 // const useMake
@@ -203,7 +209,6 @@ const alphabet = 'abcdefghjklmnopqrstuvwxyz';
 
 export const Editor = () => {
     const store = useStore();
-    const editor = store.useEditor();
 
     const refs = useMemo((): Record<string, HTMLElement> => ({}), []);
 
@@ -245,7 +250,7 @@ export const Editor = () => {
                 <button
                     className={css({ marginBlock: '12px' })}
                     onClick={() => {
-                        editor.update({ type: 'new-tl', after: module.roots[module.roots.length - 1] });
+                        store.update(module.id, { type: 'new-tl', after: module.roots[module.roots.length - 1] });
                     }}
                 >
                     Add Toplevel
@@ -257,18 +262,19 @@ export const Editor = () => {
 };
 
 const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
-    const editor = useEditor();
+    const store = useStore();
+    const update = useUpdate();
     const tid = useSelectedTop();
     const sel = useSelection();
-    // const pr = useTopParseResults(tid)
-    const top = editor.useTop(tid);
 
     const visual: Visual = {
         up(sel) {
-            return posUp(sel, top.top, refs, genId);
+            const top = store.module(store.selected()).toplevels[tid];
+            return posUp(sel, top, refs, genId);
         },
         down(sel) {
-            return posDown(sel, top.top, refs, genId);
+            const top = store.module(store.selected()).toplevels[tid];
+            return posDown(sel, top, refs, genId);
         },
         spans: [], //cspans.current,
     };
@@ -277,20 +283,20 @@ const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
         (evt: React.KeyboardEvent<Element>) => {
             if (evt.key === 'z' && evt.metaKey) {
                 evt.preventDefault();
-                editor.update({ type: evt.shiftKey ? 'redo' : 'undo' });
+                update({ type: evt.shiftKey ? 'redo' : 'undo' });
                 return;
             }
             if (evt.key === 'Tab') {
                 evt.preventDefault();
             }
-            editor.update({
+            update({
                 type: 'key',
                 key: evt.key,
                 mods: { meta: evt.metaKey, ctrl: evt.ctrlKey, alt: evt.altKey, shift: evt.shiftKey },
                 visual,
             });
         },
-        [editor, sel],
+        [update, sel],
     );
 
     return (

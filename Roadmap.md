@@ -26,6 +26,11 @@ Ok, so game plan:
   maybe just access the store?
 
 
+- [x] lots of things out of makeEditor
+- [x] useSelectionStatuses
+- [x] fix highlighting of spaced stuff
+- [x] useTop is gonee
+- [ ] now to make a useUpdate fnn
 
 
 ## ORder of operations:

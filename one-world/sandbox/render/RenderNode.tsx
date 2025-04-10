@@ -10,7 +10,7 @@ import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
-import { useEditor, useHover } from '../Editor';
+import { useUpdate, useHover } from '../Editor';
 import { pathWith } from '../../keyboard/ctdt-test-utils';
 import { zedlight } from '../zedcolors';
 import { useAnnotations } from '../store/editorHooks';
@@ -123,7 +123,7 @@ const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
 };
 
 const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedTestResult }) => {
-    const editor = useEditor();
+    const update = useUpdate();
 
     switch (result.result.type) {
         case 'mismatch': {
@@ -150,7 +150,7 @@ const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedT
                         <button
                             style={{ display: 'block', whiteSpace: 'nowrap', marginTop: 8 }}
                             onClick={() => {
-                                editor.update({
+                                update({
                                     type: 'paste',
                                     replace: pathWithChildren(parent, result.loc!),
                                     data: { type: 'json', data: [{ tree: actual.node, single: true }] },
