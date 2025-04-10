@@ -33,7 +33,7 @@ export class EditorStore<AST, TypeInfo> {
     module: Module;
     language: Language<any, AST, TypeInfo>;
     prevAnnotations: Record<string, Record<string, Annotation[]>> = {};
-    compiler: Compiler<AST, TypeInfo>;
+    // compiler: Compiler<AST, TypeInfo>;
 
     constructor(module: Module, language: Language<any, AST, TypeInfo>) {
         this.state = {
@@ -50,7 +50,6 @@ export class EditorStore<AST, TypeInfo> {
         };
         this.module = module;
         this.language = language;
-        this.compiler = language.compiler();
         this.initialProcess();
         // @ts-ignore
         // window.compiler = this.compiler;
@@ -66,7 +65,7 @@ export class EditorStore<AST, TypeInfo> {
         this.runValidation();
     }
 
-    updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
+    updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>): string[] {
         // const depsChanged = []
 
         ids.forEach((id) => {
@@ -94,32 +93,11 @@ export class EditorStore<AST, TypeInfo> {
         });
         // console.log('other notified', ids, otherNotified);
         this.state.dependencies = newDeps;
-        this.runValidation(ids.concat(otherNotified), changedKeys);
+        return this.runValidation(ids.concat(otherNotified), changedKeys);
     }
 
-    runCompilation(heads: string[]) {
-        const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
-        // const heads: Record<string, true> = {};
-        heads.forEach((hid) => {
-            this.state.dependencies.components.entries[hid].forEach((key) => {
-                const parse = this.state.parseResults[key];
-                if (!parse?.result) return;
-                asts[key] = { ast: parse.result, kind: parse.kind };
-            });
-        });
-        const infos: Record<string, TypeInfo> = {};
-        heads.forEach((key) => {
-            infos[key] = this.state.validationResults[key]?.result;
-        });
-        try {
-            this.compiler.loadModule(this.module.id, this.state.dependencies, asts, infos);
-        } catch (err) {
-            console.log(err);
-        }
-    }
-
-    runValidation(changedTops?: string[], changedKeys?: Record<string, true>) {
-        if (!this.language.validate) return {};
+    runValidation(changedTops?: string[], changedKeys?: Record<string, true>): string[] {
+        if (!this.language.validate) return [];
         let onlyUpdate = null as null | string[];
         if (changedTops) {
             onlyUpdate = [];
@@ -205,8 +183,8 @@ export class EditorStore<AST, TypeInfo> {
                 onlyUpdate.push(...(this.state.dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
             }
         }
-        // return results;
-        this.runCompilation(onlyUpdate ?? this.state.dependencies.traversalOrder);
+
+        return onlyUpdate ?? this.state.dependencies.traversalOrder;
     }
 
     calculateSpans(tid: string, top: Toplevel, validation: ValidateResult<TypeInfo>) {

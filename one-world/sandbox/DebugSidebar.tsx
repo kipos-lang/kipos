@@ -12,6 +12,7 @@ import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
+import { useParseResults, useSelectedTop, useTopParseResults, useTopSource } from './store/editorHooks';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -125,8 +126,8 @@ const ruleSummary = (rule: Rule<any>): string => {
 
 const ShowTypeInference = () => {
     const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
 
     const events = results?.validation?.events ?? [];
 
@@ -175,8 +176,8 @@ const ShowTypeInference = () => {
 
 const ShowErrorAnnotations = () => {
     const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
 
     if (!results.validation) return <span>No validation info</span>;
 
@@ -202,8 +203,8 @@ const ShowErrorAnnotations = () => {
 
 const ShowCST = () => {
     const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
     if (!results) return null;
     return (
         <div>
@@ -215,8 +216,8 @@ const ShowCST = () => {
 
 const ShowAST = () => {
     const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
     if (!results) return null;
     return (
         <div style={{ overflow: 'auto' }}>
@@ -227,8 +228,8 @@ const ShowAST = () => {
 
 const ShowSource = () => {
     const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopSource(top);
+    const top = useSelectedTop();
+    const results = useTopSource(top);
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
             <pre>{results ?? 'No source...'}</pre>
@@ -268,8 +269,8 @@ const Collapsible = ({ title, children }: { title: string; children: React.React
 
 export const DebugSidebar = () => {
     const editor = useEditor();
-    const results = editor.useParseResults();
-    const top = editor.useSelectedTop();
+    const results = useParseResults();
+    const top = useSelectedTop();
 
     return (
         <Resizebar id="debug" side="left">

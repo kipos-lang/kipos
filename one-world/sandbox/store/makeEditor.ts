@@ -8,8 +8,8 @@ import { Loc } from '../../shared/cnodes';
 import { Event, Src } from '../../syntaxes/dsl3';
 import { Module, Toplevel } from '../types';
 import { defaultLang } from './default-lang/default-lang';
-import { EditorStore } from './editorStore';
-import { EvaluationResult, FailureKind, Language, ParseResult, ValidateResult } from './language';
+import { EditorState, EditorStore } from './editorStore';
+import { Compiler, EvaluationResult, FailureKind, Language, ParseResult, ValidateResult } from './language';
 import { Action, reduce } from './state';
 import { saveModule } from './storage';
 import { EditorStoreI, Evt, allIds } from './store';
@@ -52,77 +52,16 @@ export const makeEditor = (
     useTick: (evt: Evt) => number,
     useTickCompute: <T>(evt: Evt, initial: T, f: (c: T) => T) => T,
     shout: (evt: Evt) => void,
+    recompile: (ids: string[], state: EditorState<any, any>) => void,
+    compiler: Compiler<any, any>,
+    store: EditorStore<any, any>,
 ): EditorStoreI => {
     let selectionStatuses = recalcSelectionStatuses(modules[selected]);
     let language = defaultLang;
 
-    // const parseResults: Record<string, LangResult> = {};
-    // Object.entries(modules[selected].toplevels).forEach(([key, top]) => {
-    //     parseResults[key] = doParse(language, top);
-    // });
-
-    const store = new EditorStore(modules[selected], language);
-
     return {
-        // selected,
-        useTopParseResults(top: string) {
-            useTick(`top:${top}:parse-results`);
-            return {
-                ...store.state.parseResults[top],
-                validation: store.state.validationResults[store.state.dependencies.components.pointers[top]],
-                spans: {},
-            };
-            // return parseResults[top];
-        },
         getTop(top: string) {
             return modules[selected].toplevels[top];
-        },
-        useDependencyGraph() {
-            useTick(`module:${selected}:dependency-graph`);
-            return store.state.dependencies;
-        },
-        useTopSource(top: string) {
-            const [results, setResults] = useState(null as null | string);
-            useEffect(() => {
-                return store.compiler.listen('viewSource', { module: selected, top }, ({ source }) => setResults(source));
-            }, [top]);
-            return results;
-        },
-        useTopFailure(top: string) {
-            const [results, setResults] = useState(null as null | FailureKind[]);
-            useEffect(() => {
-                return store.compiler.listen('failure', { module: selected, top }, (results) => setResults(results));
-            }, [top]);
-            return results;
-        },
-        useTopResults(top: string) {
-            const [results, setResults] = useState(null as null | EvaluationResult[]);
-            useEffect(() => {
-                return store.compiler.listen('results', { module: selected, top }, ({ results }) => setResults(results));
-            }, [top]);
-            return results;
-        },
-        useParseResults() {
-            useTick(`module:${selected}:parse-results`);
-            return store.state.parseResults;
-        },
-        useModule() {
-            useTick(`module:${selected}`);
-            return modules[selected];
-        },
-        useSelection() {
-            useTick(`module:${selected}:selection`);
-            return modules[selected].selections;
-        },
-        useIsSelectedTop(top: string) {
-            return useTickCompute(`module:${selected}:selection`, modules[selected].selections[0].start.path.root.top === top, (old) => {
-                return modules[selected].selections[0].start.path.root.top === top;
-            });
-        },
-        useSelectedTop() {
-            return useTickCompute(`module:${selected}:selection`, modules[selected].selections[0].start.path.root.top, (old) => {
-                return modules[selected].selections[0].start.path.root.top;
-            });
         },
         update(action: Action) {
             const mod = modules[selected];
@@ -186,7 +125,8 @@ export const makeEditor = (
 
             if (changedTops.length) {
                 const keys: Record<string, true> = {};
-                store.updateTops(changedTops, changed, keys);
+                const topsToCompile = store.updateTops(changedTops, changed, keys);
+                recompile(topsToCompile, store.state);
                 shout(`module:${selected}:dependency-graph`);
                 Object.keys(keys).forEach((k) => shout(`annotation:${k}`));
                 shout(`module:${selected}:parse-results`);

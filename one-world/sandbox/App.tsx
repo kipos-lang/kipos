@@ -4,6 +4,7 @@ import { SelStatus, useStore } from './store/store';
 import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
 import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
+import { useSelection } from './store/editorHooks';
 
 export const App = () => {
     return (
@@ -40,7 +41,7 @@ export const cursorPositionInSpanForEvt = (evt: React.MouseEvent, target: HTMLSp
 export const Showsel = () => {
     const store = useStore();
     const editor = store.useEditor();
-    const sel = editor.useSelection();
+    const sel = useSelection();
 
     return (
         <>

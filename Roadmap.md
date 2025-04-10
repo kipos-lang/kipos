@@ -12,6 +12,18 @@ Ok we'll do normal imports firsttttt
 
 arright.
 
+## Lift the compiler
+
+thisss is where I want to have had tests for stuff.
+ok but its fine
+
+so,
+i've got all these interfaces.
+the EditorStoreI - the only thing it's doing is caching selectionStatuses.
+
+
+
+
 ## ORder of operations:
 
 - [ ] vendored imports, because we ... don't have to build them?

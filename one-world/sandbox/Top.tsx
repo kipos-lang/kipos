@@ -13,6 +13,7 @@ import { zedlight } from './zedcolors';
 import { Toplevel } from './types';
 import equal from 'fast-deep-equal';
 import { selectEnd, selectStart } from '../keyboard/handleNav';
+import { useIsSelectedTop, useTopFailure, useTopParseResults, useTopResults } from './store/editorHooks';
 
 export const GetTopCtx = createContext<() => Toplevel>(() => {
     throw new Error('no');
@@ -29,7 +30,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
 
     const getTop = useCallback(() => editor.getTop(id), [id]);
 
-    const isSelected = editor.useIsSelectedTop(id);
+    const isSelected = useIsSelectedTop(id);
 
     const root = top.useRoot();
     const rootPath = useMemo(
@@ -40,9 +41,9 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
         [id],
     );
 
-    const parseResult = editor.useTopParseResults(id);
+    const parseResult = useTopParseResults(id);
 
-    const results = editor.useTopResults(id);
+    const results = useTopResults(id);
     const onTestLoc = useTestTracker(results);
     const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
 
@@ -118,8 +119,8 @@ const renderMessage = (message: string | AnnotationText[]) =>
 
 export const TopFailure = ({ id }: { id: string }) => {
     const editor = useEditor();
-    const compileFailure = editor.useTopFailure(id);
-    const parseResults = editor.useTopParseResults(id);
+    const compileFailure = useTopFailure(id);
+    const parseResults = useTopParseResults(id);
     const failure: (FailureKind | { type: 'parse' | 'validation'; message: string | AnnotationText[] })[] = [...(compileFailure ?? [])];
     if (!parseResults.result) {
         failure.push({ type: 'parse', message: 'failed to parse' });

@@ -7,15 +7,19 @@ import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart, Top } from '../../keyboard/utils';
 import { loadModules, saveModule } from './storage';
 import { LangResult, makeEditor } from './makeEditor';
-import { Annotation, EvaluationResult, FailureKind, Meta, ParseResult } from './language';
+import { Annotation, Compiler, EvaluationResult, FailureKind, Meta, ParseKind, ParseResult } from './language';
 import { Event } from '../../syntaxes/dsl3';
-import { Dependencies } from './editorStore';
+import { Dependencies, EditorState, EditorStore } from './editorStore';
+import { defaultLang, TInfo } from './default-lang/default-lang';
+import { TopItem } from '../../syntaxes/algw-s2-types';
 
 export type ModuleChildren = Record<string, string[]>;
 
 type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>> & { id: string };
 
 export interface Store {
+    compiler(): Compiler<any, any>;
+    estore(id: string): EditorStore<any, any>;
     module(id: string): Module;
     // get languageConfigs(): Record<string, LanguageConfiguration>;
     // get moduleTree(): ModuleTree;
@@ -32,16 +36,17 @@ export interface Store {
 }
 
 export interface EditorStoreI {
-    useTopParseResults(top: string): LangResult;
-    useParseResults(): Record<string, ParseResult<any>>;
-    useDependencyGraph(): Dependencies;
-    useTopResults(top: string): null | EvaluationResult[];
-    useTopFailure(top: string): null | FailureKind[];
-    useTopSource(top: string): null | string; // make it cst pleeeease
-    useModule(): Module;
-    useSelection(): NodeSelection[];
-    useIsSelectedTop(top: string): boolean;
-    useSelectedTop(): string;
+    // es: EditorStore<any, any>;
+    // useTopParseResults(top: string): LangResult;
+    // useParseResults(): Record<string, ParseResult<any>>;
+    // useDependencyGraph(): Dependencies;
+    // useTopResults(top: string): null | EvaluationResult[];
+    // useTopFailure(top: string): null | FailureKind[];
+    // useTopSource(top: string): null | string; // make it cst pleeeease
+    // useModule(): Module;
+    // useSelection(): NodeSelection[];
+    // useIsSelectedTop(top: string): boolean;
+    // useSelectedTop(): string;
     useTop(id: string): TopStore;
     getTop(id: string): Toplevel;
     update(action: Action): void;
@@ -188,9 +193,46 @@ const createStore = (): Store => {
     };
     window.addEventListener('hashchange', f);
 
+    const language = defaultLang;
+
+    const compiler = language.compiler();
+
+    const estores: Record<string, EditorStore<any, any>> = {};
     const editors: Record<string, EditorStoreI> = {};
 
+    const recompile = (module: string, heads: string[], state: EditorState<any, any>) => {
+        const asts: Record<string, { ast: TopItem; kind: ParseKind }> = {};
+        heads.forEach((hid) => {
+            state.dependencies.components.entries[hid].forEach((key) => {
+                const parse = state.parseResults[key];
+                if (!parse?.result) return;
+                asts[key] = { ast: parse.result, kind: parse.kind };
+            });
+        });
+        const infos: Record<string, TInfo> = {};
+        heads.forEach((key) => {
+            infos[key] = state.validationResults[key]?.result;
+        });
+        try {
+            compiler.loadModule(module, state.dependencies, asts, infos);
+        } catch (err) {
+            console.log(err);
+        }
+    };
+    // this.runCompilation(onlyUpdate ?? this.state.dependencies.traversalOrder);
+
     return {
+        compiler() {
+            return compiler;
+        },
+        estore(id) {
+            if (!estores[id]) {
+                estores[id] = new EditorStore(modules[id], language);
+                const s = estores[id];
+                recompile(id, s.state.dependencies.traversalOrder, s.state);
+            }
+            return estores[id];
+        },
         module(id: string) {
             return modules[id];
         },
@@ -230,7 +272,21 @@ const createStore = (): Store => {
         useEditor() {
             useTick(`selected`);
             if (!editors[selected]) {
-                editors[selected] = makeEditor(selected, modules, useTick, useTickCompute, shout);
+                if (!estores[selected]) {
+                    estores[selected] = new EditorStore(modules[selected], language);
+                    const s = estores[selected];
+                    recompile(selected, s.state.dependencies.traversalOrder, s.state);
+                }
+                editors[selected] = makeEditor(
+                    selected,
+                    modules,
+                    useTick,
+                    useTickCompute,
+                    shout,
+                    (ids, state) => recompile(selected, ids, state),
+                    compiler,
+                    estores[selected],
+                );
             }
             useTick(`module:${selected}:roots`);
             return editors[selected];

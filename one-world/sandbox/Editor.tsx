@@ -15,6 +15,7 @@ import { posDown, posUp } from '../keyboard/ui/selectionPos';
 import { genId } from '../keyboard/ui/genId';
 import { Toplevel } from './types';
 import { DebugSidebar } from './DebugSidebar';
+import { useDependencyGraph, useModule, useSelectedTop, useSelection } from './store/editorHooks';
 
 // type ECtx = {
 //     // drag
@@ -268,9 +269,9 @@ export const Editor = () => {
 
     const Drag = useProvideDrag(refs);
     const Hover = useProvideHover();
-    const module = editor.useModule();
+    const module = useModule();
 
-    const deps = editor.useDependencyGraph();
+    const deps = useDependencyGraph();
     const names = useMemo(() => {
         const nums: Record<string, { at: number; count: number }> = {};
         let at = 1;
@@ -318,9 +319,9 @@ export const Editor = () => {
 
 const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
     const editor = useEditor();
-    const tid = editor.useSelectedTop();
-    const sel = editor.useSelection();
-    // const pr = editor.useTopParseResults(tid)
+    const tid = useSelectedTop();
+    const sel = useSelection();
+    // const pr = useTopParseResults(tid)
     const top = editor.useTop(tid);
 
     const visual: Visual = {
