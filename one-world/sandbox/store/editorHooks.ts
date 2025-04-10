@@ -147,7 +147,7 @@ export function useNode(top: string, path: Path) {
     const results = store.state.parseResults[top];
     let meta = store.state.parseResults[top]?.ctx.meta[loc];
     const refs = results?.internalReferences[loc];
-    const statuses = useSelectionStatuses(pathKey(path));
+    const statuses = useSelectionStatuses(pathKey(path)) ?? undefined;
     if (refs) {
         if (refs.usages.length === 0 && (results.kind.type !== 'definition' || !results.kind.provides.some((r) => r.loc === loc))) {
             meta = { kind: 'unused' };

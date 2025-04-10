@@ -17,6 +17,7 @@ import {
     SelectionStatusCtx,
     useIsSelectedTop,
     useMakeSelectionStatuses,
+    useNode,
     useRoot,
     useTopFailure,
     useTopParseResults,
@@ -57,7 +58,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
 
     const onSS = useMakeSelectionStatuses(id);
 
-    const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
+    const useNode_ = useCallback<UseNode>((path) => useNode(id, path), [id]);
     return (
         <div>
             <div
@@ -89,7 +90,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
                 <div style={{ flexBasis: 12 }} />
                 <SelectionStatusCtx.Provider value={onSS}>
                     <GetTopCtx.Provider value={getTop}>
-                        <UseNodeCtx.Provider value={useNode}>
+                        <UseNodeCtx.Provider value={useNode_}>
                             <TestResultsCtx.Provider value={onTestLoc}>
                                 <RenderNode parent={rootPath} id={root} />
                             </TestResultsCtx.Provider>
