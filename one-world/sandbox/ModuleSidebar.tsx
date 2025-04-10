@@ -1,6 +1,6 @@
 import { css } from 'goober';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { EditIcon, HDots } from './icons';
+import { CirclePlusIcon, EditIcon, HDots } from './icons';
 import { useStore, newModule, Store } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
@@ -154,7 +154,18 @@ export const ModuleSidebar = () => {
     return (
         <Resizebar id="modules" side="right">
             <div style={{ padding: 8, flex: 1, minWidth: 0, overflow: 'hidden', backgroundColor: zedlight['border.selected'] }}>
-                <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Modules</div>
+                <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>
+                    Modules
+                    <span
+                        onClick={() => {
+                            const name = prompt('Name');
+                            if (!name) return;
+                            store.addModule(newModule(name));
+                        }}
+                    >
+                        <CirclePlusIcon style={{ fontSize: 20, cursor: 'pointer', marginBottom: -4, marginLeft: 8 }} />
+                    </span>
+                </div>
                 <Dragger dtctx={dtctx} />
             </div>
         </Resizebar>

@@ -157,59 +157,6 @@ const useMakeHover = () => {
     }, [selected]);
 };
 
-// const useMakeHover = () => {
-//     return useMemo((): HoverCtxT => {
-//         let hover: null | { path: Path; notified: string | null } = null;
-//         const listeners: Record<string, (v: boolean) => void> = {};
-
-//         const bestFor = (path: Path) => {
-//             for (let i = path.children.length - 1; i >= 0; i--) {
-//                 const k = path.children[i];
-//                 if (listeners[k]) return k;
-//             }
-//             return null;
-//         };
-
-//         const tell = (k: string | null | undefined, v: boolean) => {
-//             if (k && listeners[k]) {
-//                 listeners[k](v);
-//             }
-//         };
-
-//         return {
-//             onHover(key) {
-//                 const [isHovered, setHover] = useState(false);
-//                 useEffect(() => {
-//                     if (!key) return; // don't register
-//                     listeners[key] = setHover;
-
-//                     // TODO: determine if this is the best one now
-//                     if (hover?.notified !== k && hover?.path.children.includes(k) && bestFor(hover.path) === k) {
-//                         tell(hover.notified, false);
-//                         hover.notified = k;
-//                         tell(hover.notified, true);
-//                     }
-
-//                     return () => {
-//                         if (listeners[k] === setHover) {
-//                             delete listeners[k];
-//                         }
-//                     };
-//                 }, [path, hasHover]);
-//                 return isHovered;
-//             },
-//             setHover(path) {
-//                 const old = hover?.notified;
-//                 hover = path ? { path, notified: bestFor(path) } : null;
-//                 if (old !== hover?.notified) {
-//                     tell(old, false);
-//                     tell(hover?.notified, true);
-//                 }
-//             },
-//         };
-//     }, []);
-// };
-
 export const useProvideDrag = (refs: Record<string, HTMLElement>) => {
     const drag = useMakeDrag(refs);
     return useCallback(
@@ -244,13 +191,7 @@ export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
                 }
             },
             move(sel: SelStart, ctrl = false, alt = false) {
-                // let start = cstate.current.selections[0].start;
-                // if (ctrl) {
-                //     [start, sel] = argify(start, sel, cstate.current.top);
-                // } else if (alt) {
-                //     [start, sel] = atomify(start, sel, cstate.current.top);
-                // }
-                // editor.update({ type: 'update', update: [{ type: 'move', sel: start, end: sel }] });
+                editor.update({ type: 'drag-sel', sel, ctrl, alt });
             },
         };
         return drag;

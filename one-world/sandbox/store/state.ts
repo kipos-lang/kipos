@@ -2,7 +2,7 @@ import { genId } from '../../keyboard/ui/genId';
 import { Node, Nodes } from '../../shared/cnodes';
 
 import { _applyUpdate, applyNormalUpdate, applySelUp } from '../../keyboard/applyUpdate';
-import { Mods } from '../../keyboard/handleShiftNav';
+import { Mods, SelStart } from '../../keyboard/handleShiftNav';
 import { KeyAction, keyActionToUpdate } from '../../keyboard/keyActionToUpdate';
 import { Config } from '../../keyboard/test-utils';
 import { keyUpdate, Visual } from '../../keyboard/ui/keyUpdate';
@@ -12,6 +12,7 @@ import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../histo
 import { Toplevel } from '../types';
 import { selectStart } from '../../keyboard/handleNav';
 import { validate } from '../../keyboard/validate';
+import { argify, atomify } from '../../keyboard/selections';
 
 export type AppState = {
     config: Config;
@@ -112,6 +113,7 @@ const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | v
 
 export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
+    | { type: 'drag-sel'; sel: SelStart; ctrl: boolean; alt: boolean }
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual }
     | { type: 'selections'; selections: NodeSelection[] }
@@ -207,6 +209,19 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
+        case 'drag-sel': {
+            let { sel, ctrl, alt } = action;
+            // console.log('move sel', sel);
+            let start = state.selections[0].start;
+            if (ctrl) {
+                [start, sel] = argify(start, sel, state.tops[sel.path.root.top]);
+            } else if (alt) {
+                [start, sel] = atomify(start, sel, state.tops[sel.path.root.top]);
+            }
+            // editor.update({ type: 'update', update: [{ type: 'move', sel: start, end: sel }] });
+
+            return { ...state, selections: [{ start, end: sel }] };
+        }
 
         case 'selections':
             action.selections.forEach((sel) => {
