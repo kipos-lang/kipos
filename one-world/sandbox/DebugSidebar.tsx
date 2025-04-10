@@ -11,6 +11,7 @@ import { useEditor } from './Editor';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
+import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -289,6 +290,9 @@ export const DebugSidebar = () => {
                 </Collapsible>
                 <Collapsible title="Compiled Source">
                     <ShowSource />
+                </Collapsible>
+                <Collapsible title="Theme Colors">
+                    <ShowColors />
                 </Collapsible>
             </div>
         </Resizebar>

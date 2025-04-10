@@ -1,16 +1,19 @@
 import { css } from 'goober';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { EditIcon, HDots } from './icons';
 import { useStore, newModule, Store } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
-import { DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
+import { Dragger, DraggerCtx, DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
 import equal from 'fast-deep-equal';
 
 const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string } }) => {
     const store = useStore();
     const [editing, setEditing] = useState(null as null | string);
     const selected = store.useSelected(); // todo: useIsSelected
+    const { useMouseDown, useIsDragging } = useContext(DraggerCtx);
+    const onMouseDown = useMouseDown(id);
+    const isDragging = useIsDragging(id);
 
     return (
         <div
@@ -32,6 +35,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                     opacity: 1,
                 },
             })}
+            style={isDragging ? { background: '#96abf9' } : undefined}
             onClick={(evt) => {
                 location.hash = '#' + id;
             }}
@@ -61,6 +65,7 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                         opacity: 0,
                     })
                 }
+                onMouseDown={onMouseDown}
                 onClick={(evt) => {
                     evt.stopPropagation();
                     if (editing != null) {
@@ -124,9 +129,7 @@ export const ModuleSidebar = () => {
         <Resizebar id="modules" side="right">
             <div style={{ padding: 8, flex: 1, minWidth: 0, overflow: 'hidden', backgroundColor: zedlight['border.selected'] }}>
                 <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 600 }}>Modules</div>
-                <DragTreeCtx.Provider value={dtctx}>
-                    <DragTreeNode id="root" />
-                </DragTreeCtx.Provider>
+                <Dragger dtctx={dtctx} />
             </div>
         </Resizebar>
     );
