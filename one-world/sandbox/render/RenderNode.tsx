@@ -12,6 +12,7 @@ import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
 import { useEditor, useHover } from '../Editor';
 import { pathWith } from '../../keyboard/ctdt-test-utils';
+import { zedlight } from '../zedcolors';
 
 const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) {
     switch (node.type) {
@@ -139,24 +140,25 @@ const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedT
                         }}
                     >
                         <div style={{ fontWeight: 'bold' }}>Actual</div>
-                        <RenderStaticNode root={{ node: actual, meta: {} }} />
+                        <RenderStaticNode root={actual} />
+                        {expected ? (
+                            <>
+                                <div style={{ fontWeight: 'bold' }}>Expected</div>
+                                <RenderStaticNode root={expected} />
+                            </>
+                        ) : null}
                         <button
+                            style={{ display: 'block', whiteSpace: 'nowrap', marginTop: 8 }}
                             onClick={() => {
                                 editor.update({
                                     type: 'paste',
                                     replace: pathWithChildren(parent, result.loc!),
-                                    data: { type: 'json', data: [{ tree: actual, single: true }] },
+                                    data: { type: 'json', data: [{ tree: actual.node, single: true }] },
                                 });
                             }}
                         >
-                            Replace
+                            Update snapshot
                         </button>
-                        {expected ? (
-                            <>
-                                <div style={{ fontWeight: 'bold' }}>Expected</div>
-                                <RenderStaticNode root={{ node: expected, meta: {} }} />
-                            </>
-                        ) : null}
                     </div>
                 );
             }
@@ -189,9 +191,9 @@ const ShowTestResult = ({ result, id, parent }: { parent: Path; id: string; resu
                         left: 0,
                         zIndex: 200,
                         padding: '4px 8px',
-                        borderRadius: '8px',
+                        borderRadius: '4px',
                         background: 'white',
-                        border: '1px solid magenta',
+                        boxShadow: '0 1px 4px ' + zedlight.syntax.constructor.color,
                     })}
                 >
                     <ShowFullTestResult result={result} parent={parent} />

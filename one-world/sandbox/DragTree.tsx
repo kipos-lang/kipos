@@ -4,11 +4,12 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useStore } from './store/store';
 import { useLatest } from '../useLatest';
 import { zedlight } from './zedcolors';
+import { useLocalStorage } from './Resizebar';
 
 // This is for configuring the data getting & Render component
 export type DragTreeCtxT<T> = {
     useNode(id: string): { children: string[]; node?: T };
-    Render: React.ComponentType<{ node: T; id: string }>;
+    Render: React.ComponentType<{ node: T; id: string; collapsed: boolean | null; setCollapsed: (b: boolean) => void }>;
     onDrop(dragged: string, dest: string, dropLocation: DropLocation): void;
 };
 
@@ -212,15 +213,16 @@ export const DragTreeNode = React.memo(function DragTreeNode({ id }: { id: strin
     const { useNode, Render } = useContext(DragTreeCtx);
     const { children, node } = useNode(id);
     const dragger = useContext(DraggerCtx);
-    const dr = dragger.ref(id, !!children.length);
+    const [isCollapsed, setCollapsed] = useLocalStorage(`dt-${id}`, () => false);
+    const dr = dragger.ref(id, !isCollapsed && !!children.length);
     return (
         <div>
             {node ? (
-                <div ref={children.length ? undefined : dr}>
-                    <Render node={node} id={id} />
+                <div ref={!isCollapsed && children.length ? undefined : dr}>
+                    <Render node={node} id={id} collapsed={children.length ? isCollapsed : null} setCollapsed={setCollapsed} />
                 </div>
             ) : null}
-            {children.length ? (
+            {!isCollapsed && children.length ? (
                 <div style={{ marginLeft: !node ? 0 : 24 }} ref={dr}>
                     {children.map((id) => (
                         <DragTreeNode key={id} id={id} />

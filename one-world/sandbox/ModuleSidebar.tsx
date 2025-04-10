@@ -7,7 +7,17 @@ import { Resizebar } from './Resizebar';
 import { Dragger, DraggerCtx, DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
 import equal from 'fast-deep-equal';
 
-const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string } }) => {
+const ModuleTitle = ({
+    node: { name },
+    id,
+    collapsed,
+    setCollapsed,
+}: {
+    id: string;
+    node: { name: string };
+    collapsed: boolean | null;
+    setCollapsed: (b: boolean) => void;
+}) => {
     const store = useStore();
     const [editing, setEditing] = useState(null as null | string);
     const selected = store.useSelected(); // todo: useIsSelected
@@ -40,6 +50,15 @@ const ModuleTitle = ({ node: { name }, id }: { id: string; node: { name: string 
                 location.hash = '#' + id;
             }}
         >
+            <div
+                style={{ visibility: collapsed === null ? 'hidden' : 'visible', cursor: 'pointer', width: '1em' }}
+                onClick={(evt) => {
+                    evt.stopPropagation();
+                    setCollapsed(!collapsed);
+                }}
+            >
+                {collapsed ? '>' : 'v'}
+            </div>
             {editing != null ? (
                 <input
                     value={editing}

@@ -20,7 +20,20 @@ arright.
 -
 
 - [x] much better hover situation
+- [x] drag and dropppp modules
+- [x] collapsable modules
 
+
+### NExt up: defining imports
+
+... in order to do that well, I need to have all the other things evaluated. so I can know what I can import.
+OK. so yeah, we're doin normal imports baby.
+
+- [ ] lift the compiler (and parts of the editorstore?) up to the App level
+- [ ] always compile everything
+- [ ] cache the parsing at least, and maybe more stuff
+- [ ] show in the module sidebar what has passing tests?
+- [ ] allow you to "disable" a module, excluding it from compilation n stuff
 
 
 # Let's talk FFI

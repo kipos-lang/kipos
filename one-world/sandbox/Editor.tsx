@@ -133,9 +133,13 @@ const useMakeHover = () => {
                     }
                     hover = { key, persistent };
                     clearTimeout(t!);
-                    t = setTimeout(() => {
+                    if (persistent) {
                         listeners[hover?.key!]?.(true);
-                    }, 400);
+                    } else {
+                        t = setTimeout(() => {
+                            listeners[hover?.key!]?.(true);
+                        }, 400);
+                    }
                 } else {
                     if (hover?.key !== key) return;
                     // lastClear = Date.now();

@@ -2,10 +2,10 @@ import equal from 'fast-deep-equal';
 import { RecNode } from '../../../shared/cnodes';
 import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
-import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind } from '../language';
+import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind, Meta, Renderable } from '../language';
 import { TInfo } from './default-lang';
 import { Resolutions, stmtToString, testToString, toString } from './to-string';
-import { id, text } from '../../../keyboard/test-utils';
+import { id, list, text } from '../../../keyboard/test-utils';
 
 const addFn = <K extends keyof CompilerEvents>(
     key: string,
@@ -37,13 +37,29 @@ and mutability be darned.
 
 */
 
-const anyToCST = (value: any): RecNode | undefined => {
+const anyToRenderable = (value: any): Renderable | undefined => {
+    const meta: Record<string, Meta> = {};
+    let id = 0;
+    const node = anyToCST(value, meta, () => id++ + '');
+    if (!node) return;
+    return { node, meta };
+};
+
+const anyToCST = (value: any, meta: Record<string, Meta>, nextLoc: () => string): RecNode | undefined => {
     if (value === null) return;
     if (typeof value === 'number') {
-        return id(value.toString());
+        const l = nextLoc();
+        meta[l] = { kind: 'number' };
+        return id(value.toString(), l);
     }
     if (typeof value === 'string') {
-        return text([{ type: 'text', loc: '', text: value }]);
+        return text([{ type: 'text', loc: nextLoc(), text: value }], nextLoc());
+    }
+    if (Array.isArray(value)) {
+        return list('square')(
+            value.map((v) => anyToCST(v, meta, nextLoc) ?? id('unserializable', nextLoc())),
+            nextLoc(),
+        );
     }
     return;
 };
@@ -81,7 +97,7 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
             } else {
                 results.push({
                     type: 'test-result',
-                    result: { type: 'mismatch', actual: anyToCST(input), expected: anyToCST(output) },
+                    result: { type: 'mismatch', actual: anyToRenderable(input), expected: anyToRenderable(output) },
                     name,
                     loc: outloc,
                 });
