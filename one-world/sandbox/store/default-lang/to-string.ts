@@ -56,7 +56,6 @@ const needsWrap = (expr: Expr) => {
         case 'app':
         case 'attribute':
         case 'index':
-        case 'constructor':
             return false;
     }
 };
@@ -151,7 +150,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                     () => ', ',
                 ),
                 ') => ',
-                exprToString(expr.body, res),
+                ...(expr.body.type === 'constructor' ? ['(', exprToString(expr.body, res), ')'] : [exprToString(expr.body, res)]),
             ]);
         // case 'tuple':
         //     return group(expr.src.id, ['(', ...expr.items.map((item) => exprToString(item, res)), ')']);
@@ -189,8 +188,25 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 ).flat(),
                 ']',
             ]);
-        // case 'constructor':
-        //     return group(expr.src.id, [expr.name, '(', ...expr.args.map((arg) => exprToString(arg, res)), ')']);
+        case 'constructor':
+            if (!expr.args) {
+                return group(expr.src.id, ['{"type":', JSON.stringify(expr.name.text), '}']);
+            }
+            // expr.name
+            return group(expr.src.id, [
+                '{"type":',
+                JSON.stringify(expr.name.text),
+                ...expr.args.args.flatMap((arg) =>
+                    arg.type === 'row'
+                        ? arg.value
+                            ? [', ', JSON.stringify(arg.name.text), ': ', exprToString(arg.value, res)]
+                            : [', ', arg.name.text]
+                        : arg.type === 'spread'
+                          ? ['...', exprToString(arg.inner, res)]
+                          : [', ', exprToString(arg, res)],
+                ),
+                '}',
+            ]);
     }
     throw new Error('no to-string for ' + expr.type);
 };

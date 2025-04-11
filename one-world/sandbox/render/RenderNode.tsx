@@ -10,7 +10,7 @@ import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
-import { useUpdate, useHover } from '../Editor';
+import { useUpdate, useHover } from '../useProvideDrag';
 import { pathWith } from '../../keyboard/ctdt-test-utils';
 import { zedlight } from '../zedcolors';
 import { useAnnotations } from '../store/editorHooks';

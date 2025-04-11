@@ -161,12 +161,12 @@ const createStore = (): Store => {
     };
 
     const estores: Record<string, EditorStore<any, any>> = {};
-    // Object.keys(modules).forEach((id) => {
-    //     estores[id] = new EditorStore(modules[id], language);
-    //     const s = estores[id];
-    //     recompile(id, s.state.dependencies.traversalOrder, s.state);
-    //     // console.log('should have loadded', id);
-    // });
+    Object.keys(modules).forEach((id) => {
+        estores[id] = new EditorStore(modules[id], language);
+        const s = estores[id];
+        recompile(id, s.state.dependencies.traversalOrder, s.state);
+        // console.log('should have loadded', id);
+    });
 
     return {
         compiler() {

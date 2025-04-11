@@ -5,7 +5,7 @@ import { Cursor } from '../../keyboard/ui/cursor';
 import { opener, closer } from '../../keyboard/ui/RenderNode';
 import { Path, ListWhere } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
-import { useDrag } from '../Editor';
+import { useDrag } from '../useProvideDrag';
 import { RenderNode, Wrap } from './RenderNode';
 import { SelStatus } from '../store/store';
 import { Meta } from '../store/language';

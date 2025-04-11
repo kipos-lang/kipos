@@ -32,6 +32,11 @@ Ok, so game plan:
 - [x] useTop is gonee
 - [x] now to make a useUpdate fnn
 
+hm what's next.
+
+- [x] preload all the modules
+- [ ] importtttts
+
 
 ## ORder of operations:
 

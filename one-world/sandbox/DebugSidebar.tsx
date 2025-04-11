@@ -7,7 +7,7 @@ import { ShowXML } from '../keyboard/ui/XML';
 import { shape } from '../shared/shape';
 import { Event, TraceText, Rule } from '../syntaxes/dsl3';
 import { toXML } from '../syntaxes/xml';
-import { useUpdate } from './Editor';
+import { useUpdate } from './useProvideDrag';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';

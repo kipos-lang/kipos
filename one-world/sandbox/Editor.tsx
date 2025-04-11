@@ -1,9 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useMemo, useState } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Top } from './Top';
 import { useStore } from './store/store';
 import { zedlight } from './zedcolors';
-import { SelStart } from '../keyboard/handleShiftNav';
 import { moveA } from '../keyboard/keyActionToUpdate';
 import { argify, atomify } from '../keyboard/selections';
 import { HiddenInput } from '../keyboard/ui/HiddenInput';
@@ -12,200 +11,185 @@ import { lastChild, Path } from '../keyboard/utils';
 import { Visual } from '../keyboard/ui/keyUpdate';
 import { posDown, posUp } from '../keyboard/ui/selectionPos';
 import { genId } from '../keyboard/ui/genId';
-import { Toplevel } from './types';
+import { Import, Toplevel } from './types';
 import { DebugSidebar } from './DebugSidebar';
 import { useDependencyGraph, useModule, useSelectedTop, useSelection } from './store/editorHooks';
-import { Action } from './store/state';
-
-// type ECtx = {
-//     // drag
-//     // errors: Record<string, string>;
-//     // refs: Record<string, HTMLElement>; // -1 gets you 'cursor' b/c why not
-//     // config: DisplayConfig;
-//     // styles: Record<string, Style>;
-//     // placeholders: Record<string, string>;
-//     // selectionStatuses: SelectionStatuses;
-//     // dispatch: (up: KeyAction[]) => void;
-//     // msel: null | string[];
-//     // mhover: null | string[];
-//     drag: DragCtxT;
-// };
-type DragCtxT = {
-    dragging: boolean;
-    refs: Record<string, HTMLElement>;
-    ref(loc: string): (node: HTMLElement) => void;
-    start(sel: SelStart, meta?: boolean): void;
-    move(sel: SelStart, ctrl?: boolean, alt?: boolean): void;
-};
-
-export const noopDrag: DragCtxT = { dragging: false, ref: () => () => {}, start() {}, move() {}, refs: {} };
-
-export const DragCtx = React.createContext(null as null | DragCtxT);
-export const useDrag = () => {
-    const ctx = useContext(DragCtx);
-    if (!ctx) throw new Error(`not in drag context`);
-    return ctx;
-};
-
-export const useUpdate = () => {
-    const store = useStore();
-    return useCallback(
-        (action: Action) => {
-            return store.update(store.selected(), action);
-        },
-        [store.selected()],
-    );
-};
-
-type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean, persistent: boolean): void; clearHover(): void };
-const HoverCtx = React.createContext<HoverCtxT>({ onHover: () => false, setHover() {}, clearHover() {} });
-
-export const useHover = (key?: string, persistent = false) => {
-    const hover = useContext(HoverCtx);
-    const isHovered = hover.onHover(key);
-    return {
-        isHovered,
-        setHover: useCallback((yes: boolean) => (key ? hover.setHover(key, yes, persistent) : null), [key]),
-        clearHover: hover.clearHover,
-    };
-};
-
-export const useProvideHover = () => {
-    const hover = useMakeHover();
-    return useCallback(
-        ({ children }: { children: React.ReactNode }): React.ReactNode => <HoverCtx.Provider value={hover}>{children}</HoverCtx.Provider>,
-        [hover],
-    );
-};
-
-const useMakeHover = () => {
-    const store = useStore();
-    const selected = store.useSelected();
-    const cleanup = useRef(() => {});
-    useEffect(() => {
-        return () => cleanup.current();
-    }, []);
-    return useMemo((): HoverCtxT => {
-        const listeners: Record<string, (v: boolean) => void> = {};
-        let hover: null | { key: string; persistent: boolean } = null;
-        let lastClear = Date.now();
-        const MIN = 500;
-
-        let t: Timer | null = null;
-
-        const mv = () => {
-            clearTimeout(t!);
-        };
-        document.addEventListener('mousemove', mv);
-
-        const unlisten = store.listen(`module:${selected}:selection`, () => {
-            clearTimeout(t!);
-            lastClear = Date.now();
-            listeners[hover?.key!]?.(false);
-            hover = null;
-        });
-        cleanup.current = () => {
-            document.removeEventListener('mousemove', mv);
-            unlisten();
-        };
-
-        return {
-            onHover(key?: string) {
-                const [isHovered, setHovered] = useState(false);
-                useEffect(() => {
-                    if (!key) return;
-                    listeners[key] = setHovered;
-                    return () => {
-                        if (listeners[key] === setHovered) delete listeners[key];
-                    };
-                }, [key]);
-                return isHovered;
-            },
-            setHover(key: string, on: boolean, persistent: boolean) {
-                if (on) {
-                    if (hover?.key === key) {
-                        clearTimeout(t!);
-                        t = setTimeout(() => {
-                            listeners[hover?.key!]?.(true);
-                        }, 400);
-                        return;
-                    }
-                    if (hover?.persistent && !persistent) return; // ignore
-                    listeners[hover?.key!]?.(false);
-                    if (!persistent && !hover && Date.now() - lastClear < MIN) {
-                        console.log('too soon');
-                        hover = null;
-                        return;
-                    }
-                    hover = { key, persistent };
-                    clearTimeout(t!);
-                    if (persistent) {
-                        listeners[hover?.key!]?.(true);
-                    } else {
-                        t = setTimeout(() => {
-                            listeners[hover?.key!]?.(true);
-                        }, 400);
-                    }
-                } else {
-                    if (hover?.key !== key) return;
-                    // lastClear = Date.now();
-                    listeners[hover?.key!]?.(false);
-                    hover = null;
-                }
-            },
-            clearHover() {
-                lastClear = Date.now();
-                listeners[hover?.key!]?.(false);
-                hover = null;
-            },
-        };
-    }, [selected]);
-};
-
-export const useProvideDrag = (refs: Record<string, HTMLElement>) => {
-    const drag = useMakeDrag(refs);
-    return useCallback(
-        ({ children }: { children: React.ReactNode }): React.ReactNode => <DragCtx.Provider value={drag}>{children}</DragCtx.Provider>,
-        [drag],
-    );
-};
-
-export const useMakeDrag = (refs: Record<string, HTMLElement>): DragCtxT => {
-    const update = useUpdate();
-    return useMemo(() => {
-        const up = (evt: MouseEvent) => {
-            document.removeEventListener('mouseup', up);
-            drag.dragging = false;
-        };
-
-        const drag: DragCtxT = {
-            dragging: false,
-            refs,
-            ref(loc) {
-                return (node) => (refs[loc] = node);
-            },
-            start(sel: SelStart, meta = false) {
-                if (meta) {
-                    update({ type: 'add-sel', sel: { start: sel } });
-                    // cstate.current.selections.map((s): undefined | Update => undefined).concat([{ nodes: [], selection: { start: sel } }]),
-                    // [undefined, { nodes: [], selection: { start: sel } }]
-                } else {
-                    drag.dragging = true;
-                    update({ type: 'selections', selections: [{ start: sel }] });
-                    document.addEventListener('mouseup', up);
-                }
-            },
-            move(sel: SelStart, ctrl = false, alt = false) {
-                update({ type: 'drag-sel', sel, ctrl, alt });
-            },
-        };
-        return drag;
-    }, [update, refs]);
-};
+import { useProvideDrag, useProvideHover, useUpdate } from './useProvideDrag';
 
 // const useMake
 
 const alphabet = 'abcdefghjklmnopqrstuvwxyz';
+
+const ImportSource = ({ value, update }: { value: Import['source']; update: (v: Import['source']) => void }) => {
+    const store = useStore();
+    let [tmp, setTmp] = useState('');
+    let body;
+    switch (value.type) {
+        case 'local':
+            body = <div>AUTOCOMPLETE LOCAL MODULES</div>;
+            break;
+        case 'project':
+            const mc = store.moduleChildren();
+            body = (
+                <div>
+                    {mc['root'].map((id) => (
+                        <div key={id}>
+                            <button
+                                onClick={() =>
+                                    update({
+                                        type: 'project',
+                                        module: id,
+                                    })
+                                }
+                            >
+                                {store.module(id).name}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            );
+            break;
+        case 'vendor':
+            body = (
+                <div>
+                    Vendor src:
+                    <input value={tmp} onChange={(evt) => setTmp(evt.target.value)} />
+                </div>
+            );
+            break;
+    }
+
+    return (
+        <div>
+            <div>
+                {['project', 'local', 'vendor'].map((name) => (
+                    <button
+                        key={name}
+                        disabled={name === value.type}
+                        onClick={() => {
+                            update(
+                                name === 'project'
+                                    ? { type: 'project', module: '' }
+                                    : name === 'local'
+                                      ? { type: 'local', toplevel: '' }
+                                      : { type: 'vendor', src: '' },
+                            );
+                        }}
+                    >
+                        {name}
+                    </button>
+                ))}
+            </div>
+            {body}
+        </div>
+    );
+};
+
+const ImportPlugins = ({ source, value, update }: { source: Import['source']; value: Import['plugins']; update: (v: Import['plugins']) => void }) => {
+    return 'plugisn';
+};
+
+const ImportMacros = ({ source, value, update }: { source: Import['source']; value: Import['macros']; update: (v: Import['macros']) => void }) => {
+    return 'hi';
+};
+
+const ImportItems = ({ source, value, update }: { source: Import['source']; value: Import['items']; update: (v: Import['items']) => void }) => {
+    const store = useStore();
+    let options: Import['items'] | null = null;
+    if (source.type === 'project') {
+        const mod = store.module(source.module);
+        if (mod) {
+            options = [];
+            const es = store.estore(source.module);
+            Object.values(es.state.parseResults).forEach((res) => {
+                if (res.kind.type === 'definition') {
+                    res.kind.provides.forEach((prov) => {
+                        options!.push({ name: prov.name, kind: prov.kind });
+                    });
+                }
+            });
+        } else {
+            options = [
+                { name: 'one', kind: 'value' },
+                { name: 'two', kind: 'value' },
+            ];
+        }
+    }
+    if (!options) {
+        return <div>Unable to determine available exports</div>;
+    }
+    return (
+        <div>
+            {options.map((option, i) => (
+                <div key={i}>
+                    <input
+                        type="checkbox"
+                        onChange={(evt) => {
+                            if (evt.target.checked) {
+                                update(
+                                    value.concat([
+                                        {
+                                            name: option.name,
+                                            kind: option.kind,
+                                        },
+                                    ]),
+                                );
+                            } else {
+                                update(value.filter((v) => v.name !== option.name || v.kind !== option.kind));
+                            }
+                        }}
+                        checked={value.find((f) => f.name === option.name && f.kind === option.kind) != null}
+                    />{' '}
+                    {option.name} : {option.kind}
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const ImportForm = ({ value, update }: { value: Import; update: (v: Import) => void }) => {
+    return (
+        <div>
+            <strong>Source</strong>
+            <ImportSource value={value.source} update={(source) => update({ ...value, source })} />
+            MACROS PLUGINS ITEMS
+            <ImportPlugins source={value.source} value={value.plugins} update={(plugins) => update({ ...value, plugins })} />
+            <ImportMacros source={value.source} value={value.macros} update={(macros) => update({ ...value, macros })} />
+            <ImportItems source={value.source} value={value.items} update={(items) => update({ ...value, items })} />
+        </div>
+    );
+};
+
+const NewImport = ({ onSave }: { onSave: (v: Import) => void }) => {
+    const [value, setValue] = useState({ source: { type: 'project', module: '' }, macros: [], plugins: [], items: [] } as Import);
+
+    return (
+        <div>
+            <ImportForm value={value} update={setValue} />
+            <button onClick={() => onSave(value)}>Add</button>
+        </div>
+    );
+};
+
+export const ModuleImports = () => {
+    const store = useStore();
+    const module = useModule();
+    if (!Array.isArray(module.imports)) module.imports = [];
+
+    return (
+        <div>
+            IMPORT
+            {module.imports.map((im, i) => (
+                <div key={i}>{JSON.stringify(im)}</div>
+            ))}
+            <NewImport
+                onSave={(im) => {
+                    store.updateModule({ id: module.id, imports: module.imports.concat([im]) });
+                }}
+            />
+        </div>
+    );
+};
 
 export const Editor = () => {
     const store = useStore();
@@ -238,6 +222,7 @@ export const Editor = () => {
         <>
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 <KeyHandler refs={refs} />
+                <ModuleImports />
                 <Hover>
                     <Drag>
                         {module.roots.map(

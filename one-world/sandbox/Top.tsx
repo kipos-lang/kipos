@@ -3,7 +3,7 @@ import React, { useMemo, useCallback, createContext, useEffect, useRef, useState
 import { genId } from '../keyboard/ui/genId';
 import { Path, lastChild, pathWithChildren } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
-import { DragCtx, noopDrag, useUpdate } from './Editor';
+import { DragCtx, noopDrag, useUpdate } from './useProvideDrag';
 import { RenderNode } from './render/RenderNode';
 import { AnnotationText, EvaluationResult, FailureKind, LocatedTestResult, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';

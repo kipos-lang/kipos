@@ -1,7 +1,7 @@
 import { css } from 'goober';
 import React from 'react';
 import { useState } from 'react';
-import { useUpdate } from './Editor';
+import { useUpdate } from './useProvideDrag';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 
