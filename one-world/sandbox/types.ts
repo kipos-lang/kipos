@@ -25,6 +25,7 @@ export type Import = {
     macros: string[];
     plugins: string[];
     items: { name: string; kind: string; rename?: string }[];
+    all?: boolean;
 };
 
 export type Module = {
@@ -34,7 +35,7 @@ export type Module = {
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
 
-    imports: Import[];
+    imports: string[];
 
     pluginConfig: Record<string, any>;
     roots: string[];

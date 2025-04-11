@@ -123,7 +123,7 @@ const ruleSummary = (rule: Rule<any>): string => {
             return `${rule.type}(...,${rule.meta})`;
         case 'table':
         case 'list':
-            return `${rule.type}(...,${JSON.stringify(rule.kind)})`;
+            return `${rule.type}(...,kind=${JSON.stringify(rule.kind)})`;
         case 'any':
         case 'none':
         case 'number':

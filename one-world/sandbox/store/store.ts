@@ -273,6 +273,7 @@ const update = (mod: Module, language: Language<any, any, any>, action: Action) 
             config: language.parser.config,
             tops: { ...mod.toplevels },
             roots: mod.roots,
+            imports: mod.imports,
             history: mod.history,
             selections: mod.selections,
         },
@@ -290,6 +291,11 @@ const update = (mod: Module, language: Language<any, any, any>, action: Action) 
     if (mod.roots !== result.roots) {
         evts.push(`module:${mod.id}`, `module:${mod.id}:roots`);
         mod.roots = result.roots;
+    }
+
+    if (mod.imports !== result.imports) {
+        evts.push(`module:${mod.id}`, `module:${mod.id}:imports`);
+        mod.imports = result.imports;
     }
 
     mod.selections.forEach((sel) => {

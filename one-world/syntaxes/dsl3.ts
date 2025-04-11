@@ -24,6 +24,7 @@ export type Event =
     | { type: 'mismatch'; loc?: Loc; message: TraceText };
 
 export type Ctx = {
+    allowIdKwds?: boolean;
     ref<T>(name: string): T;
     scopes: { name: string; kind: string; loc: string }[][];
     usages: {
@@ -120,6 +121,7 @@ type Result<T> = { value?: T; consumed: number };
 export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<T> => {
     if (ctx.rules.comment) {
         const { comment, ...without } = ctx.rules;
+        ctx.trace?.({ type: 'stack-push', loc: parent.nodes[at]?.loc, text: ['> comment'] });
         const cm = match_(ctx.rules.comment, { ...ctx, rules: without }, parent, at);
         if (cm) {
             for (let i = 0; i < cm.consumed; i++) {
@@ -128,6 +130,7 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
             }
             at += cm.consumed;
         }
+        ctx.trace?.({ type: 'stack-pop' });
     }
     ctx.trace?.({
         type: 'stack-push',
@@ -148,12 +151,17 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
     const node = parent.nodes[at];
     switch (rule.type) {
         case 'kwd':
-            if (node?.type !== 'id' || node.text !== rule.kwd) return ctx.trace?.({ type: 'mismatch', message: 'not the kwd "' + rule.kwd + '"' });
+            if (node?.type !== 'id' || node.text !== rule.kwd)
+                return ctx.trace?.({
+                    type: 'mismatch',
+                    message: 'not the kwd "' + rule.kwd + '" - ' + (node.type === 'id' ? node.text : `type: ${node.type}`),
+                });
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
         case 'reference': {
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             let src = undefined;
             for (let i = ctx.scopes.length - 1; i >= 0; i--) {
@@ -172,7 +180,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: node, consumed: 1 };
         }
         case 'declaration': {
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
             ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
@@ -180,7 +189,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: node, consumed: 1 };
         }
         case 'id':
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             return { value: node, consumed: 1 };
         case 'number': {

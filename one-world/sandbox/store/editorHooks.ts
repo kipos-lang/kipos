@@ -129,7 +129,7 @@ export function useAnnotations(top: string, key: string) {
     return useMemo(() => {
         // store.compiler.
         const hid = estore.state.dependencies.components.pointers[top];
-        const fromValidation = estore.state.validationResults[hid]?.annotations[top][key];
+        const fromValidation = estore.state.validationResults[hid]?.annotations[top]?.[key];
         return fromValidation;
     }, [tick, key]);
 }

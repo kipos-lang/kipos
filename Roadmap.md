@@ -1,4 +1,56 @@
 
+# IMportss UI
+
+## As a Codes
+
+from (autocompleted-ref) import {a; b; c; d}
+from .
+
+vendored URLs ... should be to a manifest file,
+which includes a name & version.
+
+soo if you have a ... 'ref' node, it's not an ID node.
+and it shouldnt be editable.
+
+ok so what iff .
+the imports section is ... using the structured editor, but
+the CST is not the source of truth; the AST is.
+that would be a cool way to do it.
+
+AHH OK so.
+Here's the thing.
+We'll have /imports/ toplevels.
+anddd they'll be ... parsed differently?
+
+OK ALSO if a submodule is /unnamed/, it just /inherits imports from up the chain/. Once it has a name, it has to be disciplined about imports.
+
+thisss also means I can let the masses decide what their import syntax is yay.
+
+ALSO:
+- in the parseResult, have the ability to report ... "lockdowns", that is, "convert this /id/ into /ref/" ... or honestly maybe any kind of change you want.
+Lockdowns then get applied, maybe when you unfocus the toplevel? Or something like that. Or we could have them be opt-in, depending.
+
+BUT this does mean I want a node type that is /ref/, which would be an uneditable unselectable block.
+ok but I don't ... quite ... need to do that just yet.
+yeah that can wait.
+
+So, I need the /module/ to have ... an /imports/ section.
+which we parse before we parse anything else.
+
+ok y'all. imports is now a list of toplevel ids.
+
+## As a Form
+
+`from x import {a, b, c}`
+anddd I do believe I want a way to import *
+
+OK ORDER OF OPS
+
+- [x] a basic way to ... modify imports
+- [ ] now incorporate them ... into evaluation?
+  - ideally, should only re-evaluate items that depend on added/removed imports
+
+
 # Grand Master Plan
 What am I working towards? Probably ... macros?
 yeah. that'll test a bunch of stuff.

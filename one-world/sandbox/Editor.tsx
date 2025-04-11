@@ -15,6 +15,7 @@ import { Import, Toplevel } from './types';
 import { DebugSidebar } from './DebugSidebar';
 import { useDependencyGraph, useModule, useSelectedTop, useSelection } from './store/editorHooks';
 import { useProvideDrag, useProvideHover, useUpdate } from './useProvideDrag';
+import { CirclePlusIcon } from './icons';
 
 // const useMake
 
@@ -35,6 +36,7 @@ const ImportSource = ({ value, update }: { value: Import['source']; update: (v: 
                     {mc['root'].map((id) => (
                         <div key={id}>
                             <button
+                                disabled={value.type === 'project' && value.module === id}
                                 onClick={() =>
                                     update({
                                         type: 'project',
@@ -122,25 +124,27 @@ const ImportItems = ({ source, value, update }: { source: Import['source']; valu
         <div>
             {options.map((option, i) => (
                 <div key={i}>
-                    <input
-                        type="checkbox"
-                        onChange={(evt) => {
-                            if (evt.target.checked) {
-                                update(
-                                    value.concat([
-                                        {
-                                            name: option.name,
-                                            kind: option.kind,
-                                        },
-                                    ]),
-                                );
-                            } else {
-                                update(value.filter((v) => v.name !== option.name || v.kind !== option.kind));
-                            }
-                        }}
-                        checked={value.find((f) => f.name === option.name && f.kind === option.kind) != null}
-                    />{' '}
-                    {option.name} : {option.kind}
+                    <label>
+                        <input
+                            type="checkbox"
+                            onChange={(evt) => {
+                                if (evt.target.checked) {
+                                    update(
+                                        value.concat([
+                                            {
+                                                name: option.name,
+                                                kind: option.kind,
+                                            },
+                                        ]),
+                                    );
+                                } else {
+                                    update(value.filter((v) => v.name !== option.name || v.kind !== option.kind));
+                                }
+                            }}
+                            checked={value.find((f) => f.name === option.name && f.kind === option.kind) != null}
+                        />{' '}
+                        {option.name} : {option.kind}
+                    </label>
                 </div>
             ))}
         </div>
@@ -152,10 +156,17 @@ const ImportForm = ({ value, update }: { value: Import; update: (v: Import) => v
         <div>
             <strong>Source</strong>
             <ImportSource value={value.source} update={(source) => update({ ...value, source })} />
-            MACROS PLUGINS ITEMS
-            <ImportPlugins source={value.source} value={value.plugins} update={(plugins) => update({ ...value, plugins })} />
-            <ImportMacros source={value.source} value={value.macros} update={(macros) => update({ ...value, macros })} />
-            <ImportItems source={value.source} value={value.items} update={(items) => update({ ...value, items })} />
+            <label style={{ display: 'block' }}>
+                <input type="checkbox" checked={!!value.all} onChange={(evt) => update({ ...value, all: evt.target.checked })} />
+                All
+            </label>
+            {value.all ? null : (
+                <>
+                    <ImportPlugins source={value.source} value={value.plugins} update={(plugins) => update({ ...value, plugins })} />
+                    <ImportMacros source={value.source} value={value.macros} update={(macros) => update({ ...value, macros })} />
+                    <ImportItems source={value.source} value={value.items} update={(items) => update({ ...value, items })} />
+                </>
+            )}
         </div>
     );
 };
@@ -171,25 +182,25 @@ const NewImport = ({ onSave }: { onSave: (v: Import) => void }) => {
     );
 };
 
-export const ModuleImports = () => {
-    const store = useStore();
-    const module = useModule();
-    if (!Array.isArray(module.imports)) module.imports = [];
+// export const ModuleImports = () => {
+//     const store = useStore();
+//     const module = useModule();
+//     if (!Array.isArray(module.imports)) module.imports = [];
 
-    return (
-        <div>
-            IMPORT
-            {module.imports.map((im, i) => (
-                <div key={i}>{JSON.stringify(im)}</div>
-            ))}
-            <NewImport
-                onSave={(im) => {
-                    store.updateModule({ id: module.id, imports: module.imports.concat([im]) });
-                }}
-            />
-        </div>
-    );
-};
+//     return (
+//         <div>
+//             IMPORT
+//             {module.imports.map((im, i) => (
+//                 <div key={i}>{JSON.stringify(im)}</div>
+//             ))}
+//             <NewImport
+//                 onSave={(im) => {
+//                     store.updateModule({ id: module.id, imports: module.imports.concat([im]) });
+//                 }}
+//             />
+//         </div>
+//     );
+// };
 
 export const Editor = () => {
     const store = useStore();
@@ -218,12 +229,39 @@ export const Editor = () => {
         });
     }, [deps, module.roots]);
 
+    if (!module.imports || (module.imports.length && typeof module.imports[0] !== 'string')) module.imports = [];
+
     return (
         <>
             <div style={{ flex: 1, padding: 32, overflow: 'auto' }}>
                 <KeyHandler refs={refs} />
-                <ModuleImports />
                 <Hover>
+                    <Drag>
+                        <div
+                            className={css({
+                                padding: '8px 16px',
+                                boxShadow: `0 1px 4px ${zedlight['info.background']}`,
+                                background: zedlight['info.background'],
+                                borderRadius: '4px',
+                            })}
+                        >
+                            <div>
+                                Imports
+                                <span
+                                    onClick={() => {
+                                        store.update(module.id, { type: 'new-import' });
+                                    }}
+                                >
+                                    <CirclePlusIcon style={{ fontSize: 20, cursor: 'pointer', marginBottom: -4, marginLeft: 8 }} />
+                                </span>
+                            </div>
+                            {module.imports.map(
+                                (id, i): React.ReactNode => (
+                                    <Top id={id} key={id} name={names[i]} />
+                                ),
+                            )}
+                        </div>
+                    </Drag>
                     <Drag>
                         {module.roots.map(
                             (id, i): React.ReactNode => (

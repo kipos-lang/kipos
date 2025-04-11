@@ -16,6 +16,7 @@ import { argify, atomify } from '../../keyboard/selections';
 
 export type AppState = {
     config: Config;
+    imports: string[];
     roots: string[];
     tops: Record<string, Toplevel>;
     selections: NodeSelection[];
@@ -117,6 +118,7 @@ export type Action =
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual }
     | { type: 'selections'; selections: NodeSelection[] }
+    | { type: 'new-import' }
     | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'rm-tl'; id: string }
     | { type: 'paste'; replace?: Path; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
@@ -263,6 +265,25 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
             const tops = { ...state.tops };
             delete tops[action.id];
             return { ...state, roots, tops, selections: [{ start: sel }] };
+        }
+
+        case 'new-import': {
+            const tid = genId();
+            const rid = genId();
+            return {
+                ...state,
+                tops: {
+                    ...state.tops,
+                    [tid]: {
+                        id: tid,
+                        root: rid,
+                        children: [],
+                        nodes: { [rid]: { type: 'id', text: '', loc: rid } },
+                    },
+                },
+                imports: state.imports.concat([tid]),
+                selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
+            };
         }
 
         case 'new-tl': {

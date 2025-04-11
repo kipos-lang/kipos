@@ -1,14 +1,14 @@
 import index from 'isomorphic-git';
 import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
-import { Module, Toplevel } from '../types';
+import { Import, Module, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
 import { Annotation, Compiler, Language, ParseKind, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
 
 export type EditorState<AST, TypeInfo> = {
-    parseResults: { [top: string]: ParseResult<AST> };
+    parseResults: { [top: string]: ParseResult<AST | Import> };
     // validation, is ~by "top", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
     validationResults: { [top: string]: ValidateResult<TypeInfo> };
@@ -56,6 +56,11 @@ export class EditorStore<AST, TypeInfo> {
     }
 
     initialProcess() {
+        if (!Array.isArray(this.module.imports)) this.module.imports = [];
+        this.module.imports.forEach((id) => {
+            const top = this.module.toplevels[id];
+            this.state.parseResults[top.id] = this.language.parser.parseImport(root({ top }));
+        });
         this.module.roots.forEach((id) => {
             const top = this.module.toplevels[id];
             this.state.parseResults[top.id] = this.language.parser.parse([], root({ top }));
@@ -69,6 +74,19 @@ export class EditorStore<AST, TypeInfo> {
         // const depsChanged = []
 
         ids.forEach((id) => {
+            if (this.module.imports.includes(id)) {
+                const result = this.language.parser.parseImport(root({ top: this.module.toplevels[id] }));
+
+                Object.entries(result.ctx.meta).forEach(([loc, value]) => {
+                    if (!equal(value, this.state.parseResults[id]?.ctx.meta[loc])) {
+                        changed[loc] = true;
+                    }
+                });
+
+                this.state.parseResults[id] = result;
+                return;
+            }
+
             const result = this.language.parser.parse([], root({ top: this.module.toplevels[id] }));
 
             Object.entries(result.ctx.meta).forEach(([loc, value]) => {
@@ -112,17 +130,25 @@ export class EditorStore<AST, TypeInfo> {
                 if (!onlyUpdate.includes(id)) continue;
             }
             let skip = false;
+            let parseResults: { tid: string; ast: AST }[] = [];
             for (let cid of this.state.dependencies.components.entries[id]) {
                 if (!this.state.parseResults[cid]) {
                     // This should be ... smoother.
                     throw new Error(`something didnt get parsed: ${cid}`);
                 }
-                if (!this.state.parseResults[cid].result) {
+                const { result } = this.state.parseResults[cid];
+                if (!result) {
                     skip = true;
                     break;
                     // This should be ... smoother.
                     // throw new Error(`parse error for ${cid}`);
                 }
+                if (!Array.isArray(this.module.imports)) this.module.imports = [];
+                if (this.module.imports.includes(cid)) {
+                    // Imports are skipped for validation
+                    continue;
+                }
+                parseResults.push({ tid: cid, ast: result as AST });
             }
             if (skip) {
                 console.warn(`skipping validation for ${id} because of parse error`);
@@ -136,7 +162,7 @@ export class EditorStore<AST, TypeInfo> {
             // const prev = results[id];
             this.state.validationResults[id] = this.language.validate(
                 this.module.id,
-                this.state.dependencies.components.entries[id].map((id) => ({ tid: id, ast: this.state.parseResults[id].result! })),
+                parseResults,
                 this.state.dependencies.headDeps[id].map((did) => this.state.validationResults[did].result),
             );
             // console.log(`typed ${id}`, results[id]);
@@ -146,7 +172,7 @@ export class EditorStore<AST, TypeInfo> {
             for (let cid of this.state.dependencies.components.entries[id]) {
                 if (changedKeys) {
                     // console.log(`annotations for`, cid, results[id].annotations[cid], this.prevAnnotations[cid]);
-                    Object.entries(this.state.validationResults[id].annotations[cid]).forEach(([k, ann]) => {
+                    Object.entries(this.state.validationResults[id].annotations[cid] ?? {}).forEach(([k, ann]) => {
                         if (!equal(ann, this.prevAnnotations[cid]?.[k])) {
                             changedKeys[k] = true;
                         }
@@ -204,7 +230,7 @@ export class EditorStore<AST, TypeInfo> {
         return spans;
     }
 
-    calculateDependencyGraph(parseResults: Record<string, ParseResult<AST>>): Dependencies {
+    calculateDependencyGraph(parseResults: Record<string, ParseResult<unknown>>): Dependencies {
         const available: { [kind: string]: { [name: string]: string[] } } = {};
         Object.entries(parseResults).forEach(([tid, results]) => {
             if (results.kind.type === 'definition') {

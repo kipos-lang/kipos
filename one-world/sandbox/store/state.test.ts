@@ -19,6 +19,7 @@ const initial = (): AppState => ({
     config: js,
     history: [],
     roots: ['a'],
+    imports: [],
     selections: [{ start: selStart({ root: { top: 'a', ids: [] }, children: ['b'] }, { type: 'id', end: 0 }) }],
     tops: { a: { children: [], id: 'a', nodes: { b: { type: 'id', text: '', loc: 'b' } }, root: 'b' } },
 });

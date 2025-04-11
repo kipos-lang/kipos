@@ -30,6 +30,7 @@ import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, TopItem, Type } from './algw-s2-types';
 import { genId } from '../keyboard/ui/genId';
+import { Import } from '../sandbox/types';
 
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
@@ -412,6 +413,67 @@ const rules = {
         seq(kwd('@@'), group('contents', { type: 'any' })),
         (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'raw', contents: ctx.ref<RecNode>('contents') } }),
     ),
+    source: tx<Import['source']>(
+        group(
+            'value',
+            or(
+                text({ type: 'none' }),
+                id(null),
+                // 'ref'
+            ),
+        ),
+        (ctx, src) => {
+            const value = ctx.ref<TextSpan<never>[] | Id<string>>('value');
+            if (Array.isArray(value)) {
+                const text = value
+                    .filter((v) => v.type === 'text')
+                    .map((v) => v.text)
+                    .join('');
+                return { type: 'vendor', src: text };
+            }
+            return { type: 'project', module: 'idk' };
+        },
+    ),
+    ['import']: tx<Import>(
+        list(
+            'spaced',
+            seq(
+                kwd('from'),
+                group(
+                    'source',
+                    or(
+                        text({ type: 'none' }),
+                        meta(id(null), 'constructor'),
+                        // 'ref'
+                    ),
+                ),
+                kwd('import'),
+                list(
+                    'curly',
+                    group(
+                        'items',
+                        star(
+                            or(
+                                list('spaced', seq(or(kwd('macro'), kwd('plugin')), id(null))),
+                                list('spaced', seq(id(null), kwd('as'), id(null))),
+                                id(null),
+                            ),
+                        ),
+                    ),
+                ),
+                opt(seq(kwd('using'), group('foreign', id(null)))),
+            ),
+        ),
+        (ctx, src) => {
+            // throw new Error('not yet');
+            return {
+                source: { type: 'vendor', src: 'lol' },
+                items: [],
+                macros: [],
+                plugins: [],
+            };
+        },
+    ),
     unquote: tx<Expr>(seq(kwd('`'), ref('expr', 'contents')), (ctx, src): Expr => ({ type: 'unquote', src, contents: ctx.ref<Expr>('contents') })),
     'expr..': or(
         ref('unquote'),
@@ -577,6 +639,11 @@ export const parser = {
         xml: true,
     },
     spans: () => [],
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined) {
+        const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
+        const res = match<Import>({ type: 'ref', name: 'import' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        return { result: res?.value, ctx: myctx };
+    },
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {
         const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
         macros.forEach((macro) => {

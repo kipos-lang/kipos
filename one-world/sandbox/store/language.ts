@@ -1,6 +1,7 @@
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
 import { Event, Src } from '../../syntaxes/dsl3';
+import { Import } from '../types';
 import { StackText } from './default-lang/validate';
 import { Dependencies } from './editorStore';
 
@@ -58,6 +59,7 @@ export type ParseResult<T> = {
 
 export type Parser<Macro, AST> = {
     config: Config;
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined): ParseResult<Import>;
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST>;
     spans(ast: AST): Src[];
 };

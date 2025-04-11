@@ -35,6 +35,30 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
     // intern: (ast, info) => ({ ast, info }),
     parser: {
         config: parser.config,
+        parseImport(node) {
+            const trace: Event[] = [];
+            const TRACE = false;
+            const result = parser.parseImport(
+                node,
+                TRACE
+                    ? (evt) => {
+                          trace.push(evt);
+                      }
+                    : undefined,
+            );
+            return {
+                input: node,
+                trace,
+                ctx: { meta: result.ctx.meta },
+                // Must have no references
+                externalReferences: [],
+                internalReferences: {},
+                ffiReferences: [],
+                result: result.result,
+                // hmmm maybe have type: 'import' here? hmmm.
+                kind: { type: 'evaluation' },
+            };
+        },
         parse(macros, node) {
             const trace: Event[] = [];
             const TRACE = false;
