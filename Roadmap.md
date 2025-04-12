@@ -1,4 +1,12 @@
 
+# Macros and Imports
+
+So the thing is, we want to be running macros at parse time,
+but the compiler and stuff all live in the web worker.
+THIS MEANS that if we're gonna have a macro or an editor plugin,
+the compiler needs to yeet back an evallable javascript bundle.
+and then we `eval` it on this side of the pond.
+
 # IMportss UI
 
 ## As a Codes

@@ -441,25 +441,28 @@ const rules = {
                 kwd('from'),
                 group(
                     'source',
-                    or(
-                        text({ type: 'none' }),
-                        meta(id(null), 'constructor'),
+                    meta(
+                        or(text({ type: 'none' }), id(null)),
+                        'constructor',
                         // 'ref'
                     ),
                 ),
                 kwd('import'),
-                list(
-                    'curly',
-                    group(
-                        'items',
-                        star(
-                            or(
-                                list('spaced', seq(or(kwd('macro'), kwd('plugin')), id(null))),
-                                list('spaced', seq(id(null), kwd('as'), id(null))),
-                                id(null),
+                or(
+                    list(
+                        'curly',
+                        group(
+                            'items',
+                            star(
+                                or(
+                                    list('spaced', seq(or(kwd('macro'), kwd('plugin')), meta(id(null), 'constructor'))),
+                                    list('spaced', seq(id(null), kwd('as'), meta(id(null), 'constructor'))),
+                                    meta(id(null), 'constructor'),
+                                ),
                             ),
                         ),
                     ),
+                    kwd('*'),
                 ),
                 opt(seq(kwd('using'), group('foreign', id(null)))),
             ),

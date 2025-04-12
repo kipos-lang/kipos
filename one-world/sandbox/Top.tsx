@@ -163,8 +163,15 @@ export const TopFailure = ({ id }: { id: string }) => {
                 borderRadius: '4px',
                 zIndex: 400,
                 fontSize: '60%',
-                overflow: 'auto',
                 padding: '4px',
+                overflow: 'hidden',
+                maxHeight: '1em',
+                maxWidth: '1em',
+                '&:hover': {
+                    maxHeight: 'none',
+                    overflow: 'auto',
+                    maxWidth: 'none',
+                },
             })}
         >
             {failure.map((fail, i) => {

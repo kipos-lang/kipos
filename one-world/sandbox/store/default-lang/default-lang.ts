@@ -56,7 +56,10 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 ffiReferences: [],
                 result: result.result,
                 // hmmm maybe have type: 'import' here? hmmm.
-                kind: { type: 'evaluation' },
+                kind: {
+                    type: 'definition',
+                    provides: result.result?.items ?? [],
+                },
             };
         },
         parse(macros, node) {

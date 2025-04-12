@@ -24,7 +24,7 @@ export type Import = {
           };
     macros: string[];
     plugins: string[];
-    items: { name: string; kind: string; rename?: string }[];
+    items: { name: string; loc: string; kind: string; rename?: string }[];
     all?: boolean;
 };
 
