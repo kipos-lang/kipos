@@ -9,48 +9,48 @@ import equal from 'fast-deep-equal';
 
 export type EditorState<AST, TypeInfo> = {
     parseResults: { [top: string]: ParseResult<AST | Import> };
-    // validation, is ~by "top", where if there's a dependency cycle,
+    // validation, is ~by "head", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
-    validationResults: { [top: string]: ValidateResult<TypeInfo> };
+    validationResults: { [head: string]: ValidateResult<TypeInfo> };
     spans: { [top: string]: Record<string, string[][]> };
-    // top -> deep list of dependent tops, in the right order
-    // so we can just go down the list, validating & executing
-    // each one, and things will get updated correctly.
-    // deepDependencies: Record<string, string[]>;
     dependencies: Dependencies;
+    prevAnnotations: Record<string, Record<string, Annotation[]>>;
 };
 
 export type Dependencies = {
     components: Components;
     headDeps: Record<string, string[]>;
+    // top -> deep list of dependent tops, in the right order
+    // so we can just go down the list, validating & executing
+    // each one, and things will get updated correctly.
     deepDeps: Record<string, string[]>;
     dependents: Record<string, string[]>;
     traversalOrder: string[];
 };
 
-export class EditorStore<AST, TypeInfo> {
-    state: EditorState<AST, TypeInfo>;
-    module: Module;
-    language: Language<any, AST, TypeInfo>;
-    prevAnnotations: Record<string, Record<string, Annotation[]>> = {};
-    // compiler: Compiler<AST, TypeInfo>;
+export class EditorStore {
+    state: Record<string, EditorState<any, any>>;
+    modules: Record<string, Module>;
+    languages: Record<string, Language<any, any, any>>;
+    compilers: Record<string, Compiler<any, any>>;
 
-    constructor(module: Module, language: Language<any, AST, TypeInfo>) {
+    constructor(modules: Record<string, Module>, languages: Record<string, Language<any, AST, TypeInfo>>) {
         this.state = {
-            parseResults: {},
-            validationResults: {},
-            spans: {},
-            dependencies: {
-                components: { pointers: {}, entries: {} },
-                headDeps: {},
-                deepDeps: {},
-                traversalOrder: [],
-                dependents: {},
-            },
+            // parseResults: {},
+            // validationResults: {},
+            // spans: {},
+            // dependencies: {
+            //     components: { pointers: {}, entries: {} },
+            //     headDeps: {},
+            //     deepDeps: {},
+            //     traversalOrder: [],
+            //     dependents: {},
+            // },
         };
-        this.module = module;
-        this.language = language;
+        this.modules = modules;
+        this.languages = languages;
         this.initialProcess();
+        this.compilers = {};
         // @ts-ignore
         // window.compiler = this.compiler;
     }

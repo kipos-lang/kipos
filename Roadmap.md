@@ -1,4 +1,12 @@
 
+# Module Dependencies
+
+so my editorstore is nice, but insufficient.
+also it's not really doing too much work by itself.
+
+Soo I think I need it to be in charge of all the modules
+at once, as well as the compiler.
+
 # Macros and Imports
 
 So the thing is, we want to be running macros at parse time,
@@ -8,6 +16,8 @@ the compiler needs to yeet back an evallable javascript bundle.
 and then we `eval` it on this side of the pond.
 
 # IMportss UI
+
+gonna be parsed, why nott
 
 ## As a Codes
 
