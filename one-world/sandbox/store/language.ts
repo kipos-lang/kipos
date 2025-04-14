@@ -21,10 +21,12 @@ import { Dependencies } from './editorStore';
 
 export type Meta = { kind?: string; placeholder?: string };
 
+export type AccessControlLevel = 'public' | 'package' | 'module' | 'submodule';
+
 export type ParseKind =
     | {
           type: 'definition';
-          provides: { loc: string; name: string; kind: string }[];
+          provides: { loc: string; name: string; kind: string; accessControl: AccessControlLevel }[];
           macros?: { loc: string; name: string }[];
       }
     | { type: 'evaluation' }

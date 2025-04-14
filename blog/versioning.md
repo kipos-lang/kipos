@@ -1,3 +1,29 @@
+Extracted post
+
+
+
+
+
+WHAT if we just don't allow breaking? like you have to do a clean break if you want to break. "A whole new ... world"
+in the "go" sense of things.
+
+🤔 need to think about how "reverting" works; like if you publish a version that breaks a thing, and then want to un-break it, what does that look like?
+
+
+
+
+
+
+Context:
+almost no language's compiler has first-class "knowledge" about the division between libraries. At compile-time, there's no difference between "a file in the project" and "a file in the library".
+
+Assumptions:
+these is a difference between "internal" code (not subject to versioning / "breaking change" constraints), and "public" code
+
+we want to make it easy and natural to limit the maintenance interface of a library as much as possible
+
+---------------
+
 # Validated Versioning
 automated versioning you can actually trust
 
@@ -82,43 +108,3 @@ Breaking =
 - a behavior change (not accompanied by a migration) that causes a previous versions test to break
 
 ----
-
-# The Pitch
-
-Upgrading libraries is both (a) an annoying chore, and (b) has high uncertainty about how "safe" it is to do.
-We rely on semantic versioning (if we're lucky) to signpost when a library undergoes a "breaking change", but determining the scope of whatever "breaking change" happened is often nontrivial.
-
-Versioning is "stringly tyepd", in that we rely on documentation, readmes, and changelogs (none of which can be statically validated) to indicte versioning guarantees.
-
-On problem closely tied to versioning is that of "API surface area". In many languages, there's no way to have a "private module" -- if you want definitions to be usable in other modules in the package, they also are made available to consumers of the package (Java, Go, NodeJS, OCaml, Elm, Haskell, Koka, Scala), and in some languages (Python, PHP) you can't even have private declarations. (Rust, Swift, and OCaml+Dune stand out as exceptions to this, although I still have quibbles).
-
-This leaves you reliant on convention and documentation to indicate "what the publicly-dependable API consists of" (e.g. "don't import the module named Internal, it may change at any time").
-
-Wouldn't it be nice if our languages actually supported limiting API surface area of a library?
-
-Of course, once we've locked down the API surface area, there's still the problem of indicating when a version includes breaking changes. Why leave that up to changelogs, when we can do better?
-
-Here's the vision: breaking changes are statically validatable through a combination of type compatability and test compatability.
-
-1. if the type of a function changes in a non-backwards-compatible way, that's a breaking change
-2. if any tests of that function from the previous version fail with the new version's function, that's a breaking change
-
-In this way, the test suite of the public API represents the behavioral guarantees of the library.
-
-This can also allow the package manager to isolate breaking changes to the specific declaration that they impact -- if your project doesn't use that function, then the version isn't a breaking change for you.
-
-We can take things one step further by introducing migration macros. There is a class of breaking changes that can be adopted by making a relatively simple source code transformation of each call site.
-
-
-
-
-
-
-
-Context:
-almost no language's compiler has first-class "knowledge" about the division between libraries. At compile-time, there's no difference between "a file in the project" and "a file in the library".
-
-Assumptions:
-these is a difference between "internal" code (not subject to versioning / "breaking change" constraints), and "public" code
-
-we want to make it easy and natural to limit the maintenance interface of a library as much as possible

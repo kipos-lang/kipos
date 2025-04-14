@@ -192,7 +192,15 @@ Scala (modules are called "packages")
 
 Roc!
 
+Gleam!
 
+Lean4!
+
+
+Odin
+- all directories are modules
+- all modules are public
+- declarations are private by default
 
 
 

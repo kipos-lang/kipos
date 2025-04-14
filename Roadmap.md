@@ -1,4 +1,43 @@
 
+# Let's think about monorepos
+
+The question being: do I limit the editor to editing a single "package"?
+This seems like a thing that would be fine to do. Right?
+I can revisit later.
+
+# Access control
+
+Yeah so here's what I want for access control:
+
+Package = a versioned thing that gets published
+Module = a namespace, corresponds to a 'file'
+Submodule = a subnamespace, a section within a file
+
+Each module has a default toplevel submodule.
+
+- public (available outside of the package)
+- internal (only within this package)
+- local (within this module or any submodules)
+- private (only within this submodule)
+
+*thinking* should I be able to mark modules as private?
+I don't think we need to...
+
+Although, it might be useful to be able to mark a submodule as private?
+or rather, as "local". hm, but then that would make marking something as "public" meaningless, right?
+
+Maybe you could ... set a flag at the module level (or package level?) that would determine the "default" access level of any definitions?
+
+hrmhrmhrm.
+So, langauges would have opinions about what the default is, presumably.
+But also, users would have opinions.
+And modules could be cross-language.
+
+So it should really not be specified by the language.
+
+ok I'm actually not going to bother with "customizable defaults" for the moment.
+maybe I'll come back to it.
+
 # Module Dependencies
 
 so my editorstore is nice, but insufficient.

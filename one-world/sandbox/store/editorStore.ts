@@ -34,7 +34,7 @@ export class EditorStore {
     languages: Record<string, Language<any, any, any>>;
     compilers: Record<string, Compiler<any, any>>;
 
-    constructor(modules: Record<string, Module>, languages: Record<string, Language<any, AST, TypeInfo>>) {
+    constructor(modules: Record<string, Module>, languages: Record<string, Language<any, any, any>>) {
         this.state = {
             // parseResults: {},
             // validationResults: {},
@@ -56,145 +56,168 @@ export class EditorStore {
     }
 
     initialProcess() {
-        if (!Array.isArray(this.module.imports)) this.module.imports = [];
-        this.module.imports.forEach((id) => {
-            const top = this.module.toplevels[id];
-            this.state.parseResults[top.id] = this.language.parser.parseImport(root({ top }));
+        let language = 'default';
+
+        // TODO: do a toposort on them
+        // TODO: also know what language we're dealing with
+        Object.keys(this.modules).forEach((key) => {
+            this.state[key] = {
+                parseResults: {},
+                validationResults: {},
+                spans: {},
+                dependencies: {
+                    components: { pointers: {}, entries: {} },
+                    headDeps: {},
+                    deepDeps: {},
+                    traversalOrder: [],
+                    dependents: {},
+                },
+                prevAnnotations: {},
+            };
+
+            if (!Array.isArray(this.modules[key].imports)) this.modules[key].imports = [];
+            this.modules[key].imports.forEach((id) => {
+                const top = this.modules[key].toplevels[id];
+                this.state[key].parseResults[top.id] = this.languages[language].parser.parseImport(root({ top }));
+            });
+            this.modules[key].roots.forEach((id) => {
+                const top = this.modules[key].toplevels[id];
+                this.state[key].parseResults[top.id] = this.languages[language].parser.parse([], root({ top }));
+            });
+            console.log('parsed', this.state.parseResults);
+            this.state[key].dependencies = this.calculateDependencyGraph(this.state[key].parseResults);
+            this.runValidation(key);
         });
-        this.module.roots.forEach((id) => {
-            const top = this.module.toplevels[id];
-            this.state.parseResults[top.id] = this.language.parser.parse([], root({ top }));
-        });
-        console.log('parsed', this.state.parseResults);
-        this.state.dependencies = this.calculateDependencyGraph(this.state.parseResults);
-        this.runValidation();
     }
 
-    updateTops(ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>): string[] {
-        // const depsChanged = []
+    updateTops(mod: string, ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>): string[] {
+        const lang = this.languages[this.modules[mod].languageConfiguration];
+        const module = this.modules[mod];
 
         ids.forEach((id) => {
-            if (this.module.imports.includes(id)) {
-                const result = this.language.parser.parseImport(root({ top: this.module.toplevels[id] }));
+            if (module.imports.includes(id)) {
+                const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
 
                 Object.entries(result.ctx.meta).forEach(([loc, value]) => {
-                    if (!equal(value, this.state.parseResults[id]?.ctx.meta[loc])) {
+                    if (!equal(value, this.state[mod].parseResults[id]?.ctx.meta[loc])) {
                         changed[loc] = true;
                     }
                 });
 
-                this.state.parseResults[id] = result;
+                this.state[mod].parseResults[id] = result;
                 return;
             }
 
-            const result = this.language.parser.parse([], root({ top: this.module.toplevels[id] }));
+            const result = lang.parser.parse([], root({ top: module.toplevels[id] }));
 
             Object.entries(result.ctx.meta).forEach(([loc, value]) => {
-                if (!equal(value, this.state.parseResults[id]?.ctx.meta[loc])) {
+                if (!equal(value, this.state[mod].parseResults[id]?.ctx.meta[loc])) {
                     changed[loc] = true;
                 }
             });
 
-            this.state.parseResults[id] = result;
+            this.state[mod].parseResults[id] = result;
         });
 
         // TODO: do some caching so we don't recalc this on every update.
-        const newDeps = this.calculateDependencyGraph(this.state.parseResults);
+        const newDeps = this.calculateDependencyGraph(this.state[mod].parseResults);
         const otherNotified: string[] = [];
         // If we /leave/ a mutually recursive group, we need to notify the ones that were left
         ids.forEach((id) => {
-            const prevhid = this.state.dependencies.components.pointers[id];
+            const prevhid = this.state[mod].dependencies.components.pointers[id];
             const nowhid = newDeps.components.pointers[id];
             if (prevhid !== nowhid) {
-                otherNotified.push(...(this.state.dependencies.components.entries[prevhid] ?? []));
+                otherNotified.push(...(this.state[mod].dependencies.components.entries[prevhid] ?? []));
             }
         });
         // console.log('other notified', ids, otherNotified);
-        this.state.dependencies = newDeps;
-        return this.runValidation(ids.concat(otherNotified), changedKeys);
+        this.state[mod].dependencies = newDeps;
+        return this.runValidation(mod, ids.concat(otherNotified), changedKeys);
     }
 
-    runValidation(changedTops?: string[], changedKeys?: Record<string, true>): string[] {
-        if (!this.language.validate) return [];
+    runValidation(mod: string, changedTops?: string[], changedKeys?: Record<string, true>): string[] {
+        const lang = this.languages[this.modules[mod].languageConfiguration];
+        const module = this.modules[mod];
+        if (!lang.validate) return [];
         let onlyUpdate = null as null | string[];
         if (changedTops) {
             onlyUpdate = [];
             changedTops.forEach((id) => {
-                const hid = this.state.dependencies.components.pointers[id];
+                const hid = this.state[mod].dependencies.components.pointers[id];
                 if (!onlyUpdate!.includes(hid)) onlyUpdate!.push(hid);
             });
         }
         // Ok, so.
-        for (let id of this.state.dependencies.traversalOrder) {
+        for (let id of this.state[mod].dependencies.traversalOrder) {
             if (onlyUpdate) {
                 if (!onlyUpdate.includes(id)) continue;
             }
             let skip = false;
-            let parseResults: { tid: string; ast: AST }[] = [];
-            for (let cid of this.state.dependencies.components.entries[id]) {
-                if (!this.state.parseResults[cid]) {
+            let parseResults: { tid: string; ast: any }[] = [];
+            for (let cid of this.state[mod].dependencies.components.entries[id]) {
+                if (!this.state[mod].parseResults[cid]) {
                     // This should be ... smoother.
                     throw new Error(`something didnt get parsed: ${cid}`);
                 }
-                const { result } = this.state.parseResults[cid];
+                const { result } = this.state[mod].parseResults[cid];
                 if (!result) {
                     skip = true;
                     break;
                     // This should be ... smoother.
                     // throw new Error(`parse error for ${cid}`);
                 }
-                if (!Array.isArray(this.module.imports)) this.module.imports = [];
-                if (this.module.imports.includes(cid)) {
+                if (!Array.isArray(module.imports)) module.imports = [];
+                if (module.imports.includes(cid)) {
                     // Imports are skipped for validation
                     continue;
                 }
-                parseResults.push({ tid: cid, ast: result as AST });
+                parseResults.push({ tid: cid, ast: result });
             }
             if (skip) {
                 console.warn(`skipping validation for ${id} because of parse error`);
                 continue;
             }
-            for (let did of this.state.dependencies.headDeps[id]) {
-                if (!this.state.validationResults[did]) {
+            for (let did of this.state[mod].dependencies.headDeps[id]) {
+                if (!this.state[mod].validationResults[did]) {
                     throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
                 }
             }
             // const prev = results[id];
-            this.state.validationResults[id] = this.language.validate(
-                this.module.id,
+            this.state[mod].validationResults[id] = lang.validate(
+                module.id,
                 parseResults,
-                this.state.dependencies.headDeps[id].map((did) => this.state.validationResults[did].result),
+                this.state[mod].dependencies.headDeps[id].map((did) => this.state[mod].validationResults[did].result),
             );
             // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
             // to indicate that a value exists but has type errors
-            for (let cid of this.state.dependencies.components.entries[id]) {
+            for (let cid of this.state[mod].dependencies.components.entries[id]) {
                 if (changedKeys) {
                     // console.log(`annotations for`, cid, results[id].annotations[cid], this.prevAnnotations[cid]);
-                    Object.entries(this.state.validationResults[id].annotations[cid] ?? {}).forEach(([k, ann]) => {
-                        if (!equal(ann, this.prevAnnotations[cid]?.[k])) {
+                    Object.entries(this.state[mod].validationResults[id].annotations[cid] ?? {}).forEach(([k, ann]) => {
+                        if (!equal(ann, this.state[mod].prevAnnotations[cid]?.[k])) {
                             changedKeys[k] = true;
                         }
                     });
 
-                    Object.keys(this.prevAnnotations[cid] ?? {}).forEach((k) => {
-                        if (!this.state.validationResults[id].annotations[cid]?.[k]) {
+                    Object.keys(this.state[mod].prevAnnotations[cid] ?? {}).forEach((k) => {
+                        if (!this.state[mod].validationResults[id].annotations[cid]?.[k]) {
                             changedKeys[k] = true;
                         }
                     });
                 }
 
-                this.prevAnnotations[cid] = this.state.validationResults[id].annotations[cid];
+                this.state[mod].prevAnnotations[cid] = this.state[mod].validationResults[id].annotations[cid];
 
                 // this.state.irResults[cid] = this.language.intern(this.state.parseResults[cid].result!, results[id].result);
             }
 
-            for (let cid of this.state.dependencies.components.entries[id]) {
-                const prev = this.state.spans[cid];
-                this.state.spans[cid] = this.calculateSpans(cid, this.module.toplevels[cid], this.state.validationResults[id]);
+            for (let cid of this.state[mod].dependencies.components.entries[id]) {
+                const prev = this.state[mod].spans[cid];
+                this.state[mod].spans[cid] = this.calculateSpans(cid, module.toplevels[cid], this.state[mod].validationResults[id]);
                 if (changedKeys) {
-                    Object.entries(this.state.spans[cid]).forEach(([loc, spans]) => {
+                    Object.entries(this.state[mod].spans[cid]).forEach(([loc, spans]) => {
                         if (!prev) changedKeys[loc] = true;
                         else if (!equal(spans, prev[loc])) {
                             changedKeys[loc] = true;
@@ -206,14 +229,14 @@ export class EditorStore {
             // TODO: here's where we would determine whether the `results[id]` had meaningfully changed
             // from the previous one, and only then would we add dependencies to the onlyUpdate list.
             if (onlyUpdate) {
-                onlyUpdate.push(...(this.state.dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
+                onlyUpdate.push(...(this.state[mod].dependencies.dependents[id]?.filter((id) => !onlyUpdate.includes(id)) ?? []));
             }
         }
 
-        return onlyUpdate ?? this.state.dependencies.traversalOrder;
+        return onlyUpdate ?? this.state[mod].dependencies.traversalOrder;
     }
 
-    calculateSpans(tid: string, top: Toplevel, validation: ValidateResult<TypeInfo>) {
+    calculateSpans(tid: string, top: Toplevel, validation: ValidateResult<any>) {
         const spans: Record<string, string[][]> = {};
         const simpleSpans = findSpans(Object.values(validation.annotations[tid] ?? {}).flatMap((a) => a.map((a) => a.src)));
         Object.entries(top.nodes).forEach(([key, node]) => {
