@@ -9,6 +9,15 @@ ok, so
   but the problem is that macro evaluation is ... async.
   Ok we pretend it's sync for the moment.
 
+hrm ok. so we have sorted stuff.
+BUT these import stanzas, we've gotta track things down a bit better than that, right?
+what I'm thinking is this:
+- headDeps shows the local head deps, but I also need like a `importDeps` or something.
+
+when editing, parseInput can have knowledge of the exports of other modules, and lock things down.
+but during first parse, we can't. so we have to account for that.
+(although we can have knowledge of the names of other modules, so lets lock that down fo sho)
+
 
 
 # Let's think about monorepos

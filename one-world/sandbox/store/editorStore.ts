@@ -22,6 +22,7 @@ export type EditorState<AST, TypeInfo> = {
 export type Dependencies = {
     components: Components;
     headDeps: Record<string, string[]>;
+    importDeps: Record<string, { module: string; top: string }[]>;
     // top -> deep list of dependent tops, in the right order
     // so we can just go down the list, validating & executing
     // each one, and things will get updated correctly.
@@ -71,6 +72,7 @@ export class EditorStore {
                 spans: {},
                 dependencies: {
                     components: { pointers: {}, entries: {} },
+                    importDeps: {},
                     headDeps: {},
                     deepDeps: {},
                     traversalOrder: [],
@@ -86,7 +88,7 @@ export class EditorStore {
                 const res = this.languages[language].parser.parseImport(root({ top }));
                 this.state[key].importResults[top.id] = res;
                 if (res.result) {
-                    console.log('`parse', res);
+                    // console.log('`parse', res);
                     if (res.result.source.type === 'project') {
                         const other = modulesByName[res.result.source.module];
                         if (other != null) {
@@ -113,8 +115,8 @@ export class EditorStore {
         }
         sorted.reverse();
 
-        console.log('GRAPH MODULES');
-        console.log(moduleGraph, components, uncycled, sorted);
+        // console.log('GRAPH MODULES');
+        // console.log(moduleGraph, components, uncycled, sorted);
 
         sorted.forEach((key) => {
             if (components.entries[key].length !== 1) {
@@ -124,7 +126,7 @@ export class EditorStore {
                 const top = this.modules[key].toplevels[id];
                 this.state[key].parseResults[top.id] = this.languages[language].parser.parse([], root({ top }));
             });
-            this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults));
+            this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, {}));
             this.runValidation(key);
         });
 
@@ -161,6 +163,8 @@ export class EditorStore {
         const lang = this.languages[this.modules[mod].languageConfiguration];
         const module = this.modules[mod];
 
+        const imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } } = {};
+
         ids.forEach((id) => {
             if (module.imports.includes(id)) {
                 const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
@@ -172,6 +176,12 @@ export class EditorStore {
                 });
 
                 this.state[mod].importResults[id] = result;
+                // if (result.result) {
+                //     if (result.result.source.type === 'project')
+                //     result.result.items.forEach(item => {
+
+                //     })
+                // }
                 return;
             }
 
@@ -187,7 +197,7 @@ export class EditorStore {
         });
 
         // TODO: do some caching so we don't recalc this on every update.
-        const newDeps = calculateDependencyGraph(parseResultsDependencyInput(this.state[mod].parseResults));
+        const newDeps = calculateDependencyGraph(parseResultsDependencyInput(this.state[mod].parseResults, imports));
         const otherNotified: string[] = [];
         // If we /leave/ a mutually recursive group, we need to notify the ones that were left
         ids.forEach((id) => {
@@ -250,12 +260,11 @@ export class EditorStore {
                     throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
                 }
             }
-            // const prev = results[id];
-            this.state[mod].validationResults[id] = lang.validate(
-                module.id,
-                parseResults,
-                this.state[mod].dependencies.headDeps[id].map((did) => this.state[mod].validationResults[did].result),
-            );
+
+            const localDeps = this.state[mod].dependencies.headDeps[id].map((did) => this.state[mod].validationResults[did].result);
+            const projectDeps = [];
+
+            this.state[mod].validationResults[id] = lang.validate(module.id, parseResults, localDeps);
             // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
@@ -322,7 +331,10 @@ export class EditorStore {
     }
 }
 
-function parseResultsDependencyInput(parseResults: Record<string, ParseResult<unknown>>) {
+function parseResultsDependencyInput(
+    parseResults: Record<string, ParseResult<unknown>>,
+    imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } },
+) {
     const available: { [kind: string]: { [name: string]: string[] } } = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
         if (results.kind.type === 'definition') {
@@ -340,23 +352,35 @@ function parseResultsDependencyInput(parseResults: Record<string, ParseResult<un
     // NOTE: in some future time, exact dependencies ... may be only resolvable at inference time.
     // which means we'll have some spurious dependencies, but that's fine. you depend on everything that matches.
     const dependencies: Record<string, string[]> = {};
+    const importDeps: Record<string, { module: string; top: string }[]> = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
         if (!dependencies[tid]) dependencies[tid] = [];
+        if (!importDeps[tid]) importDeps[tid] = [];
         results.externalReferences.forEach((ref) => {
             const sources = available[ref.kind]?.[ref.name] ?? [];
             for (let other of sources) {
                 if (!dependencies[tid].includes(other)) {
-                    console.log(`found a source for ${ref.kind}:${ref.name}`, other);
+                    // console.log(`found a source for ${ref.kind}:${ref.name}`, other);
                     dependencies[tid].push(other);
                 }
+            }
+            const outside = imports[ref.kind]?.[ref.name] ?? [];
+            for (let other of outside) {
+                importDeps[tid].push(other);
             }
         });
     });
 
-    return dependencies;
+    return { dependencies, importDeps };
 }
 
-function calculateDependencyGraph(dependencies: Record<string, string[]>): Dependencies {
+function calculateDependencyGraph({
+    dependencies,
+    importDeps,
+}: {
+    importDeps: Record<string, { module: string; top: string }[]>;
+    dependencies: Record<string, string[]>;
+}): Dependencies {
     // ok now we have a graph, I do believe
     const components = collapseComponents(dependencies);
 
@@ -405,7 +429,7 @@ function calculateDependencyGraph(dependencies: Record<string, string[]>): Depen
         });
     });
 
-    return { components, headDeps, deepDeps: deep, traversalOrder: fullSort, dependents };
+    return { components, headDeps, deepDeps: deep, traversalOrder: fullSort, dependents, importDeps };
 }
 
 const toposort = (dependencies: Record<string, string[]>) => {

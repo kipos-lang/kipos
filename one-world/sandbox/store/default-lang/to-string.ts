@@ -118,7 +118,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 if (!expr.name) {
                     return `undefined`;
                 }
-                console.warn(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
+                // console.warn(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
                 return expr.name;
             }
             switch (resolution.type) {

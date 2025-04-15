@@ -62,8 +62,8 @@ self.onmessage = <K extends keyof CompilerEvents>({ data }: MessageEvent<ToWorke
             }
         }
     } catch (err) {
-        console.warn(`worker error`);
-        console.log(err);
+        // console.warn(`worker error`);
+        // console.log(err);
     }
     // postMessage('world');
 };

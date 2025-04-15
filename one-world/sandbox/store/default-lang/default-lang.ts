@@ -175,7 +175,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 eventsByTop.push(glob.events.slice());
             }
         } catch (err) {
-            console.log('bad inference', err);
+            // console.log('bad inference', err);
             error = (err as Error).message;
             res = null;
         }

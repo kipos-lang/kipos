@@ -521,7 +521,7 @@ export const inferLets = (
     values.forEach((value, i) => {
         scopes.push({ [lets[i].pat.name]: generalize(appliedEnv, gtypeApply(value), lets[i].pat.src) });
     });
-    console.log('here we are', scopes);
+    // console.log('here we are', scopes);
 
     return { scopes, values: values.map(gtypeApply), events };
 };

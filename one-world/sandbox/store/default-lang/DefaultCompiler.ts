@@ -174,7 +174,7 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
         }
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: TopItem }>, infos: Record<string, TInfo>): void {
-        console.warn(`loading module ${module}`);
+        // console.warn(`loading module ${module}`);
         if (!this.code[module]) this.code[module] = {};
         if (!this._results[module]) this._results[module] = {};
         deps.traversalOrder.forEach((hid) => {

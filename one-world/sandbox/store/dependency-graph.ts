@@ -13,7 +13,7 @@ const findCycles = (graph: Record<string, string[]>) => {
 
     const components: string[][] = [];
 
-    console.log(graph);
+    // console.log(graph);
     Object.values(graph).forEach((d) => {
         d.forEach((d) => {
             if (!graph[d]) {
