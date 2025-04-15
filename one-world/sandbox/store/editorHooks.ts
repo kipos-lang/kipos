@@ -145,8 +145,9 @@ export function useNode(top: string, path: Path) {
     const store = tstore.estore();
     const loc = lastChild(path);
     useTick(`node:${loc}`);
-    const results = store.state[tstore.selected()].parseResults[top];
-    let meta = store.state[tstore.selected()].parseResults[top]?.ctx.meta[loc];
+    const mstate = store.state[tstore.selected()];
+    const results = mstate.parseResults[top] ?? mstate.importResults[top];
+    let meta = results?.ctx.meta[loc];
     const refs = results?.internalReferences[loc];
     const statuses = useSelectionStatuses(pathKey(path)) ?? undefined;
     if (refs) {
@@ -160,7 +161,7 @@ export function useNode(top: string, path: Path) {
         node: tstore.module(tstore.selected()).toplevels[top].nodes[loc],
         sel: statuses, // selectionStatuses[pathKey(path)],
         meta,
-        spans: store.state[tstore.selected()].spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
+        spans: mstate.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
     };
 }
 

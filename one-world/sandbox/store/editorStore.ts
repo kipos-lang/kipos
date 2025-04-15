@@ -9,7 +9,8 @@ import equal from 'fast-deep-equal';
 import { collapseSmooshes } from '../../keyboard/update/crdt/ctree-update';
 
 export type EditorState<AST, TypeInfo> = {
-    parseResults: { [top: string]: ParseResult<AST | Import> };
+    parseResults: { [top: string]: ParseResult<AST> };
+    importResults: { [top: string]: ParseResult<Import> };
     // validation, is ~by "head", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
     validationResults: { [head: string]: ValidateResult<TypeInfo> };
@@ -65,6 +66,7 @@ export class EditorStore {
         Object.keys(this.modules).forEach((key) => {
             this.state[key] = {
                 parseResults: {},
+                importResults: {},
                 validationResults: {},
                 spans: {},
                 dependencies: {
@@ -82,7 +84,7 @@ export class EditorStore {
             this.modules[key].imports.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
                 const res = this.languages[language].parser.parseImport(root({ top }));
-                this.state[key].parseResults[top.id] = res;
+                this.state[key].importResults[top.id] = res;
                 if (res.result) {
                     console.log('`parse', res);
                     if (res.result.source.type === 'project') {
@@ -132,10 +134,12 @@ export class EditorStore {
     }
 
     recompile(module: string, heads: string[] = this.state[module].dependencies.traversalOrder) {
+        if (!heads.length) return;
         type AST = any;
         type TInfo = any;
         const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
         heads.forEach((hid) => {
+            if (this.modules[module].imports.includes(hid)) throw new Error('trying to compile an import');
             this.state[module].dependencies.components.entries[hid].forEach((key) => {
                 const parse = this.state[module].parseResults[key];
                 if (!parse?.result) return;
@@ -162,12 +166,12 @@ export class EditorStore {
                 const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
 
                 Object.entries(result.ctx.meta).forEach(([loc, value]) => {
-                    if (!equal(value, this.state[mod].parseResults[id]?.ctx.meta[loc])) {
+                    if (!equal(value, this.state[mod].importResults[id]?.ctx.meta[loc])) {
                         changed[loc] = true;
                     }
                 });
 
-                this.state[mod].parseResults[id] = result;
+                this.state[mod].importResults[id] = result;
                 return;
             }
 
@@ -206,6 +210,7 @@ export class EditorStore {
         if (changedTops) {
             onlyUpdate = [];
             changedTops.forEach((id) => {
+                if (module.imports.includes(id)) return;
                 const hid = this.state[mod].dependencies.components.pointers[id];
                 if (!onlyUpdate!.includes(hid)) onlyUpdate!.push(hid);
             });
