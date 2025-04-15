@@ -137,41 +137,15 @@ const createStore = (): Store => {
     window.addEventListener('hashchange', f);
 
     const language = defaultLang;
-
-    const compiler = language.compiler();
-
-    const recompile = (module: string, heads: string[], state: EditorState<any, any>) => {
-        const asts: Record<string, { ast: TopItem; kind: ParseKind }> = {};
-        heads.forEach((hid) => {
-            state.dependencies.components.entries[hid].forEach((key) => {
-                const parse = state.parseResults[key];
-                if (!parse?.result) return;
-                asts[key] = { ast: parse.result, kind: parse.kind };
-            });
-        });
-        const infos: Record<string, TInfo> = {};
-        heads.forEach((key) => {
-            infos[key] = state.validationResults[key]?.result;
-        });
-        try {
-            compiler.loadModule(module, state.dependencies, asts, infos);
-        } catch (err) {
-            console.log(err);
-        }
-    };
     const estore = new EditorStore(modules, { default: language });
 
-    // const estores: Record<string, EditorStore> = {};
     Object.keys(modules).forEach((id) => {
-        // estores[id] = new EditorStore(modules[id], language);
-        // const s = estores[id];
-        recompile(id, estore.state[id].dependencies.traversalOrder, estore.state[id]);
-        // console.log('should have loadded', id);
+        estore.recompile(id);
     });
 
     return {
         compiler() {
-            return compiler;
+            return estore.compilers.default;
         },
         estore() {
             return estore;
@@ -216,7 +190,7 @@ const createStore = (): Store => {
                 const keys: Record<string, true> = {};
                 const estore = this.estore();
                 const topsToCompile = estore.updateTops(module, changedTops, changed, keys);
-                recompile(module, topsToCompile, estore.state[module]);
+                estore.recompile(module, topsToCompile);
                 Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
 
                 evts.push(`module:${mod.id}:dependency-graph`);

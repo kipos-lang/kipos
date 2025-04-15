@@ -40,6 +40,9 @@ export class EditorStore {
         this.languages = languages;
         this.initialProcess();
         this.compilers = {};
+        Object.keys(languages).forEach((k) => {
+            this.compilers[k] = languages[k].compiler();
+        });
     }
 
     initialProcess() {
@@ -75,6 +78,28 @@ export class EditorStore {
             this.state[key].dependencies = this.calculateDependencyGraph(this.state[key].parseResults);
             this.runValidation(key);
         });
+    }
+
+    recompile(module: string, heads: string[] = this.state[module].dependencies.traversalOrder) {
+        type AST = any;
+        type TInfo = any;
+        const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
+        heads.forEach((hid) => {
+            this.state[module].dependencies.components.entries[hid].forEach((key) => {
+                const parse = this.state[module].parseResults[key];
+                if (!parse?.result) return;
+                asts[key] = { ast: parse.result, kind: parse.kind };
+            });
+        });
+        const infos: Record<string, TInfo> = {};
+        heads.forEach((key) => {
+            infos[key] = this.state[module].validationResults[key]?.result;
+        });
+        try {
+            this.compilers[this.modules[module].languageConfiguration].loadModule(module, this.state[module].dependencies, asts, infos);
+        } catch (err) {
+            console.log(err);
+        }
     }
 
     updateTops(mod: string, ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>): string[] {

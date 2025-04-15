@@ -1,4 +1,9 @@
 
+# Alright, that was quite a diversion.
+now we're back, types are checking, and we're just about ready to ... have modules depend on each other.
+
+
+
 # Let's think about monorepos
 
 The question being: do I limit the editor to editing a single "package"?
