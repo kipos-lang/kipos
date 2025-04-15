@@ -1,4 +1,9 @@
 
+# DECISION
+we don't override the #lang of things we're importing. we respect it.
+
+ALSO it should be an error to import a language:plugin for a language other than what's being used.
+
 # Modules and submodules
 
 I'm thinking maybe let's not do the anonymous submodule thing.
@@ -96,7 +101,169 @@ const macro = twoLangToDefaultFFI.value(mfun, fftinf)
 ```
 and then `macro` can be passed to `mylang` as a valid macro.
 
+
+UGH ok so that seems really annoying, right?
+Could I flip that script?
+instead, /ffi-import/ the types for stuff?
+oh yeah, like
+
+```ts
+from "mylang" import {makeMacro} # ffi/lang=twoLang
+
+macro name = makeMacro(something)
+````
+
+hmmm back up a bit. so the reallt straightforward way would be
+
+```py
+# module1, lang=mylang
+specialIf = ...
+
+# module2, lang=twoLang
+from "module1" import {specialIf} # ffi/lang=mylang
+from "mylang-impl" import {language mylang}
+plugin:parser:mylang mif = specialIf
+
+# module3, lang=mylang
+from "module2" import {macro mif}
+```
+
+so we need a way to import a language, so we can ~use it for the purposes of type checking.
+
+So, to simplify we might have
+```py
+# module1, lang=mylang
+from "mylang-impl" import {language mylang} # ffi/lang=twoLang
+plugin:parser:mylang mif = ...
+
+# module2, lang=mylang
+from "module1" import {macro mif}
+...
+```
+
+yeah that seems sufficiently unambiguous.
+
+
+
+then over in `mylang-impl` we would have
+```py
+# mylang-impl, lang=twoLang
+
+language mylang = {
+    version: 1,
+    parser: myparser,
+    validate: myvalidate,
+    compiler: mycompiler,
+    # These are types
+    parserPlugin: Macro,
+    validatePlugin: VMacro,
+    compilePlugin: CMacro,
+    ffi: [
+        ...
+    ]
+}
+```
+
+
+OK LETS TALK FFI
+
+- when declaring a language, you can also declare some FFIs, if you want.
+  - when doing an FFI import (that is, importing a module whose #lang (B) is different than yours (A)),
+    the editor will look for an FFI, which is responsible for (1) translating the types of (B) to (A)
+    so your validator can work with them; (2) translating the /values/ of (B) to (A). If the imported
+    values are functions, that will implicitly involve some converting of (A) stuff to (B) stuff, but
+    that's just under the hood. Officially, the ffi will be "from B to A".
+  - the editor will first look for FFI's that have already been imported (order matters here, sry)
+    so you can do `from "something" import {ffi onelang-twolang}` or something
+  - then it will check (A) to see if it has an ffi defined for B to A
+  - then it will check (B) to see if it has an ffi defined for B to A
+  (it's actually impossible for both A and B to have the ffi defined, so order doesn't matter in which we check first)
+
+NOW HERE"S THE THING
+
+if we need an FFI from langA to langB
+and langA is implemented in langX
+and langB is implemented in langY
+then langA['tinfo'] is a type in langX, and langB['tinfo'] is a type in langY
+
+So at the very least we need an ffi from langX to langY
+
+```ts
+// #langY
+import {ATinfo, AValue} from 'ffi(langX:langY):langA'
+import {BTinfo, BValue} from 'langB'
+
+const ffiAB = {
+    type(src: ATinfo): BTinfo,
+    value(src: AValue, type: ATinfo): BValue,
+}
+```
+
+🤔 ok so.
+here's the thing. when I imagine making an FFI, ...
+idk I imagine it being more ... like, operating at the level
+of the runtime, not the level of the compiler. Does that make sense?
+like this would apply to generated code, and not before.
+well ok so the TInfo translation happens in the world of the validator.
+that's for sure.
+like ok, how's this:
+we have a type, say `type Pet = Cat(string, int) | Dog(string, string)`
+in langA, and a value `Cat("fluff", 7)` of type `Pet`.
+BUT like the runtime representation is `["Cat", "fluff", 7]`.
+AND THEN in langB, we don't have positional arguments, we have named arguments.
+So it would translate to `type Pet = Cat{v0: string, v1: int} | Dog{v0: string, v1: string}`
+and the runtime representation would be like `{type: "Cat", v0: "fluff", v1: 7}`
+
+OK SO CRITICAL POINT: the runtime representation from `langA` *might not be a valid value in langB*.
+but like, at the end of the day we need to deal with it.
+does that mean you can only *write* ffi functions in languages that are capable of representing, at the
+data layer, everything from both languages? It does seem that way.
+
+and we'd need to ... generate the conversion function that looks like
+```ts
+function petAtoPetB(pet) {
+    switch (pet.length) {
+        case 3:
+            switch (pet[0]) {
+                case 'Cat':
+                    return {type: 'Cat', v0: pet[1], v1: pet[2]} // might need conversions on pet[1] and pet[2]
+                    // ...
+            }
+    }
+}
+```
+
+🤔 I can imagine ... wanting to be able to customize the generation ...
+ould there be a way, in like the import declaration, to indicate custom translation functions?
+
+ok so one thing you might decide to do, is say 'only functions withi primitive arguments and return values are allowed'.
+and you could limit things like that.
+
+or "no generics allowed"
+
+OK BUT
+
+if we're implementing `langA` in `default`.
+then langA's AST is defined in `default`.
+and like, default will have to have imported its own AST ffi'd somewhere. right?
+
+OK BTW so like.
+if your language includes quoting. then the `type` of the quoted expression is gonna have to be like,
+`from {thismodule} import (AST)`.
+Right? which is a little funky.
+
+yeah, what's the ... type ... of ... that.
+I mean. I guess the TInfo is ...
+
+ok anyway, do I need to solve this now?
+
+
+
+
+
 The same would be true for compiler plugins and validator plugins.
+
+BUT on the other hand, /languages/ and /editor-plugins/ only need to interact with ...the IDE's JS api.
 
 # Alright, that was quite a diversion.
 now we're back, types are checking, and we're just about ready to ... have modules depend on each other.

@@ -125,29 +125,23 @@ export class EditorStore {
         }
         sorted.reverse();
 
-        // console.log('GRAPH MODULES');
-        // console.log(moduleGraph, components, uncycled, sorted);
-
         sorted.forEach((key) => {
             if (components.entries[key].length !== 1) {
                 console.error(`Skipping modules with cycle`, components.entries[key]);
             }
 
             const macros: any[] = [];
+            const imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } } = {};
             this.modules[key].imports.forEach((id) => {
-                const imp = this.state[key].importResults[id];
-                if (imp.result) {
-                    // START HERE:
-                    // - if there are modules imported, obviously got to deal with that
-                    // and maybe that is it for this moment
-                }
+                this.handleImportValidation(key, id);
+                getImports(this.state[key].validatedImports[id]?.result, imports);
             });
 
             this.modules[key].roots.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
                 this.state[key].parseResults[top.id] = this.languages[language].parser.parse(macros, root({ top }));
             });
-            this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, {}));
+            this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, imports));
             this.runValidation(key);
         });
 
@@ -189,8 +183,8 @@ export class EditorStore {
         const modulesByName: Record<string, string> = {};
         Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
 
-        ids.forEach((id) => {
-            if (module.imports.includes(id)) {
+        module.imports.forEach((id) => {
+            if (ids.includes(id)) {
                 const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
 
                 Object.entries(result.ctx.meta).forEach(([loc, value]) => {
@@ -200,12 +194,13 @@ export class EditorStore {
                 });
 
                 this.state[mod].importResults[id] = result;
-                // if (result.result) {
-                //     if (result.result.source.type === 'project')
-                //     result.result.items.forEach(item => {
+                this.handleImportValidation(mod, id, changedKeys);
+            }
+            getImports(this.state[mod].validatedImports[id]?.result, imports);
+        });
 
-                //     })
-                // }
+        ids.forEach((id) => {
+            if (module.imports.includes(id)) {
                 return;
             }
 
@@ -307,37 +302,30 @@ export class EditorStore {
         };
     }
 
+    handleImportValidation(mod: string, id: string, changedKeys?: Record<string, true>) {
+        const imp = this.state[mod].importResults[id];
+        if (!imp.result) return;
+        this.state[mod].validatedImports[id] = this.validateImport(mod, id, imp.result);
+
+        if (changedKeys) {
+            Object.entries(this.state[mod].validatedImports[id].annotations[id] ?? {}).forEach(([k, ann]) => {
+                if (!equal(ann, this.state[mod].prevAnnotations[id]?.[k])) {
+                    changedKeys[k] = true;
+                }
+            });
+
+            Object.keys(this.state[mod].prevAnnotations[id] ?? {}).forEach((k) => {
+                if (!this.state[mod].validatedImports[id].annotations[id]?.[k]) {
+                    changedKeys[k] = true;
+                }
+            });
+        }
+        this.state[mod].prevAnnotations[id] = this.state[mod].validatedImports[id].annotations[id];
+    }
+
     runValidation(mod: string, changedTops?: string[], changedKeys?: Record<string, true>): string[] {
         const lang = this.languages[this.modules[mod].languageConfiguration];
         const module = this.modules[mod];
-
-        module.imports.forEach((id) => {
-            const imp = this.state[mod].importResults[id];
-            if (imp.result) {
-                console.log('validint');
-                this.state[mod].validatedImports[id] = this.validateImport(mod, id, imp.result);
-
-                if (changedKeys) {
-                    Object.entries(this.state[mod].validatedImports[id].annotations[id] ?? {}).forEach(([k, ann]) => {
-                        if (!equal(ann, this.state[mod].prevAnnotations[id]?.[k])) {
-                            changedKeys[k] = true;
-                        }
-                    });
-
-                    Object.keys(this.state[mod].prevAnnotations[id] ?? {}).forEach((k) => {
-                        if (!this.state[mod].validatedImports[id].annotations[id]?.[k]) {
-                            changedKeys[k] = true;
-                        }
-                    });
-                }
-                this.state[mod].prevAnnotations[id] = this.state[mod].validatedImports[id].annotations[id];
-
-                // Here we want to populate `validatedImports`
-                // START HERE:
-                // - if there are modules imported, obviously got to deal with that
-                // and maybe that is it for this moment
-            }
-        });
 
         if (!lang.validate) return [];
         let onlyUpdate = null as null | string[];
@@ -386,9 +374,12 @@ export class EditorStore {
             }
 
             const localDeps = this.state[mod].dependencies.headDeps[id].map((did) => this.state[mod].validationResults[did].result);
-            const projectDeps = [];
+            const projectDeps = this.state[mod].dependencies.importDeps[id]
+                .map(({ module, top }) => this.state[module]?.validationResults[top]?.result)
+                .filter(Boolean);
+            console.log('deps', localDeps, projectDeps);
 
-            this.state[mod].validationResults[id] = lang.validate(module.id, parseResults, localDeps);
+            this.state[mod].validationResults[id] = lang.validate(module.id, parseResults, projectDeps.concat(localDeps));
             // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
@@ -595,4 +586,22 @@ const toposort = (dependencies: Record<string, string[]>) => {
     }
 
     return sorted;
+};
+
+const add = <T>(obj: Record<string, T[]>, key: string, value: T) => {
+    if (!obj[key]) obj[key] = [value];
+    else if (!obj[key].includes(value)) obj[key].push(value);
+};
+
+const getImports = (imp: Import | null, imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } }) => {
+    if (!imp) return;
+    if (imp.source.type === 'project') {
+        const mod = imp.source.module;
+        imp.items.forEach((item) => {
+            if (!imports[item.kind]) imports[item.kind] = {};
+            item.id.forEach((id) => {
+                add(imports[item.kind], item.name, { module: mod, top: id });
+            });
+        });
+    }
 };

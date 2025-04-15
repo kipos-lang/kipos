@@ -26,11 +26,17 @@ export type AccessControlLevel = 'public' | 'package' | 'module' | 'submodule';
 export type ParseKind =
     | {
           type: 'definition';
-          // there are three 'special kinds'
           provides: {
               loc: string;
               name: string;
-              kind: string | 'kipos:plugin' | 'kipos:macro' | 'kipos:language';
+              kind:
+                  | string
+                  // there are some 'special kinds'
+                  | 'kipos:plugin:parser'
+                  | 'kipos:plugin:validate'
+                  | 'kipos:plugin:compile'
+                  | 'kipos:plugin:editor'
+                  | 'kipos:language';
               accessControl: AccessControlLevel;
           }[];
       }
