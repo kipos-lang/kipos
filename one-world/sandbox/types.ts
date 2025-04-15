@@ -1,6 +1,7 @@
 import { NodeSelection } from '../keyboard/utils';
 import { Nodes } from '../shared/cnodes';
 import { HistoryItem } from './history';
+import { AccessControlLevel } from './store/language';
 import { HistoryChange } from './store/state';
 
 export type Import = {
@@ -24,7 +25,7 @@ export type Import = {
           };
     macros: string[];
     plugins: string[];
-    items: { name: string; loc: string; kind: string; rename?: string }[];
+    items: { name: string; loc: string; kind: string; accessControl: AccessControlLevel; rename?: string }[];
     all?: boolean;
 };
 

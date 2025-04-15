@@ -35,24 +35,11 @@ export class EditorStore {
     compilers: Record<string, Compiler<any, any>>;
 
     constructor(modules: Record<string, Module>, languages: Record<string, Language<any, any, any>>) {
-        this.state = {
-            // parseResults: {},
-            // validationResults: {},
-            // spans: {},
-            // dependencies: {
-            //     components: { pointers: {}, entries: {} },
-            //     headDeps: {},
-            //     deepDeps: {},
-            //     traversalOrder: [],
-            //     dependents: {},
-            // },
-        };
+        this.state = {};
         this.modules = modules;
         this.languages = languages;
         this.initialProcess();
         this.compilers = {};
-        // @ts-ignore
-        // window.compiler = this.compiler;
     }
 
     initialProcess() {
@@ -84,7 +71,7 @@ export class EditorStore {
                 const top = this.modules[key].toplevels[id];
                 this.state[key].parseResults[top.id] = this.languages[language].parser.parse([], root({ top }));
             });
-            console.log('parsed', this.state.parseResults);
+            // console.log('parsed', this.state.parseResults);
             this.state[key].dependencies = this.calculateDependencyGraph(this.state[key].parseResults);
             this.runValidation(key);
         });

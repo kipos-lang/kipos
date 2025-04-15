@@ -18,7 +18,7 @@ type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>
 
 export interface Store {
     compiler(): Compiler<any, any>;
-    estore(id: string): EditorStore<any, any>;
+    estore(): EditorStore;
     module(id: string): Module;
     listen(evt: Evt, f: () => void): () => void;
     selected(): string;
@@ -159,12 +159,13 @@ const createStore = (): Store => {
             console.log(err);
         }
     };
+    const estore = new EditorStore(modules, { default: language });
 
-    const estores: Record<string, EditorStore<any, any>> = {};
+    // const estores: Record<string, EditorStore> = {};
     Object.keys(modules).forEach((id) => {
-        estores[id] = new EditorStore(modules[id], language);
-        const s = estores[id];
-        recompile(id, s.state.dependencies.traversalOrder, s.state);
+        // estores[id] = new EditorStore(modules[id], language);
+        // const s = estores[id];
+        recompile(id, estore.state[id].dependencies.traversalOrder, estore.state[id]);
         // console.log('should have loadded', id);
     });
 
@@ -172,14 +173,8 @@ const createStore = (): Store => {
         compiler() {
             return compiler;
         },
-        estore(id) {
-            if (!estores[id]) {
-                console.warn(`late adding module mauybe`);
-                estores[id] = new EditorStore(modules[id], language);
-                const s = estores[id];
-                recompile(id, s.state.dependencies.traversalOrder, s.state);
-            }
-            return estores[id];
+        estore() {
+            return estore;
         },
         module(id: string) {
             return modules[id];
@@ -219,9 +214,9 @@ const createStore = (): Store => {
             const { changed, changedTops, evts } = update(mod, language, action);
             if (changedTops.length) {
                 const keys: Record<string, true> = {};
-                const estore = this.estore(module);
-                const topsToCompile = estore.updateTops(changedTops, changed, keys);
-                recompile(module, topsToCompile, estore.state);
+                const estore = this.estore();
+                const topsToCompile = estore.updateTops(module, changedTops, changed, keys);
+                recompile(module, topsToCompile, estore.state[module]);
                 Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
 
                 evts.push(`module:${mod.id}:dependency-graph`);

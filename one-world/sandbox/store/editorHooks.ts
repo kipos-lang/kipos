@@ -37,12 +37,12 @@ export const useTick = (evt: Evt) => {
 export const useTopParseResults = (top: string) => {
     const store = useStore();
     const module = store.selected();
-    const estore = store.estore(module);
+    const estore = store.estore();
 
     useTick(`top:${top}:parse-results`);
     return {
-        ...estore.state.parseResults[top],
-        validation: estore.state.validationResults[estore.state.dependencies.components.pointers[top]],
+        ...estore.state[module].parseResults[top],
+        validation: estore.state[module].validationResults[estore.state[module].dependencies.components.pointers[top]],
         spans: {},
     };
 };
@@ -50,9 +50,9 @@ export const useTopParseResults = (top: string) => {
 export function useDependencyGraph() {
     const store = useStore();
     const selected = store.selected();
-    const estore = store.estore(selected);
+    const estore = store.estore();
     useTick(`module:${selected}:dependency-graph`);
-    return estore.state.dependencies;
+    return estore.state[selected].dependencies;
 }
 
 export function useTopSource(top: string) {
@@ -89,9 +89,9 @@ export function useTopResults(top: string) {
 export function useParseResults() {
     const store = useStore();
     const selected = store.selected();
-    const estore = store.estore(selected);
+    const estore = store.estore();
     useTick(`module:${selected}:parse-results`);
-    return estore.state.parseResults;
+    return estore.state[selected].parseResults;
 }
 export function useModule() {
     const store = useStore();
@@ -124,12 +124,12 @@ export function useSelectedTop() {
 
 export function useAnnotations(top: string, key: string) {
     const store = useStore();
-    const estore = store.estore(store.selected());
+    const estore = store.estore();
     const tick = useTick(`annotation:${key}`);
     return useMemo(() => {
         // store.compiler.
-        const hid = estore.state.dependencies.components.pointers[top];
-        const fromValidation = estore.state.validationResults[hid]?.annotations[top]?.[key];
+        const hid = estore.state[store.selected()].dependencies.components.pointers[top];
+        const fromValidation = estore.state[store.selected()].validationResults[hid]?.annotations[top]?.[key];
         return fromValidation;
     }, [tick, key]);
 }
@@ -142,11 +142,11 @@ export function useRoot(top: string) {
 
 export function useNode(top: string, path: Path) {
     const tstore = useStore();
-    const store = tstore.estore(tstore.selected());
+    const store = tstore.estore();
     const loc = lastChild(path);
     useTick(`node:${loc}`);
-    const results = store.state.parseResults[top];
-    let meta = store.state.parseResults[top]?.ctx.meta[loc];
+    const results = store.state[tstore.selected()].parseResults[top];
+    let meta = store.state[tstore.selected()].parseResults[top]?.ctx.meta[loc];
     const refs = results?.internalReferences[loc];
     const statuses = useSelectionStatuses(pathKey(path)) ?? undefined;
     if (refs) {
@@ -160,7 +160,7 @@ export function useNode(top: string, path: Path) {
         node: tstore.module(tstore.selected()).toplevels[top].nodes[loc],
         sel: statuses, // selectionStatuses[pathKey(path)],
         meta,
-        spans: store.state.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
+        spans: store.state[tstore.selected()].spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
     };
 }
 

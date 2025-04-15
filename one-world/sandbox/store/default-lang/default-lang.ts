@@ -87,7 +87,14 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                         ? { type: 'evaluation' }
                         : result.result?.type === 'test'
                           ? { type: 'test' }
-                          : { type: 'definition', provides: result.ctx.scopes[0] },
+                          : {
+                                type: 'definition',
+                                provides: result.ctx.scopes[0].map((item) => ({
+                                    ...item,
+                                    // TODO: allow specifying access control
+                                    accessControl: 'package',
+                                })),
+                            },
             };
         },
         spans(ast) {

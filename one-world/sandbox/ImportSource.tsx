@@ -80,18 +80,18 @@ const ImportItems = ({ source, value, update }: { source: Import['source']; valu
         const mod = store.module(source.module);
         if (mod) {
             options = [];
-            const es = store.estore(source.module);
-            Object.values(es.state.parseResults).forEach((res) => {
+            const es = store.estore();
+            Object.values(es.state[source.module].parseResults).forEach((res) => {
                 if (res.kind.type === 'definition') {
                     res.kind.provides.forEach((prov) => {
-                        options!.push({ name: prov.name, kind: prov.kind, loc: '' });
+                        // options!.push({ name: prov.name, kind: prov.kind, loc: '' });
                     });
                 }
             });
         } else {
             options = [
-                { name: 'one', kind: 'value', loc: '' },
-                { name: 'two', kind: 'value', loc: '' },
+                // { name: 'one', kind: 'value', loc: '' },
+                // { name: 'two', kind: 'value', loc: '' },
             ];
         }
     }
@@ -113,6 +113,7 @@ const ImportItems = ({ source, value, update }: { source: Import['source']; valu
                                                 name: option.name,
                                                 kind: option.kind,
                                                 loc: '',
+                                                accessControl: 'package',
                                             },
                                         ]),
                                     );
