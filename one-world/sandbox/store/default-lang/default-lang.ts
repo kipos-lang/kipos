@@ -55,12 +55,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 internalReferences: {},
                 ffiReferences: [],
                 result: result.result,
-                // hmmm maybe have type: 'import' here? hmmm.
-                kind: {
-                    type: 'definition',
-                    // TODO: ... we don't necessarily get /kinds/ from the imports. how to fix?
-                    provides: [], //  result.result?.items ?? [],
-                },
+                kind: null,
             };
         },
         parse(macros, node) {

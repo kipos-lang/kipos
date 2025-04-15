@@ -1,4 +1,103 @@
 
+# Modules and submodules
+
+I'm thinking maybe let's not do the anonymous submodule thing.
+instead, nesting w/o a module declaration is just cosmetic.
+
+Then, submodules:
+- inherit all of the imports of *all parent submodules*
+- don't otherwise have an official relationship with other submodules; they can import and be imported, but again no circular module references
+
+(hm I'm remembering that maybe one justification for anonymous submodules was the ability to have a different configuration...
+ and honestly, yeah, why not allow you to have a submodule that doesn't have a name. no need to force people to come up
+ with names if they're not planning on importing anything.)
+
+# 🤔 language configs
+
+was there somethign about how I ... wanted to discourage daisy-chaining a ton of language configurations?
+well certainly I wanted to remove the possibility of "not being able to recreate the chain of bootstrapping".
+There's the idea of: "it's this module/name under this languageconfiguration at this [git commit]".
+but that feels ... too removed? idk.
+the other thing to avoid: having to rebuild the ocean any time you start up the editor.
+how to fix?
+mayyyybe vendored libraries?
+like a vendored library is immutable, and so you can hardcore cache stuff. You can also distributed precomputed
+cached stuff with the vendored library, to save on postage.
+yeah ok, so if it's like "this library exports a /languageconfig/..." it might also have precomputed it for you.
+oooo hm. what iff.
+
+what if a language is like a supermacro.
+you can export a macro, you can export a language.
+honestly it kinda makes sense.
+you wouldn't really /import/ a language, probably. ... right? I mean you certainly wouldn't import multiple languages.
+unless I come up with some kinda ... language composition model.
+but yeah it's kinda like racket's "lang" pragma. (ok so racket's `#lang something` does `(require something/lang/reader [read-syntax])`)
+
+yeah, having languages exports makes sense.
+let's talk about noun verb agreement.
+/does the language of the consuming module need to match the language of the importing dealio/
+
+- for normal values, of course it does
+- for ... languageConfigurations, of course it doesn't
+- for macros ... like it does, right? or ... like it needs to match the parent language configuration?
+  -> wait no. macros are written in the target language. that's the whole thing.
+  -> but my macros are kindof like parser plugins, at least as I have them currently formulated.
+  -> hm. should I have two different kinds of macros? like "this is a parser plugin" and "this is a cst-macro",
+    where parser plugins actually need to be in the parent language, and cst-macros can be .. in any language.
+  -> how about editor plugins? they can be in any language as well. they just need to speak a defined ABI
+
+ehh. it feels quite weird to ... have a constraint of "macros" (parser plugins) be that they need to be
+compiled with the same language that the current language was compiled with.
+but then, how would you have any assurance of compatability?
+
+ok but why not, actually.
+
+yeah, I can totally imagine wanting to write plugins for the compiler, and the type checker, as well as the parser.
+So why not make that an explicit thing that we provide affordances for?
+
+honestly haskell has type checker plugins, that are enabled on a module-by-module basis.
+
+so why not.
+
+Q: where does that leave us with macros though?
+
+yeah ok so that's the answer. we have plugins (parser, validator, compiler), and if you want to write them in the taregt language, you just need an FFI for (target -> parent), whihc should be doable.
+
+ok, so thinking about just how that would work.
+It seems like, if you're going to be declaring a `macro`, you also need to declare what language you want it to be a macro *for*, so that we can know what types to check against it.
+
+so it would be like
+```ts
+macro name for (target language) = (something)
+```
+and so we would like typecheck (something) in the current language, and then (ffi:something->target) the result,
+and then hand that off to (target language) to determine if it's a valid macro. If it is, we compile (something)
+in the current language, and thne (ffi:something->target) the result, and now we have a macro!
+
+So you could have
+```
+#lang mylang
+
+```
+
+waitwaitwait. let's say `mylang` is a language, and it is defined in `default`.
+`mylang` would define the "type" of its macros, and that definition would be in `default`.
+SO:
+`macro mymacro for mylang = thedef`
+and just to make it fun, let's say we're currently in `twolang`
+So:
+```ts
+const parsed = twolang.parse(thedef)
+const tinfo = twolang.validate(thedef)
+const fftinf = twoLangToDefaultFFI.type(tinfo)
+const minfo = default.validateEqual(fftinf, mylang.macrotype)
+const mfun = twolang.compile(thedef, tinfo)
+const macro = twoLangToDefaultFFI.value(mfun, fftinf)
+```
+and then `macro` can be passed to `mylang` as a valid macro.
+
+The same would be true for compiler plugins and validator plugins.
+
 # Alright, that was quite a diversion.
 now we're back, types are checking, and we're just about ready to ... have modules depend on each other.
 
@@ -22,6 +121,12 @@ but during first parse, we can't. so we have to account for that.
 
 AGH ok so parsing shouldn't do validation at the same time. parsers should parse, validators should validate.
 
+
+- [x] parse imports
+- [x] validate imports, resolving names and such
+- [ ] When validating normal toplevels, I'll need to check imports for additionally matched things.
+  and then pass in the ... foreign type info.
+- [ ] thennn when compiling, do it all again!
 
 
 # Let's think about monorepos

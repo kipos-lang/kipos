@@ -1,5 +1,5 @@
 import { Src } from '../../syntaxes/dsl3';
-import { ParseResult, ValidateResult } from './language';
+import { ParseKind, ParseResult, ValidateResult } from './language';
 
 export const findSpans = (items: Src[]) => {
     const spans: Record<string, string[]> = {};
@@ -14,7 +14,7 @@ export const findSpans = (items: Src[]) => {
     return spans;
 };
 
-export type LangResult = ParseResult<any> & { validation?: ValidateResult<any> | null; spans: Record<string, string[][]> };
+export type LangResult = ParseResult<any, ParseKind> & { validation?: ValidateResult<any> | null; spans: Record<string, string[][]> };
 
 // export const makeEditor = (
 //     selected: string,

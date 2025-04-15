@@ -26,16 +26,21 @@ export type AccessControlLevel = 'public' | 'package' | 'module' | 'submodule';
 export type ParseKind =
     | {
           type: 'definition';
-          provides: { loc: string; name: string; kind: string; accessControl: AccessControlLevel }[];
-          macros?: { loc: string; name: string }[];
+          // there are three 'special kinds'
+          provides: {
+              loc: string;
+              name: string;
+              kind: string | 'kipos:plugin' | 'kipos:macro' | 'kipos:language';
+              accessControl: AccessControlLevel;
+          }[];
       }
     | { type: 'evaluation' }
     | { type: 'test' };
 
-export type ParseResult<T> = {
+export type ParseResult<T, Kind> = {
     input: RecNode;
     result: T | undefined;
-    kind: ParseKind;
+    kind: Kind;
     // hmm. how do we communicate that a macro is happening.
     // because, we need like a way to ... evaluate it?
     // ok so maybe the evaluator will have a special mode that's like
@@ -61,8 +66,8 @@ export type ParseResult<T> = {
 
 export type Parser<Macro, AST> = {
     config: Config;
-    parseImport(node: RecNode, trace?: (evt: Event) => undefined): ParseResult<ParsedImport>;
-    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST>;
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined): ParseResult<ParsedImport, null>;
+    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST, ParseKind>;
     spans(ast: AST): Src[];
 };
 

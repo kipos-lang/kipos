@@ -10,8 +10,8 @@ import { collapseSmooshes } from '../../keyboard/update/crdt/ctree-update';
 import { genId } from '../../keyboard/ui/genId';
 
 export type EditorState<AST, TypeInfo> = {
-    parseResults: { [top: string]: ParseResult<AST> };
-    importResults: { [top: string]: ParseResult<ParsedImport> };
+    parseResults: { [top: string]: ParseResult<AST, ParseKind> };
+    importResults: { [top: string]: ParseResult<ParsedImport, null> };
     validatedImports: { [top: string]: ValidateResult<Import | null> };
     // validation, is ~by "head", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
@@ -455,7 +455,7 @@ export class EditorStore {
     }
 }
 
-const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown>>) => {
+const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown, ParseKind>>) => {
     const available: { [kind: string]: { [name: string]: string[] } } = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
         if (results.kind.type === 'definition') {
@@ -471,7 +471,7 @@ const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown>>) 
 };
 
 function parseResultsDependencyInput(
-    parseResults: Record<string, ParseResult<unknown>>,
+    parseResults: Record<string, ParseResult<unknown, ParseKind>>,
     imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } },
 ) {
     const available = moduleDeclarations(parseResults);

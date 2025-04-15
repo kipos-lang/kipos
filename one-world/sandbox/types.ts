@@ -65,10 +65,13 @@ export type Toplevel = {
     children: string[];
     root: string;
     nodes: Nodes;
-    // yay
-    submoduleName?: string;
-    languageConfiguration?: string;
-    imports?: Import[];
+    // If children and no submodule, the children are in the same submodule as the parent
+    submodule?: {
+        // If anonymous, it can't be imported anywhere
+        name?: string;
+        languageConfiguration: string;
+        imports: Import[];
+    };
 };
 
 // Can be serialized to `module : exportedName : languageConfiguration`
