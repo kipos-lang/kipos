@@ -31,7 +31,7 @@ import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, TopItem, Type } from './algw-s2-types';
 import { genId } from '../keyboard/ui/genId';
-import { Import } from '../sandbox/types';
+import { Import, ParsedImport } from '../sandbox/types';
 
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
 export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
@@ -414,7 +414,7 @@ const rules = {
         seq(kwd('@@'), group('contents', { type: 'any' })),
         (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'raw', contents: ctx.ref<RecNode>('contents') } }),
     ),
-    source: tx<Import['source'] | void>(
+    source: tx<ParsedImport['source'] | void>(
         group(
             'value',
             meta(
@@ -433,21 +433,12 @@ const rules = {
                     .filter((v) => v.type === 'text')
                     .map((v) => v.text)
                     .join('');
-                if (ctx.extra?.moduleNames[text]) {
-                    return { type: 'project', module: ctx.extra?.moduleNames[text] };
-                }
-                // console.log(ctx.extra.moduleNames);
-                // console.log('unknown module name, sorry');
-                throw new MismatchError(`unknown module name`, src.left);
+                return { type: 'raw', text, src };
             }
-            if (ctx.extra?.moduleNames[value.text]) {
-                return { type: 'project', module: ctx.extra.moduleNames[value.text] };
-            }
-            // console.log(ctx.extra.moduleNames);
-            throw new MismatchError(`unknown module name`, value.loc);
+            return { type: 'raw', text: value.text, src };
         },
     ),
-    ['import']: tx<Import>(
+    ['import']: tx<ParsedImport>(
         list(
             'spaced',
             seq(
@@ -491,18 +482,18 @@ const rules = {
             ),
         ),
         (ctx, src) => {
-            const source = ctx.ref<Import['source']>('source');
+            const source = ctx.ref<ParsedImport['source']>('source');
             const raw =
                 ctx.ref<
                     ({ type: 'special'; kind: 'macro' | 'plugin'; name: Id<string> } | { type: 'item'; name: Id<string>; rename?: Id<string> })[]
                 >('items');
-            const macros: string[] = [];
-            const plugins: string[] = [];
-            const items: Import['items'] = [];
+            const macros: { name: string; loc: string }[] = [];
+            const plugins: { name: string; loc: string }[] = [];
+            const items: ParsedImport['items'] = [];
             raw.forEach((item) => {
                 if (item.type === 'special') {
-                    if (item.kind === 'macro') macros.push(item.name.text);
-                    else plugins.push(item.name.text);
+                    if (item.kind === 'macro') macros.push({ name: item.name.text, loc: item.name.loc });
+                    else plugins.push({ name: item.name.text, loc: item.name.loc });
                 } else {
                     items.push({
                         name: item.name.text,
@@ -688,10 +679,9 @@ export const parser = {
         xml: true,
     },
     spans: () => [],
-    parseImport(node: RecNode, moduleNames: Record<string, string>, trace?: (evt: Event) => undefined) {
-        const myctx: Ctx<{ moduleNames: Record<string, string> }> = {
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined) {
+        const myctx: Ctx = {
             ...ctx,
-            extra: { moduleNames },
             meta: {},
             rules: { ...ctx.rules },
             trace,
@@ -699,7 +689,7 @@ export const parser = {
             usages: {},
             externalUsages: [],
         };
-        const res = match<Import>({ type: 'ref', name: 'import' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        const res = match<ParsedImport>({ type: 'ref', name: 'import' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         return { result: res?.value, ctx: myctx };
     },
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {

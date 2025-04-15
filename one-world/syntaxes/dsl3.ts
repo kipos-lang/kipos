@@ -33,8 +33,7 @@ export class MismatchError extends Error {
     }
 }
 
-export type Ctx<Extra = any> = {
-    extra?: Extra;
+export type Ctx = {
     allowIdKwds?: boolean;
     ref<T>(name: string): T;
     scopes: { name: string; kind: string; loc: string }[][];
@@ -56,7 +55,7 @@ export type Ctx<Extra = any> = {
 
 export type Rule<T> =
     | { type: 'or'; opts: Rule<T>[] }
-    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx<any>, src: Src & { id: string }) => T }
+    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src & { id: string }) => T }
     | { type: 'meta'; meta: string; inner: Rule<T> }
     | { type: 'kwd'; kwd: string; meta?: string }
     | { type: 'ref'; name: string; bind?: string }

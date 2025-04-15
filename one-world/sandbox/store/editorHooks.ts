@@ -127,9 +127,15 @@ export function useAnnotations(top: string, key: string) {
     const estore = store.estore();
     const tick = useTick(`annotation:${key}`);
     return useMemo(() => {
+        const state = estore.state[store.selected()];
+        const mod = store.module(store.selected());
+        if (mod.imports.includes(top)) {
+            console.log('getting from the vali', state.validatedImports[top]);
+            return state.validatedImports[top]?.annotations[top]?.[key];
+        }
         // store.compiler.
-        const hid = estore.state[store.selected()].dependencies.components.pointers[top];
-        const fromValidation = estore.state[store.selected()].validationResults[hid]?.annotations[top]?.[key];
+        const hid = state.dependencies.components.pointers[top];
+        const fromValidation = state.validationResults[hid]?.annotations[top]?.[key];
         return fromValidation;
     }, [tick, key]);
 }

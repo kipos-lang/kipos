@@ -1,8 +1,20 @@
 import { NodeSelection } from '../keyboard/utils';
 import { Nodes } from '../shared/cnodes';
+import { Src } from '../syntaxes/dsl3';
 import { HistoryItem } from './history';
 import { AccessControlLevel } from './store/language';
 import { HistoryChange } from './store/state';
+
+export type ParsedImport = {
+    type: 'import';
+    source: { type: 'raw'; text: string; src: Src } | Import['source'];
+    all?: boolean;
+    // these might be nail-downable as wellll
+    macros: { name: string; loc: string }[];
+    plugins: { name: string; loc: string }[];
+    // soo these might want to be resolvable to the actual toplevels, potentially.
+    items: { name: string; loc: string; kind?: string; accessControl: AccessControlLevel; rename?: string }[];
+};
 
 export type Import = {
     type: 'import';
@@ -12,21 +24,24 @@ export type Import = {
               module: string;
               // TODO: allow specifying a custom interpreter from [them] to [us]
               foreign?: string; // languageConfiguration, if different then our own
+              src: Src;
           }
         | {
               // Submodules, yeah
               type: 'local';
               toplevel: string;
               foreign?: string;
+              src: Src;
           }
         | {
               type: 'vendor';
-              src: string; // this is like probably a url. and we cache it.
+              uri: string; // this is like probably a url. and we cache it.
               foreign?: string;
+              src: Src;
           };
     macros: string[];
     plugins: string[];
-    items: { name: string; loc: string; kind?: string; accessControl: AccessControlLevel; rename?: string }[];
+    items: { name: string; id: string; loc: string; kind: string; accessControl: AccessControlLevel; rename?: string }[];
     all?: boolean;
 };
 

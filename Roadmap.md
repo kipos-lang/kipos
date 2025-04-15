@@ -20,6 +20,8 @@ but during first parse, we can't. so we have to account for that.
 
 - [ ] pass in module names to resolve at import time
 
+AGH ok so parsing shouldn't do validation at the same time. parsers should parse, validators should validate.
+
 
 
 # Let's think about monorepos

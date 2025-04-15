@@ -1,16 +1,18 @@
 import index from 'isomorphic-git';
 import { root } from '../../keyboard/root';
 import { Event } from '../../syntaxes/dsl3';
-import { Import, Module, Toplevel } from '../types';
+import { Import, Module, ParsedImport, Toplevel } from '../types';
 import { collapseComponents, Components } from './dependency-graph';
-import { Annotation, Compiler, Language, ParseKind, ParseResult, ValidateResult } from './language';
-import { findSpans } from './makeEditor';
+import { Annotation, Compiler, Language, Meta, ParseKind, ParseResult, ValidateResult } from './language';
+import { findSpans, srcKey } from './makeEditor';
 import equal from 'fast-deep-equal';
 import { collapseSmooshes } from '../../keyboard/update/crdt/ctree-update';
+import { genId } from '../../keyboard/ui/genId';
 
 export type EditorState<AST, TypeInfo> = {
     parseResults: { [top: string]: ParseResult<AST> };
-    importResults: { [top: string]: ParseResult<Import> };
+    importResults: { [top: string]: ParseResult<ParsedImport> };
+    validatedImports: { [top: string]: ValidateResult<Import | null> };
     // validation, is ~by "head", where if there's a dependency cycle,
     // we choose the (sort()[0]) first one as the 'head'
     validationResults: { [head: string]: ValidateResult<TypeInfo> };
@@ -68,6 +70,7 @@ export class EditorStore {
                 parseResults: {},
                 importResults: {},
                 validationResults: {},
+                validatedImports: {},
                 spans: {},
                 dependencies: {
                     components: { pointers: {}, entries: {} },
@@ -84,9 +87,17 @@ export class EditorStore {
             if (!Array.isArray(this.modules[key].imports)) this.modules[key].imports = [];
             this.modules[key].imports.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                const res = this.languages[language].parser.parseImport(root({ top }), modulesByName);
+                const res = this.languages[language].parser.parseImport(root({ top }));
                 this.state[key].importResults[top.id] = res;
                 if (res.result) {
+                    if (res.result.source.type === 'raw') {
+                        const other = modulesByName[res.result.source.text];
+                        if (other != null) {
+                            add(moduleGraph, key, other);
+                        } else {
+                            console.log(`cant resolve module by name`, res.result.source.text);
+                        }
+                    }
                     // console.log('`parse', res);
                     if (res.result.source.type === 'project') {
                         const other = res.result.source.module;
@@ -121,9 +132,20 @@ export class EditorStore {
             if (components.entries[key].length !== 1) {
                 console.error(`Skipping modules with cycle`, components.entries[key]);
             }
+
+            const macros: any[] = [];
+            this.modules[key].imports.forEach((id) => {
+                const imp = this.state[key].importResults[id];
+                if (imp.result) {
+                    // START HERE:
+                    // - if there are modules imported, obviously got to deal with that
+                    // and maybe that is it for this moment
+                }
+            });
+
             this.modules[key].roots.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                this.state[key].parseResults[top.id] = this.languages[language].parser.parse([], root({ top }));
+                this.state[key].parseResults[top.id] = this.languages[language].parser.parse(macros, root({ top }));
             });
             this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, {}));
             this.runValidation(key);
@@ -169,7 +191,7 @@ export class EditorStore {
 
         ids.forEach((id) => {
             if (module.imports.includes(id)) {
-                const result = lang.parser.parseImport(root({ top: module.toplevels[id] }), modulesByName);
+                const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
 
                 Object.entries(result.ctx.meta).forEach(([loc, value]) => {
                     if (!equal(value, this.state[mod].importResults[id]?.ctx.meta[loc])) {
@@ -214,9 +236,84 @@ export class EditorStore {
         return this.runValidation(mod, ids.concat(otherNotified), changedKeys);
     }
 
+    validateImport(mod: string, top: string, imp: ParsedImport): ValidateResult<Import | null> {
+        const modulesByName: Record<string, string> = {};
+        Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
+
+        const annotations: Record<string, Annotation[]> = {};
+        const meta: Record<string, Meta> = {};
+        let result = null as null | Import;
+
+        const add = (annotation: Annotation) => {
+            const key = srcKey(annotation.src);
+            if (!annotations[key]) annotations[key] = [annotation];
+            else annotations[key].push(annotation);
+        };
+
+        if (imp.source.type === 'raw') {
+            const other = modulesByName[imp.source.text];
+            if (other != null) {
+                result = { type: 'import', items: [], macros: [], plugins: [], source: { type: 'project', module: other, src: imp.source.src } };
+            } else {
+                add({ type: 'error', src: imp.source.src, message: ['Unknonwn module named "', imp.source.text, '"'] });
+            }
+        }
+
+        if (result != null) {
+            if (result.source.type === 'project') {
+                const other = result.source.module;
+                const state = this.state[other];
+                // TODO: handle access control
+                const avail = moduleDeclarations(state.parseResults);
+                imp.macros.forEach(({ name, loc }) => {
+                    add({ type: 'error', src: { left: loc, type: 'src', id: genId() }, message: ['no macros yet'] });
+                });
+                imp.plugins.forEach(({ name, loc }) => {
+                    add({ type: 'error', src: { left: loc, type: 'src', id: genId() }, message: ['no plugins yet'] });
+                });
+                imp.items.forEach((item) => {});
+            }
+        }
+
+        return {
+            result,
+            annotations: { [top]: annotations },
+            meta,
+        };
+    }
+
     runValidation(mod: string, changedTops?: string[], changedKeys?: Record<string, true>): string[] {
         const lang = this.languages[this.modules[mod].languageConfiguration];
         const module = this.modules[mod];
+
+        module.imports.forEach((id) => {
+            const imp = this.state[mod].importResults[id];
+            if (imp.result) {
+                console.log('validint');
+                this.state[mod].validatedImports[id] = this.validateImport(mod, id, imp.result);
+
+                if (changedKeys) {
+                    Object.entries(this.state[mod].validatedImports[id].annotations[id] ?? {}).forEach(([k, ann]) => {
+                        if (!equal(ann, this.state[mod].prevAnnotations[id]?.[k])) {
+                            changedKeys[k] = true;
+                        }
+                    });
+
+                    Object.keys(this.state[mod].prevAnnotations[id] ?? {}).forEach((k) => {
+                        if (!this.state[mod].validatedImports[id].annotations[id]?.[k]) {
+                            changedKeys[k] = true;
+                        }
+                    });
+                }
+                this.state[mod].prevAnnotations[id] = this.state[mod].validatedImports[id].annotations[id];
+
+                // Here we want to populate `validatedImports`
+                // START HERE:
+                // - if there are modules imported, obviously got to deal with that
+                // and maybe that is it for this moment
+            }
+        });
+
         if (!lang.validate) return [];
         let onlyUpdate = null as null | string[];
         if (changedTops) {
@@ -333,10 +430,7 @@ export class EditorStore {
     }
 }
 
-function parseResultsDependencyInput(
-    parseResults: Record<string, ParseResult<unknown>>,
-    imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } },
-) {
+const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown>>) => {
     const available: { [kind: string]: { [name: string]: string[] } } = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
         if (results.kind.type === 'definition') {
@@ -347,6 +441,16 @@ function parseResultsDependencyInput(
             });
         }
     });
+
+    return available;
+};
+
+function parseResultsDependencyInput(
+    parseResults: Record<string, ParseResult<unknown>>,
+    imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } },
+) {
+    const available = moduleDeclarations(parseResults);
+
     // NOTE: ignore external dependencies for the moment...
     // as they don't factor into dependency graph generation.
     // console.log(`names available for offer`, available);

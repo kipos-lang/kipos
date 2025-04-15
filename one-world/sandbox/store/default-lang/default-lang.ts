@@ -35,12 +35,11 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
     // intern: (ast, info) => ({ ast, info }),
     parser: {
         config: parser.config,
-        parseImport(node, moduleNames) {
+        parseImport(node) {
             const trace: Event[] = [];
             const TRACE = false;
             const result = parser.parseImport(
                 node,
-                moduleNames,
                 TRACE
                     ? (evt) => {
                           trace.push(evt);
