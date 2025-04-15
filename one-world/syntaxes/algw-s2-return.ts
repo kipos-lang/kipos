@@ -416,10 +416,13 @@ const rules = {
     source: tx<Import['source']>(
         group(
             'value',
-            or(
-                text({ type: 'none' }),
-                id(null),
-                // 'ref'
+            meta(
+                or(
+                    text({ type: 'none' }),
+                    id(null),
+                    // 'ref'
+                ),
+                'constructor',
             ),
         ),
         (ctx, src) => {
@@ -429,7 +432,7 @@ const rules = {
                     .filter((v) => v.type === 'text')
                     .map((v) => v.text)
                     .join('');
-                return { type: 'vendor', src: text };
+                return { type: 'project', module: text };
             }
             return { type: 'project', module: 'idk' };
         },
@@ -439,14 +442,7 @@ const rules = {
             'spaced',
             seq(
                 kwd('from'),
-                group(
-                    'source',
-                    meta(
-                        or(text({ type: 'none' }), id(null)),
-                        'constructor',
-                        // 'ref'
-                    ),
-                ),
+                ref('source', 'source'),
                 kwd('import'),
                 or(
                     list(
@@ -455,9 +451,26 @@ const rules = {
                             'items',
                             star(
                                 or(
-                                    list('spaced', seq(or(kwd('macro'), kwd('plugin')), meta(id(null), 'constructor'))),
-                                    list('spaced', seq(id(null), kwd('as'), meta(id(null), 'constructor'))),
-                                    meta(id(null), 'constructor'),
+                                    tx(
+                                        list(
+                                            'spaced',
+                                            seq(group('kind', or(kwd('macro'), kwd('plugin'))), meta(group('name', id(null)), 'constructor')),
+                                        ),
+                                        (ctx, src) => ({
+                                            type: 'special',
+                                            kind: ctx.ref<Id<string>>('kind').text,
+                                            name: ctx.ref<Id<string>>('name'),
+                                        }),
+                                    ),
+                                    tx(list('spaced', seq(id(null), kwd('as'), meta(id(null), 'constructor'))), (ctx, src) => ({
+                                        type: 'item',
+                                        name: ctx.ref<Id<string>>('name'),
+                                        rename: ctx.ref<Id<string>>('rename'),
+                                    })),
+                                    tx(group('name', meta(id(null), 'constructor')), (ctx, src) => ({
+                                        type: 'item',
+                                        name: ctx.ref<Id<string>>('name'),
+                                    })),
                                 ),
                             ),
                         ),
@@ -468,12 +481,35 @@ const rules = {
             ),
         ),
         (ctx, src) => {
+            const source = ctx.ref<Import['source']>('source');
+            const raw =
+                ctx.ref<
+                    ({ type: 'special'; kind: 'macro' | 'plugin'; name: Id<string> } | { type: 'item'; name: Id<string>; rename?: Id<string> })[]
+                >('items');
+            const macros: string[] = [];
+            const plugins: string[] = [];
+            const items: Import['items'] = [];
+            raw.forEach((item) => {
+                if (item.type === 'special') {
+                    if (item.kind === 'macro') macros.push(item.name.text);
+                    else plugins.push(item.name.text);
+                } else {
+                    items.push({
+                        name: item.name.text,
+                        loc: item.name.loc,
+                        rename: item.rename?.text,
+                        accessControl: 'module',
+                    });
+                }
+            });
+
             // throw new Error('not yet');
             return {
-                source: { type: 'vendor', src: 'lol' },
-                items: [],
-                macros: [],
-                plugins: [],
+                type: 'import',
+                source,
+                items,
+                macros,
+                plugins,
             };
         },
     ),

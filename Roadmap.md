@@ -2,6 +2,13 @@
 # Alright, that was quite a diversion.
 now we're back, types are checking, and we're just about ready to ... have modules depend on each other.
 
+ok, so
+- we parse everyone's `imports`, no macros needed
+- this gives us a definitive module graph
+- we then go through one by one, ... hm parsing where we can, and evaluating macros where we must.
+  but the problem is that macro evaluation is ... async.
+  Ok we pretend it's sync for the moment.
+
 
 
 # Let's think about monorepos

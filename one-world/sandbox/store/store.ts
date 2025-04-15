@@ -139,10 +139,6 @@ const createStore = (): Store => {
     const language = defaultLang;
     const estore = new EditorStore(modules, { default: language });
 
-    Object.keys(modules).forEach((id) => {
-        estore.recompile(id);
-    });
-
     return {
         compiler() {
             return estore.compilers.default;

@@ -6,6 +6,7 @@ import { collapseComponents, Components } from './dependency-graph';
 import { Annotation, Compiler, Language, ParseKind, ParseResult, ValidateResult } from './language';
 import { findSpans } from './makeEditor';
 import equal from 'fast-deep-equal';
+import { collapseSmooshes } from '../../keyboard/update/crdt/ctree-update';
 
 export type EditorState<AST, TypeInfo> = {
     parseResults: { [top: string]: ParseResult<AST | Import> };
@@ -38,15 +39,26 @@ export class EditorStore {
         this.state = {};
         this.modules = modules;
         this.languages = languages;
-        this.initialProcess();
         this.compilers = {};
         Object.keys(languages).forEach((k) => {
             this.compilers[k] = languages[k].compiler();
         });
+        this.initialProcess();
     }
 
     initialProcess() {
         let language = 'default';
+
+        const moduleGraph: Record<string, string[]> = {};
+
+        const modulesByName: Record<string, string> = {};
+
+        Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
+
+        const add = (obj: Record<string, string[]>, key: string, value: string) => {
+            if (!obj[key]) obj[key] = [value];
+            else if (!obj[key].includes(value)) obj[key].push(value);
+        };
 
         // TODO: do a toposort on them
         // TODO: also know what language we're dealing with
@@ -64,19 +76,58 @@ export class EditorStore {
                 },
                 prevAnnotations: {},
             };
+            moduleGraph[key] = [];
 
             if (!Array.isArray(this.modules[key].imports)) this.modules[key].imports = [];
             this.modules[key].imports.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                this.state[key].parseResults[top.id] = this.languages[language].parser.parseImport(root({ top }));
+                const res = this.languages[language].parser.parseImport(root({ top }));
+                this.state[key].parseResults[top.id] = res;
+                if (res.result) {
+                    console.log('`parse', res);
+                    if (res.result.source.type === 'project') {
+                        const other = modulesByName[res.result.source.module];
+                        if (other != null) {
+                            add(moduleGraph, key, other);
+                        } else {
+                            console.log(`cant resolve module by name`, res.result.source.module);
+                        }
+                    }
+                }
             });
+        });
+
+        const components = collapseComponents(moduleGraph);
+        const uncycled: Record<string, string[]> = {};
+        Object.entries(moduleGraph).forEach(([key, deps]) => {
+            key = components.pointers[key];
+            uncycled[key] = [];
+            deps.forEach((dep) => add(uncycled, key, components.pointers[dep]));
+        });
+
+        const sorted = toposort(uncycled);
+        if (!sorted) {
+            throw new Error(`after removing cycles, there were still cycles???`);
+        }
+        sorted.reverse();
+
+        console.log('GRAPH MODULES');
+        console.log(moduleGraph, components, uncycled, sorted);
+
+        sorted.forEach((key) => {
+            if (components.entries[key].length !== 1) {
+                console.error(`Skipping modules with cycle`, components.entries[key]);
+            }
             this.modules[key].roots.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
                 this.state[key].parseResults[top.id] = this.languages[language].parser.parse([], root({ top }));
             });
-            // console.log('parsed', this.state.parseResults);
-            this.state[key].dependencies = this.calculateDependencyGraph(this.state[key].parseResults);
+            this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults));
             this.runValidation(key);
+        });
+
+        sorted.forEach((id) => {
+            this.recompile(id);
         });
     }
 
@@ -132,7 +183,7 @@ export class EditorStore {
         });
 
         // TODO: do some caching so we don't recalc this on every update.
-        const newDeps = this.calculateDependencyGraph(this.state[mod].parseResults);
+        const newDeps = calculateDependencyGraph(parseResultsDependencyInput(this.state[mod].parseResults));
         const otherNotified: string[] = [];
         // If we /leave/ a mutually recursive group, we need to notify the ones that were left
         ids.forEach((id) => {
@@ -264,90 +315,92 @@ export class EditorStore {
         });
         return spans;
     }
+}
 
-    calculateDependencyGraph(parseResults: Record<string, ParseResult<unknown>>): Dependencies {
-        const available: { [kind: string]: { [name: string]: string[] } } = {};
-        Object.entries(parseResults).forEach(([tid, results]) => {
-            if (results.kind.type === 'definition') {
-                results.kind.provides.forEach((item) => {
-                    if (!Object.hasOwn(available, item.kind)) available[item.kind] = {};
-                    if (!Object.hasOwn(available[item.kind], item.name)) available[item.kind][item.name] = [];
-                    available[item.kind][item.name].push(tid);
-                });
+function parseResultsDependencyInput(parseResults: Record<string, ParseResult<unknown>>) {
+    const available: { [kind: string]: { [name: string]: string[] } } = {};
+    Object.entries(parseResults).forEach(([tid, results]) => {
+        if (results.kind.type === 'definition') {
+            results.kind.provides.forEach((item) => {
+                if (!Object.hasOwn(available, item.kind)) available[item.kind] = {};
+                if (!Object.hasOwn(available[item.kind], item.name)) available[item.kind][item.name] = [];
+                available[item.kind][item.name].push(tid);
+            });
+        }
+    });
+    // NOTE: ignore external dependencies for the moment...
+    // as they don't factor into dependency graph generation.
+    // console.log(`names available for offer`, available);
+
+    // NOTE: in some future time, exact dependencies ... may be only resolvable at inference time.
+    // which means we'll have some spurious dependencies, but that's fine. you depend on everything that matches.
+    const dependencies: Record<string, string[]> = {};
+    Object.entries(parseResults).forEach(([tid, results]) => {
+        if (!dependencies[tid]) dependencies[tid] = [];
+        results.externalReferences.forEach((ref) => {
+            const sources = available[ref.kind]?.[ref.name] ?? [];
+            for (let other of sources) {
+                if (!dependencies[tid].includes(other)) {
+                    console.log(`found a source for ${ref.kind}:${ref.name}`, other);
+                    dependencies[tid].push(other);
+                }
             }
         });
-        // NOTE: ignore external dependencies for the moment...
-        // as they don't factor into dependency graph generation.
-        console.log(`names available for offer`, available);
+    });
 
-        // NOTE: in some future time, exact dependencies ... may be only resolvable at inference time.
-        // which means we'll have some spurious dependencies, but that's fine. you depend on everything that matches.
-        const dependencies: Record<string, string[]> = {};
-        Object.entries(parseResults).forEach(([tid, results]) => {
-            if (!dependencies[tid]) dependencies[tid] = [];
-            results.externalReferences.forEach((ref) => {
-                const sources = available[ref.kind]?.[ref.name] ?? [];
-                for (let other of sources) {
-                    if (!dependencies[tid].includes(other)) {
-                        console.log(`found a source for ${ref.kind}:${ref.name}`, other);
-                        dependencies[tid].push(other);
-                    }
-                }
-            });
+    return dependencies;
+}
+
+function calculateDependencyGraph(dependencies: Record<string, string[]>): Dependencies {
+    // ok now we have a graph, I do believe
+    const components = collapseComponents(dependencies);
+
+    const headDeps: Record<string, string[]> = {};
+
+    Object.entries(dependencies).forEach(([tid, deps]) => {
+        const head = components.pointers[tid];
+        if (!headDeps[head]) headDeps[head] = [];
+        deps.forEach((dep) => {
+            const tail = components.pointers[dep];
+            if (tail !== head && !headDeps[head].includes(tail)) {
+                headDeps[head].push(tail);
+            }
         });
+    });
 
-        // ok now we have a graph, I do believe
-        const components = collapseComponents(dependencies);
+    // OK: headDeps now has the collapsed dependencies, with components represented by their heads
 
-        const headDeps: Record<string, string[]> = {};
+    const deep: Record<string, string[]> = {};
 
-        Object.entries(dependencies).forEach(([tid, deps]) => {
-            const head = components.pointers[tid];
-            if (!headDeps[head]) headDeps[head] = [];
-            deps.forEach((dep) => {
-                const tail = components.pointers[dep];
-                if (tail !== head && !headDeps[head].includes(tail)) {
-                    headDeps[head].push(tail);
-                }
-            });
+    const deepify = (id: string, parentDeps: string[][]) => {
+        parentDeps.forEach((deps) => (deps.includes(id) ? null : deps.push(id)));
+        if (!deep[id]) deep[id] = headDeps[id].slice();
+        const next = parentDeps.concat([deep[id]]);
+        headDeps[id].forEach((child) => (child !== id ? deepify(child, next) : null));
+    };
+
+    // This is quite wasteful. It would be enough to just
+    // go through the heads that aren't a dependency of anything.
+    Object.keys(headDeps).forEach((head) => deepify(head, []));
+
+    const fullSort = toposort(headDeps);
+    if (!fullSort) throw new Error(`cycle in headDeps! Should not happen`);
+    fullSort.reverse();
+    const sortHeads = (one: string, two: string) => fullSort.indexOf(one) - fullSort.indexOf(two);
+
+    Object.keys(deep).forEach((k) => {
+        deep[k].sort(sortHeads);
+    });
+
+    const dependents: Record<string, string[]> = {};
+    Object.entries(headDeps).forEach(([hid, deps]) => {
+        deps.forEach((did) => {
+            if (!dependents[did]) dependents[did] = [hid];
+            else dependents[did].push(hid);
         });
+    });
 
-        // OK: headDeps now has the collapsed dependencies, with components represented by their heads
-
-        const deep: Record<string, string[]> = {};
-
-        const deepify = (id: string, parentDeps: string[][]) => {
-            parentDeps.forEach((deps) => (deps.includes(id) ? null : deps.push(id)));
-            if (!deep[id]) deep[id] = headDeps[id].slice();
-            const next = parentDeps.concat([deep[id]]);
-            headDeps[id].forEach((child) => (child !== id ? deepify(child, next) : null));
-        };
-
-        // This is quite wasteful. It would be enough to just
-        // go through the heads that aren't a dependency of anything.
-        Object.keys(headDeps).forEach((head) => deepify(head, []));
-
-        // Now, we go through
-
-        // Is this a valid sort?
-        // noooo because a could be independent of b and b be independent of c, but a could be in relationship with c.
-        const fullSort = toposort(headDeps).reverse();
-        const sortHeads = (one: string, two: string) => fullSort.indexOf(one) - fullSort.indexOf(two);
-
-        Object.keys(deep).forEach((k) => {
-            deep[k].sort(sortHeads);
-        });
-
-        const dependents: Record<string, string[]> = {};
-        Object.entries(headDeps).forEach(([hid, deps]) => {
-            deps.forEach((did) => {
-                if (!dependents[did]) dependents[did] = [hid];
-                else dependents[did].push(hid);
-            });
-        });
-
-        return { components, headDeps, deepDeps: deep, traversalOrder: fullSort, dependents };
-    }
+    return { components, headDeps, deepDeps: deep, traversalOrder: fullSort, dependents };
 }
 
 const toposort = (dependencies: Record<string, string[]>) => {
@@ -374,6 +427,11 @@ const toposort = (dependencies: Record<string, string[]>) => {
                 queue.push(neighbor);
             }
         }
+    }
+
+    // There was a cycle! Unable to sort
+    if (Object.keys(dependencies).length !== sorted.length) {
+        return null;
     }
 
     return sorted;

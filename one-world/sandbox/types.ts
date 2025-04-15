@@ -5,6 +5,7 @@ import { AccessControlLevel } from './store/language';
 import { HistoryChange } from './store/state';
 
 export type Import = {
+    type: 'import';
     source:
         | {
               type: 'project';
@@ -25,7 +26,7 @@ export type Import = {
           };
     macros: string[];
     plugins: string[];
-    items: { name: string; loc: string; kind: string; accessControl: AccessControlLevel; rename?: string }[];
+    items: { name: string; loc: string; kind?: string; accessControl: AccessControlLevel; rename?: string }[];
     all?: boolean;
 };
 

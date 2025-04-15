@@ -58,7 +58,8 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 // hmmm maybe have type: 'import' here? hmmm.
                 kind: {
                     type: 'definition',
-                    provides: result.result?.items ?? [],
+                    // TODO: ... we don't necessarily get /kinds/ from the imports. how to fix?
+                    provides: [], //  result.result?.items ?? [],
                 },
             };
         },
