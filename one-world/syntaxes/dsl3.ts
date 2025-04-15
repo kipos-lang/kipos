@@ -23,7 +23,18 @@ export type Event =
     | { type: 'extra'; loc: Loc }
     | { type: 'mismatch'; loc?: Loc; message: TraceText };
 
-export type Ctx = {
+export class MismatchError extends Error {
+    text: TraceText;
+    loc?: Loc;
+    constructor(text: TraceText, loc?: Loc) {
+        super('');
+        this.text = text;
+        this.loc = loc;
+    }
+}
+
+export type Ctx<Extra = any> = {
+    extra?: Extra;
     allowIdKwds?: boolean;
     ref<T>(name: string): T;
     scopes: { name: string; kind: string; loc: string }[][];
@@ -45,7 +56,7 @@ export type Ctx = {
 
 export type Rule<T> =
     | { type: 'or'; opts: Rule<T>[] }
-    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx, src: Src & { id: string }) => T }
+    | { type: 'tx'; inner: Rule<any>; f: (ctx: Ctx<any>, src: Src & { id: string }) => T }
     | { type: 'meta'; meta: string; inner: Rule<T> }
     | { type: 'kwd'; kwd: string; meta?: string }
     | { type: 'ref'; name: string; bind?: string }
@@ -389,7 +400,19 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (rat >= parent.nodes.length) throw new Error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             // if (rat >= parent.nodes.length) console.error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             const right = m.consumed > 1 && rat < parent.nodes.length ? parent.nodes[at + m.consumed - 1].loc : undefined;
-            return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
+            try {
+                return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
+            } catch (err) {
+                if (err instanceof MismatchError) {
+                    ctx.trace?.({ type: 'mismatch', message: err.message, loc: err.loc });
+                    if (err.loc != null) {
+                        ctx.meta[err.loc] = { kind: 'error' };
+                    }
+                    return null;
+                }
+                console.error(`failed to run tx`);
+                return;
+            }
         }
         case 'group': {
             if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);

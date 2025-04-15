@@ -24,6 +24,7 @@ import {
     reference,
     scope,
     loc,
+    MismatchError,
 } from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
@@ -413,7 +414,7 @@ const rules = {
         seq(kwd('@@'), group('contents', { type: 'any' })),
         (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'raw', contents: ctx.ref<RecNode>('contents') } }),
     ),
-    source: tx<Import['source']>(
+    source: tx<Import['source'] | void>(
         group(
             'value',
             meta(
@@ -432,9 +433,18 @@ const rules = {
                     .filter((v) => v.type === 'text')
                     .map((v) => v.text)
                     .join('');
-                return { type: 'project', module: text };
+                if (ctx.extra?.moduleNames[text]) {
+                    return { type: 'project', module: ctx.extra?.moduleNames[text] };
+                }
+                // console.log(ctx.extra.moduleNames);
+                // console.log('unknown module name, sorry');
+                throw new MismatchError(`unknown module name`, src.left);
             }
-            return { type: 'project', module: 'idk' };
+            if (ctx.extra?.moduleNames[value.text]) {
+                return { type: 'project', module: ctx.extra.moduleNames[value.text] };
+            }
+            // console.log(ctx.extra.moduleNames);
+            throw new MismatchError(`unknown module name`, value.loc);
         },
     ),
     ['import']: tx<Import>(
@@ -678,8 +688,17 @@ export const parser = {
         xml: true,
     },
     spans: () => [],
-    parseImport(node: RecNode, trace?: (evt: Event) => undefined) {
-        const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
+    parseImport(node: RecNode, moduleNames: Record<string, string>, trace?: (evt: Event) => undefined) {
+        const myctx: Ctx<{ moduleNames: Record<string, string> }> = {
+            ...ctx,
+            extra: { moduleNames },
+            meta: {},
+            rules: { ...ctx.rules },
+            trace,
+            scopes: [[]],
+            usages: {},
+            externalUsages: [],
+        };
         const res = match<Import>({ type: 'ref', name: 'import' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
         return { result: res?.value, ctx: myctx };
     },

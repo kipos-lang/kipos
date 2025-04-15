@@ -17,7 +17,7 @@ const findCycles = (graph: Record<string, string[]>) => {
     Object.values(graph).forEach((d) => {
         d.forEach((d) => {
             if (!graph[d]) {
-                debugger;
+                // debugger;
                 throw new Error(`unknown id in graph: ${d}`);
             }
         });

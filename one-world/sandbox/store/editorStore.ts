@@ -54,7 +54,6 @@ export class EditorStore {
         const moduleGraph: Record<string, string[]> = {};
 
         const modulesByName: Record<string, string> = {};
-
         Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
 
         const add = (obj: Record<string, string[]>, key: string, value: string) => {
@@ -85,12 +84,12 @@ export class EditorStore {
             if (!Array.isArray(this.modules[key].imports)) this.modules[key].imports = [];
             this.modules[key].imports.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                const res = this.languages[language].parser.parseImport(root({ top }));
+                const res = this.languages[language].parser.parseImport(root({ top }), modulesByName);
                 this.state[key].importResults[top.id] = res;
                 if (res.result) {
                     // console.log('`parse', res);
                     if (res.result.source.type === 'project') {
-                        const other = modulesByName[res.result.source.module];
+                        const other = res.result.source.module;
                         if (other != null) {
                             add(moduleGraph, key, other);
                         } else {
@@ -165,9 +164,12 @@ export class EditorStore {
 
         const imports: { [kind: string]: { [name: string]: { module: string; top: string }[] } } = {};
 
+        const modulesByName: Record<string, string> = {};
+        Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
+
         ids.forEach((id) => {
             if (module.imports.includes(id)) {
-                const result = lang.parser.parseImport(root({ top: module.toplevels[id] }));
+                const result = lang.parser.parseImport(root({ top: module.toplevels[id] }), modulesByName);
 
                 Object.entries(result.ctx.meta).forEach(([loc, value]) => {
                     if (!equal(value, this.state[mod].importResults[id]?.ctx.meta[loc])) {

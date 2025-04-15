@@ -18,6 +18,8 @@ when editing, parseInput can have knowledge of the exports of other modules, and
 but during first parse, we can't. so we have to account for that.
 (although we can have knowledge of the names of other modules, so lets lock that down fo sho)
 
+- [ ] pass in module names to resolve at import time
+
 
 
 # Let's think about monorepos
