@@ -271,7 +271,32 @@ export class EditorStore {
                 imp.plugins.forEach(({ name, loc }) => {
                     add({ type: 'error', src: { left: loc, type: 'src', id: genId() }, message: ['no plugins yet'] });
                 });
-                imp.items.forEach((item) => {});
+                imp.items.forEach((item) => {
+                    if (item.kind) {
+                        const got = avail[item.kind]?.[item.name];
+                        if (got != null) {
+                            result.items.push({ ...item, kind: item.kind!, id: got });
+                        } else {
+                            add({
+                                type: 'error',
+                                src: { left: item.loc, id: genId(), type: 'src' },
+                                message: [`no export of kind "${item.kind}" named "${item.name}"`],
+                            });
+                        }
+                    } else {
+                        let found = false;
+                        Object.keys(avail).forEach((kind) => {
+                            const got = avail[kind]?.[item.name];
+                            if (got != null) {
+                                result.items.push({ ...item, kind, id: got });
+                                found = true;
+                            }
+                        });
+                        if (!found) {
+                            add({ type: 'error', src: { left: item.loc, id: genId(), type: 'src' }, message: [`no export named "${item.name}"`] });
+                        }
+                    }
+                });
             }
         }
 

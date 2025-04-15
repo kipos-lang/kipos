@@ -41,7 +41,7 @@ export type Import = {
           };
     macros: string[];
     plugins: string[];
-    items: { name: string; id: string; loc: string; kind: string; accessControl: AccessControlLevel; rename?: string }[];
+    items: { name: string; id: string[]; loc: string; kind: string; accessControl: AccessControlLevel; rename?: string }[];
     all?: boolean;
 };
 
