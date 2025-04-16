@@ -6,6 +6,7 @@ import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { Dragger, DraggerCtx, DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
 import equal from 'fast-deep-equal';
+import { useTestResults } from './store/editorHooks';
 
 const ModuleTitle = ({
     node: { name },
@@ -24,6 +25,10 @@ const ModuleTitle = ({
     const { useMouseDown, useIsDragging, checkClick } = useContext(DraggerCtx);
     const onMouseDown = useMouseDown(id);
     const isDragging = useIsDragging(id);
+
+    const tr = useTestResults(id);
+    const passCount = tr?.reduce((m, t) => m + t.results.reduce((a, b) => a + (b.result.type === 'pass' ? 1 : 0), 0), 0) ?? 0;
+    const testCount = tr?.reduce((m, t) => m + t.results.length, 0) ?? 0;
 
     return (
         <div
@@ -59,6 +64,24 @@ const ModuleTitle = ({
             >
                 {collapsed ? '>' : 'v'}
             </div>
+            {tr?.length ? (
+                <div
+                    style={{
+                        backgroundColor: passCount < testCount ? 'red' : 'green',
+                        width: 20,
+                        height: 20,
+                        textAlign: 'center',
+                        borderRadius: 8,
+                        fontSize: '80%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                    }}
+                >
+                    {passCount < testCount ? testCount - passCount : passCount}
+                </div>
+            ) : null}
             {editing != null ? (
                 <input
                     value={editing}

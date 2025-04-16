@@ -138,8 +138,11 @@ export type FailureKind =
     | { type: 'dependencies'; deps: { module: string; toplevel: string; message?: string }[] }
     | { type: 'evaluation'; message: string };
 
+export type ModuleTestResults = { top: string; results: LocatedTestResult[] }[];
+
 export type CompilerEvents = {
     viewSource: { args: { module: string; top: string }; data: { source: string } };
+    testResults: { args: { module: string }; data: { results: ModuleTestResults } };
     results: { args: { module: string; top: string }; data: { results: EvaluationResult[] } };
     failure: { args: { module: string; top: string }; data: FailureKind[] };
 };
@@ -147,12 +150,10 @@ export type CompilerEvents = {
 export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, ((data: CompilerEvents[K]['data']) => void)[]> };
 
 export const eventKey = <K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args']): string => {
-    switch (evt) {
-        case 'failure':
-        case 'results':
-        case 'viewSource':
-            return `${args.module} : ${args.top}`;
+    if ('top' in args) {
+        return `${args.module} : ${args.top}`;
     }
+    return args.module;
 };
 
 export interface Compiler<AST, ValidationInfo> {

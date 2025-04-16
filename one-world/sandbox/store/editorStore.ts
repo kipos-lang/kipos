@@ -38,9 +38,11 @@ export class EditorStore {
     modules: Record<string, Module>;
     languages: Record<string, Language<any, any, any>>;
     compilers: Record<string, Compiler<any, any>>;
+    moduleDeps: { forward: { [module: string]: { [top: string]: { module: string; top: string }[] } }; sorted: string[] };
 
     constructor(modules: Record<string, Module>, languages: Record<string, Language<any, any, any>>) {
         this.state = {};
+        this.moduleDeps = { forward: {}, sorted: [] };
         this.modules = modules;
         this.languages = languages;
         this.compilers = {};
@@ -58,7 +60,7 @@ export class EditorStore {
         const modulesByName: Record<string, string> = {};
         Object.entries(this.modules).forEach(([key, { name }]) => (modulesByName[name] = key));
 
-        const add = (obj: Record<string, string[]>, key: string, value: string) => {
+        const add = <T>(obj: Record<string, T[]>, key: string, value: T) => {
             if (!obj[key]) obj[key] = [value];
             else if (!obj[key].includes(value)) obj[key].push(value);
         };
@@ -145,6 +147,19 @@ export class EditorStore {
             this.runValidation(key);
         });
 
+        // NOW: set up forward module dependencies
+        this.moduleDeps.sorted = sorted;
+
+        sorted.forEach((key) => {
+            this.moduleDeps.forward[key] = {};
+            Object.entries(this.state[key].dependencies.importDeps).forEach(([tid, deps]) => {
+                deps.forEach(({ module, top }) => {
+                    add(this.moduleDeps.forward[module], top, { module: key, top: tid });
+                });
+            });
+        });
+        console.log(`forward deps`, this.moduleDeps);
+
         sorted.forEach((id) => {
             this.recompile(id);
         });
@@ -172,6 +187,27 @@ export class EditorStore {
         } catch (err) {
             console.log(err);
         }
+    }
+
+    updateModules(mod: string, ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
+        // Toplevels to update within each module
+        const thingsToUpdate: { [module: string]: string[] } = {};
+        thingsToUpdate[mod] = ids;
+
+        this.moduleDeps.sorted.forEach((mid) => {
+            if (!thingsToUpdate[mid]) return; // fine
+            // do the module level update, it's fine
+            const updatedHeads = this.updateTops(mid, thingsToUpdate[mid], changed, changedKeys);
+            this.recompile(mid, updatedHeads);
+            updatedHeads.forEach((head) => {
+                this.state[mid].dependencies.components.entries[head].forEach((head) => {
+                    this.moduleDeps.forward[mid]?.[head]?.forEach((child) => {
+                        if (!thingsToUpdate[child.module]) thingsToUpdate[child.module] = [];
+                        thingsToUpdate[child.module].push(child.top);
+                    });
+                });
+            });
+        });
     }
 
     updateTops(mod: string, ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>): string[] {
@@ -377,10 +413,8 @@ export class EditorStore {
             const projectDeps = this.state[mod].dependencies.importDeps[id]
                 .map(({ module, top }) => this.state[module]?.validationResults[top]?.result)
                 .filter(Boolean);
-            console.log('deps', localDeps, projectDeps);
 
             this.state[mod].validationResults[id] = lang.validate(module.id, parseResults, projectDeps.concat(localDeps));
-            // console.log(`typed ${id}`, results[id]);
 
             // NEED a way, if a previous thing fails,
             // to indicate that a value exists but has type errors

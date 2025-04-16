@@ -185,8 +185,8 @@ const createStore = (): Store => {
             if (changedTops.length) {
                 const keys: Record<string, true> = {};
                 const estore = this.estore();
-                const topsToCompile = estore.updateTops(module, changedTops, changed, keys);
-                estore.recompile(module, topsToCompile);
+                estore.updateModules(module, changedTops, changed, keys);
+                // estore.recompile(module, topsToCompile);
                 Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
 
                 evts.push(`module:${mod.id}:dependency-graph`);

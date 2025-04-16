@@ -2,7 +2,18 @@ import equal from 'fast-deep-equal';
 import { RecNode } from '../../../shared/cnodes';
 import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
-import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind, Meta, Renderable } from '../language';
+import {
+    CompilerEvents,
+    EvaluationResult,
+    Compiler,
+    CompilerListenersMap,
+    ParseKind,
+    eventKey,
+    FailureKind,
+    Meta,
+    Renderable,
+    ModuleTestResults,
+} from '../language';
 import { TInfo } from './default-lang';
 import { Resolutions, stmtToString, testToString, toString } from './to-string';
 import { id, list, text } from '../../../keyboard/test-utils';
@@ -141,7 +152,7 @@ const define = (source: string, provides: string[], deps: Record<string, any>, n
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
 export class DefaultCompiler implements Compiler<TopItem, TInfo> {
-    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {} };
+    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {}, testResults: {} };
     code: { [module: string]: { [top: string]: string } } = {};
     _failures: { [module: string]: { [top: string]: FailureKind } } = {};
     _results: {
@@ -156,6 +167,18 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
         };
     } = {};
     constructor() {}
+    testResults(moduleId: string): ModuleTestResults {
+        const results: ModuleTestResults = [];
+        Object.entries(this._results[moduleId] ?? {}).forEach(([top, tres]) => {
+            if (tres.type === 'evaluate') {
+                const matchined = tres.result.filter((res) => res.type === 'test-result');
+                if (matchined.length) {
+                    results.push({ top, results: matchined });
+                }
+            }
+        });
+        return results;
+    }
     results(moduleId: string, top: string): EvaluationResult[] | null {
         const res = this._results[moduleId]?.[top];
         if (res?.type === 'evaluate') {
@@ -281,6 +304,9 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         const result = evaluate(source, depValues, names);
                         this._results[module][top] = { type: 'evaluate', result };
                         this.emit('results', { module, top }, { results: result });
+                        if (result.some((r) => r.type === 'test-result')) {
+                            this.emit('testResults', { module }, { results: this.testResults(module) });
+                        }
                         this.logFailure(module, top, null);
                     } else if (asts[top].kind.type === 'definition') {
                         throw new Error(`unreachable`);
@@ -305,6 +331,9 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         // infos[top].resolutions
                         this._results[module][top] = { type: 'evaluate', result };
                         this.emit('results', { module, top }, { results: result });
+                        if (result.some((r) => r.type === 'test-result')) {
+                            this.emit('testResults', { module }, { results: this.testResults(module) });
+                        }
                         this.logFailure(module, top, null);
                     }
                 } else {
@@ -316,7 +345,13 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
 
     listen<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], fn: (data: CompilerEvents[K]['data']) => void): () => void {
         const key = eventKey(evt, args);
-        // console.log(`listen ${evt} : ${key}`);
+        if (!('top' in args)) {
+            const got = this.testResults(args.module);
+            if (got.length) {
+                fn({ results: got as any });
+            }
+            return addFn(args.module, this.listeners[evt], fn);
+        }
         switch (evt) {
             case 'failure': {
                 const failure = this._failures[args.module]?.[args.top];

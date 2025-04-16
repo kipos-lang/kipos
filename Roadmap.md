@@ -1,4 +1,12 @@
 
+# BACK ON TRACK
+
+- [x] a little bit of imports working
+- [x] let's re-evaluate modules when module dependencies change.
+- [ ] show test results in the top roundy thing
+- [ ] let's show test results in the module sidebar
+
+
 # DECISION
 we don't override the #lang of things we're importing. we respect it.
 

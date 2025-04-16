@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Evt, useStore } from './store';
-import { EvaluationResult, FailureKind } from './language';
+import { EvaluationResult, FailureKind, ModuleTestResults } from './language';
 import { lastChild, mergeHighlights, NodeSelection, Path, pathKey, SelectionStatuses } from '../../keyboard/utils';
 import { getSelectionStatuses } from '../../keyboard/selections';
 import equal from 'fast-deep-equal';
@@ -75,6 +75,17 @@ export function useTopFailure(top: string) {
     }, [top]);
     return results;
 }
+
+export function useTestResults(module: string) {
+    const store = useStore();
+    const compiler = store.compiler();
+    const [results, setResults] = useState(null as null | ModuleTestResults);
+    useEffect(() => {
+        return compiler.listen('testResults', { module }, ({ results }) => setResults(results));
+    }, [top]);
+    return results;
+}
+
 export function useTopResults(top: string) {
     const store = useStore();
     const selected = store.selected();
@@ -130,7 +141,7 @@ export function useAnnotations(top: string, key: string) {
         const state = estore.state[store.selected()];
         const mod = store.module(store.selected());
         if (mod.imports.includes(top)) {
-            console.log('getting from the vali', state.validatedImports[top]);
+            // console.log('getting from the vali', state.validatedImports[top]);
             return state.validatedImports[top]?.annotations[top]?.[key];
         }
         // store.compiler.

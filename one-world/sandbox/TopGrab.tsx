@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { useUpdate } from './useProvideDrag';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
+import { useTopResults } from './store/editorHooks';
 
 export const TopGrab = ({ name, id }: { name: string; id: string }) => {
     const update = useUpdate();
     const [menu, setMenu] = useState(false);
+    const results = useTopResults(id);
+    const hasTests = results?.some((t) => t.type === 'test-result');
+    const hasFailures = results?.some((t) => t.type === 'test-result' && t.result.type !== 'pass');
     return (
         <div style={{ position: 'relative' }}>
             <div
@@ -22,6 +26,19 @@ export const TopGrab = ({ name, id }: { name: string; id: string }) => {
                     fontSize: '80%',
                     lineHeight: '2em',
                 })}
+                style={
+                    hasFailures
+                        ? {
+                              backgroundColor: zedlight.syntax['punctuation.special'].color,
+                              color: 'white',
+                          }
+                        : hasTests
+                          ? {
+                                backgroundColor: zedlight.syntax['constant'].color,
+                                color: 'white',
+                            }
+                          : undefined
+                }
                 onClick={() => setMenu(!menu)}
             >
                 {name}
