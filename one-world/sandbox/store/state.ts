@@ -254,8 +254,22 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
 
         case 'rm-tl': {
+            if (state.imports.includes(action.id)) {
+                const imports = state.imports.slice();
+                const at = imports.indexOf(action.id);
+                imports.splice(at, 1);
+                let next = at < imports.length ? imports[at] : state.roots[0];
+                if (next == null) return state;
+                const top = state.tops[next];
+                const sel = selectStart({ root: { top: top.id, ids: [] }, children: [top.root] }, top);
+                if (!sel) return state;
+                const tops = { ...state.tops };
+                delete tops[action.id];
+                return { ...state, imports, tops, selections: [{ start: sel }] };
+            }
             const roots = state.roots.slice();
             const at = roots.indexOf(action.id);
+            if (at === -1) return state;
             roots.splice(at, 1);
             let next = at < roots.length ? roots[at] : roots[at - 1];
             if (next == null) return state;

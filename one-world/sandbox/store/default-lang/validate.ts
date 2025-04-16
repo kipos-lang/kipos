@@ -530,11 +530,16 @@ export const inferToplevel = (tenv: Tenv, stmt: TopItem): { value: Type; scope?:
         case 'type':
             return { value: { type: 'con', name: 'void', src: stmt.src } };
         case 'test': {
-            const { name, src, cases } = stmt;
+            const { name, target, src, cases } = stmt;
+            const ttype = target ? inferExpr(tenv, target) : null;
             cases.forEach(({ input, output, outloc }) => {
                 const itype = inferExpr(tenv, input);
                 const otype = inferExpr(tenv, output);
-                unify(itype, otype, input.src, 'input', 'output');
+                if (ttype) {
+                    unify(ttype, tfn(itype, otype), input.src, 'target', 'input -> output');
+                } else {
+                    unify(itype, otype, input.src, 'input', 'output');
+                }
             });
             return { value: { type: 'con', name: 'void', src } }; // basic case, types equal
         }

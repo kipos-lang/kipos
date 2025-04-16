@@ -42,7 +42,7 @@ export const useModuleStatus = (id: string) => {
             );
             module.roots.forEach((tid) => {
                 const state = store.estore().state[id];
-                if (!state?.parseResults[tid].result) {
+                if (!state?.parseResults[tid]?.result) {
                     status.parse++;
                 }
                 Object.values(state?.validationResults[tid]?.annotations ?? {}).forEach((pr) => {

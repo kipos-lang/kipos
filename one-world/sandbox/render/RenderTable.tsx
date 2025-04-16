@@ -112,7 +112,7 @@ export const RenderTable = ({ node, sel, self, meta }: { meta?: Meta; node: Node
         >
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
-            <span style={{ marginLeft: -6, position: 'relative', top: '-1px', marginRight: -2 }}>:</span>
+            <span style={{ marginLeft: -6, marginRight: node.forceMultiline ? undefined : -2 }}>:</span>
             {has('inside') ? <Cursor /> : null}
             {node.forceMultiline ? (
                 <div style={{ display: 'grid', marginLeft: 32, gridAutoColumns: 'max-content', columnGap: 8 }}>{rows}</div>
