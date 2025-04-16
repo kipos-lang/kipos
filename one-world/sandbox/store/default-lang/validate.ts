@@ -54,6 +54,7 @@ export const builtinEnv = () => {
     builtinEnv.scope['concat'] = generic(['t'], tfns([tapp(tcon('Array'), t), tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
     // builtinEnv.scope['[]'] = generic(['t'], tapp(tcon('Array'), t));
     // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
+    builtinEnv.scope['kipos'] = generic(['t'], t);
     builtinEnv.scope['void'] = generic(['t'], tfn(t, { type: 'con', name: 'void', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc()));
@@ -668,6 +669,10 @@ const commas = (v: StackText[], sep = ', ') => interleaveF(v, () => sep);
 
 export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
     switch (expr.type) {
+        case 'object': {
+            const t = newTypeVar({ type: 'free', prev: 'object' }, expr.src);
+            return t;
+        }
         case 'prim':
             const t: Type = { type: 'con', name: expr.prim.type, src: expr.src };
             stackPush(expr.src, kwd(expr.prim.value + ''), ' -> ', typ(t));

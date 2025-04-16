@@ -4,6 +4,21 @@ so
 arright folks, let's get this showing some sort of color or something.
 eventually.
 
+CONWAY MUST LIVE
+
+So how do I do a little step action?
+
+Options include:
+- have a custom syntax thing that's like "run:" which does some magic
+- have a button on the toplevel that's like "> run <" which does some magic
+  - that would be an editor plugin, I do believe.
+  -> probably both on the frontend and backend?
+  - like it would (a) wrap the evaluation in some javascript code to do periodic updates, and (b) take over the display of the results, potentially.
+- magically decide that if the shape of the data is /a certain way/, e.g. `{type: 'kipos:display', mime: 'something', value: 'idk'}` then we display it a certain way.
+  -> that doesn't handle the issue of "how to do animation and such", but it's part of something. like we could do svgs and pngs and stuff.
+- I could just make a builtin that's like `$$env.periodic(fn)`
+  - idk it kinda appeals. could get something quick & dirty together.
+
 
 # BACK ON TRACK
 
@@ -16,6 +31,11 @@ eventually.
 - [x] I want the module sidebar to indicate type errors and stuff
   - I also want ... to have the backend deal with files. right?
 - [ ] make it so I can disable a module
+
+- [ ] MOCK setInterval and setTimeout so they get cleared on re-evaluation.
+...
+HOW do I make it so that `kipos.update` actually updates the thing we were coming from?
+idk. for now, we have to pass it around.
 
 
 # DECISION

@@ -120,15 +120,22 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
     return results;
 };
 
-const evaluate = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
+const evaluate = (
+    source: string,
+    deps: Record<string, any>,
+    names: Record<string, string>,
+    // update: (result: EvaluationResult[]) => void,
+    kipos: any,
+): EvaluationResult[] => {
     const f = new Function(
         'deps',
+        'kipos',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}`,
     );
     try {
-        const value = f(deps);
+        const value = f(deps, kipos);
         try {
             if (typeof value === 'string') {
                 return [{ type: 'plain', data: value }];
@@ -169,6 +176,7 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                 | { type: 'evaluate'; result: EvaluationResult[] };
         };
     } = {};
+    _intervals: { [module: string]: { [top: string]: Timer[] } } = {};
     constructor() {}
     testResults(moduleId: string): ModuleTestResults {
         const results: ModuleTestResults = [];
@@ -304,14 +312,44 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         return; // skip it
                     }
 
+                    this._intervals[module]?.[top]?.forEach((t) => clearInterval(t));
+                    if (!this._intervals[module]) this._intervals[module] = {};
+                    this._intervals[module][top] = [];
+
                     if (asts[top].kind.type === 'evaluation') {
-                        const result = evaluate(source, depValues, names);
-                        this._results[module][top] = { type: 'evaluate', result };
-                        this.emit('results', { module, top }, { results: result });
-                        if (result.some((r) => r.type === 'test-result')) {
-                            this.emit('testResults', { module }, { results: this.testResults(module) });
+                        try {
+                            const result = evaluate(source, depValues, names, {
+                                update: (result: EvaluationResult[]) => {
+                                    // console.log('got deplay', result, module, top);
+                                    this._results[module][top] = { type: 'evaluate', result };
+                                    this.emit('results', { module, top }, { results: result });
+                                    if (result.some((r) => r.type === 'test-result')) {
+                                        this.emit('testResults', { module }, { results: this.testResults(module) });
+                                    }
+                                    this.logFailure(module, top, null);
+                                },
+                                setInterval: (f: () => void, t: number) => {
+                                    this._intervals[module][top].push(
+                                        setInterval(() => {
+                                            try {
+                                                f();
+                                            } catch (err) {
+                                                // noop
+                                                this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                                            }
+                                        }, t),
+                                    );
+                                },
+                            });
+                            this._results[module][top] = { type: 'evaluate', result };
+                            this.emit('results', { module, top }, { results: result });
+                            if (result.some((r) => r.type === 'test-result')) {
+                                this.emit('testResults', { module }, { results: this.testResults(module) });
+                            }
+                            this.logFailure(module, top, null);
+                        } catch (err) {
+                            this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
                         }
-                        this.logFailure(module, top, null);
                     } else if (asts[top].kind.type === 'definition') {
                         throw new Error(`unreachable`);
                     }
