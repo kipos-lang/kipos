@@ -186,7 +186,6 @@ const createStore = (): Store => {
                 const keys: Record<string, true> = {};
                 const estore = this.estore();
                 estore.updateModules(module, changedTops, changed, keys);
-                // estore.recompile(module, topsToCompile);
                 Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
 
                 evts.push(`module:${mod.id}:dependency-graph`);

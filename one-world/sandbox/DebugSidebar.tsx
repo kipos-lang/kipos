@@ -22,6 +22,7 @@ import {
     useTopSource,
 } from './store/editorHooks';
 import { useStore } from './store/store';
+import { useModuleStatus } from './ModuleSidebar';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -298,11 +299,26 @@ export const DebugSidebar = () => {
                 <Collapsible title="Selection">
                     <ShowSelection />
                 </Collapsible>
+                <Collapsible title="Module Status">
+                    <ShowModuleStatus />
+                </Collapsible>
                 <Collapsible title="Theme Colors">
                     <ShowColors />
                 </Collapsible>
             </div>
         </Resizebar>
+    );
+};
+
+const ShowModuleStatus = () => {
+    const store = useStore();
+    const sel = store.useSelected();
+    const status = useModuleStatus(sel);
+    return (
+        <div>
+            {sel}
+            {JSON.stringify(status)}
+        </div>
     );
 };
 

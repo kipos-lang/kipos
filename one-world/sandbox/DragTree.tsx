@@ -68,7 +68,7 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
     const latest = useLatest(dragging);
     const lastDrag = useRef(0);
 
-    const refs: Record<string, { node: HTMLElement; children: boolean }> = useMemo(() => ({}), []);
+    const refs: Record<string, { node?: null | HTMLElement; children?: null | HTMLElement }> = useMemo(() => ({}), []);
 
     useEffect(() => {
         if (!dragging) return;
@@ -83,32 +83,38 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
                 return;
             }
             const matching = Object.keys(refs)
-                .map((id) => {
-                    const box = refs[id].node.getBoundingClientRect();
-                    return box.left + (refs[id].children ? 0 : OFFSET) <= evt.clientX &&
-                        box.right >= evt.clientX &&
-                        box.top <= evt.clientY &&
-                        box.bottom >= evt.clientY
-                        ? { id, box }
-                        : null;
+                .flatMap((id) => {
+                    const res: { id: string; box: DOMRect; children?: boolean }[] = [];
+                    const { node, children } = refs[id];
+                    if (node) {
+                        const box = node.getBoundingClientRect();
+                        if (box.left + OFFSET <= evt.clientX && box.right >= evt.clientX && box.top <= evt.clientY && box.bottom >= evt.clientY) {
+                            res.push({ id, box });
+                        }
+                    }
+                    if (children) {
+                        const box = children.getBoundingClientRect();
+                        if (box.left <= evt.clientX && box.right >= evt.clientX && box.top <= evt.clientY && box.bottom >= evt.clientY) {
+                            res.push({ id, box, children: true });
+                        }
+                    }
+                    return res;
                 })
-                .filter(Boolean)
                 .sort((a, b) => a!.box.height - b!.box.height);
             const got = matching[0];
             if (!got || got.id === dragging.which) {
                 if (dragging.target) return setDragging({ ...dragging, target: undefined });
                 return;
             }
-            const children = refs[got.id].children;
             return setDragging({
                 ...dragging,
                 target: {
                     dest: got.id,
                     location: 'inside',
-                    x: children ? got.box.left : got.box.left + OFFSET,
-                    y: children ? got.box.top : got.box.bottom,
-                    w: got.box.width - (children ? 0 : OFFSET),
-                    h: children ? got.box.height : 4,
+                    x: got.children ? got.box.left : got.box.left + OFFSET,
+                    y: got.children ? got.box.top : got.box.bottom,
+                    w: got.box.width - (got.children ? 0 : OFFSET),
+                    h: got.children ? got.box.height : 4,
                 },
             });
         };
@@ -160,8 +166,9 @@ export const Dragger = ({ dtctx, root = 'root' }: { root?: string; dtctx: DragTr
             ref(id, children) {
                 return useCallback(
                     (node) => {
-                        if (!node) delete refs[id];
-                        else refs[id] = { node, children };
+                        if (!refs[id]) refs[id] = {};
+                        if (children) refs[id].children = node;
+                        else refs[id].node = node;
                     },
                     [id, children],
                 );
@@ -214,16 +221,17 @@ export const DragTreeNode = React.memo(function DragTreeNode({ id }: { id: strin
     const { children, node } = useNode(id);
     const dragger = useContext(DraggerCtx);
     const [isCollapsed, setCollapsed] = useLocalStorage(`dt-${id}`, () => false);
-    const dr = dragger.ref(id, !isCollapsed && !!children.length);
+    const dr = dragger.ref(id, false);
+    const dc = dragger.ref(id, true);
     return (
         <div>
             {node ? (
-                <div ref={!isCollapsed && children.length ? undefined : dr}>
+                <div ref={dr}>
                     <Render node={node} id={id} collapsed={children.length ? isCollapsed : null} setCollapsed={setCollapsed} />
                 </div>
             ) : null}
             {!isCollapsed && children.length ? (
-                <div style={{ marginLeft: !node ? 0 : 24 }} ref={dr}>
+                <div style={{ marginLeft: !node ? 0 : 24 }} ref={dc}>
                     {children.map((id) => (
                         <DragTreeNode key={id} id={id} />
                     ))}

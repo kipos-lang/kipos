@@ -3,8 +3,13 @@
 
 - [x] a little bit of imports working
 - [x] let's re-evaluate modules when module dependencies change.
-- [ ] show test results in the top roundy thing
-- [ ] let's show test results in the module sidebar
+- [x] show test results in the top roundy thing
+- [x] let's show test results in the module sidebar
+- [x] module dependencies not quite cutting it
+- [ ] let's have a debug sidebar showing module dependencies thanks
+- [x] I want the module sidebar to indicate type errors and stuff
+  - I also want ... to have the backend deal with files. right?
+- [ ] make it so I can disable a module
 
 
 # DECISION

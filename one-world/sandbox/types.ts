@@ -51,6 +51,7 @@ export type Module = {
     parent: string;
     languageConfiguration: string;
     toplevels: Record<string, Toplevel>;
+    disabled?: boolean;
 
     imports: string[];
 

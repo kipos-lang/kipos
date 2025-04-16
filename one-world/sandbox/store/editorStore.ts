@@ -6,7 +6,6 @@ import { collapseComponents, Components } from './dependency-graph';
 import { Annotation, Compiler, Language, Meta, ParseKind, ParseResult, ValidateResult } from './language';
 import { findSpans, srcKey } from './makeEditor';
 import equal from 'fast-deep-equal';
-import { collapseSmooshes } from '../../keyboard/update/crdt/ctree-update';
 import { genId } from '../../keyboard/ui/genId';
 
 export type EditorState<AST, TypeInfo> = {

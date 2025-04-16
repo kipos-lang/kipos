@@ -6,7 +6,77 @@ import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { Dragger, DraggerCtx, DragTreeCtx, DragTreeCtxT, DragTreeNode } from './DragTree';
 import equal from 'fast-deep-equal';
-import { useTestResults } from './store/editorHooks';
+import { useModule, useTestResults, useTick } from './store/editorHooks';
+import { EvaluationResult } from './store/language';
+
+type ModuleStatus = { test: { failed: number; total: number }; parse: number; type: number; eval: number };
+const nullStatus = (): ModuleStatus => ({ test: { failed: 0, total: 0 }, parse: 0, type: 0, eval: 0 });
+
+export const useModuleStatus = (id: string) => {
+    const store = useStore();
+    useTick(`module:${id}`);
+    const [status, setStatus] = useState(nullStatus);
+    const latest = useRef(status);
+    latest.current = status;
+    const module = store.module(id);
+    useEffect(() => {
+        const compiler = store.compiler();
+
+        const evalResults: Record<string, EvaluationResult[]> = {};
+
+        const recalc = () => {
+            const module = store.module(id);
+            let status = { test: { failed: 0, total: 0 }, parse: 0, type: 0, eval: 0 };
+            Object.values(evalResults).forEach((res) =>
+                res.forEach((res) => {
+                    if (res.type === 'exception') {
+                        status.eval++;
+                    }
+                    if (res.type === 'test-result') {
+                        status.test.total++;
+                        if (res.result.type !== 'pass') {
+                            status.test.failed++;
+                        }
+                    }
+                }),
+            );
+            module.roots.forEach((tid) => {
+                const state = store.estore().state[id];
+                if (!state?.parseResults[tid].result) {
+                    status.parse++;
+                }
+                Object.values(state?.validationResults[tid]?.annotations ?? {}).forEach((pr) => {
+                    Object.values(pr).forEach((an) =>
+                        an.forEach((an) => {
+                            if (an.type === 'error') {
+                                status.type++;
+                            }
+                        }),
+                    );
+                });
+            });
+            if (!equal(status, latest.current)) {
+                setStatus(status);
+            }
+        };
+
+        const op = store.listen(`module:${id}:parse-results`, () => {
+            recalc();
+        });
+        const fns = module.roots.map((top) =>
+            compiler.listen('results', { module: id, top }, ({ results }) => {
+                evalResults[top] = results;
+                recalc();
+            }),
+        );
+        recalc();
+        return () => {
+            op();
+            fns.forEach((f) => f());
+        };
+    }, [module.roots, id]);
+    return status;
+};
 
 const ModuleTitle = ({
     node: { name },
@@ -26,9 +96,10 @@ const ModuleTitle = ({
     const onMouseDown = useMouseDown(id);
     const isDragging = useIsDragging(id);
 
-    const tr = useTestResults(id);
-    const passCount = tr?.reduce((m, t) => m + t.results.reduce((a, b) => a + (b.result.type === 'pass' ? 1 : 0), 0), 0) ?? 0;
-    const testCount = tr?.reduce((m, t) => m + t.results.length, 0) ?? 0;
+    const status = useModuleStatus(id);
+    // const tr = useTestResults(id);
+    // const passCount = tr?.reduce((m, t) => m + t.results.reduce((a, b) => a + (b.result.type === 'pass' ? 1 : 0), 0), 0) ?? 0;
+    // const testCount = tr?.reduce((m, t) => m + t.results.length, 0) ?? 0;
 
     return (
         <div
@@ -64,10 +135,10 @@ const ModuleTitle = ({
             >
                 {collapsed ? '>' : 'v'}
             </div>
-            {tr?.length ? (
+            {status.test.total ? (
                 <div
                     style={{
-                        backgroundColor: passCount < testCount ? 'red' : 'green',
+                        backgroundColor: status.test.failed ? 'red' : 'green',
                         width: 20,
                         height: 20,
                         textAlign: 'center',
@@ -79,7 +150,7 @@ const ModuleTitle = ({
                         marginRight: 8,
                     }}
                 >
-                    {passCount < testCount ? testCount - passCount : passCount}
+                    {status.test.failed ? status.test.failed : status.test.total}
                 </div>
             ) : null}
             {editing != null ? (
@@ -97,7 +168,17 @@ const ModuleTitle = ({
                     }}
                 />
             ) : (
-                name
+                <span
+                    style={
+                        status.parse || status.eval || status.type
+                            ? {
+                                  textDecoration: 'wavy red underline',
+                              }
+                            : undefined
+                    }
+                >
+                    {name}
+                </span>
             )}
             <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
             <div
