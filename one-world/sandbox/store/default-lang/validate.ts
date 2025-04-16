@@ -42,6 +42,7 @@ export const builtinEnv = () => {
     const b: Type = { type: 'var', name: 'b', src: builtinSrc() };
     const tapp = (target: Type, ...args: Type[]): Type => ({ type: 'app', args, target, src: builtinSrc() });
     const tcon = (name: string): Type => ({ type: 'con', name, src: builtinSrc() });
+    builtinEnv.scope['Math'] = concrete({ type: 'con', name: 'Math', src: builtinSrc() });
     builtinEnv.scope['Error'] = concrete(tfn(tstring, { type: 'con', name: 'Error', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['null'] = concrete({ type: 'con', name: 'null', src: builtinSrc() });
     builtinEnv.scope['true'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });

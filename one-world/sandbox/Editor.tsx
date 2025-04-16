@@ -99,6 +99,7 @@ export const Editor = () => {
                 >
                     Add Toplevel
                 </button>
+                <div style={{ height: 300 }} />
             </div>
             <DebugSidebar />
         </>

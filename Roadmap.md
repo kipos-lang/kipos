@@ -1,4 +1,10 @@
 
+hmm.
+so
+arright folks, let's get this showing some sort of color or something.
+eventually.
+
+
 # BACK ON TRACK
 
 - [x] a little bit of imports working

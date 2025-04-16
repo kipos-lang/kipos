@@ -130,6 +130,9 @@ const evaluate = (source: string, deps: Record<string, any>, names: Record<strin
     try {
         const value = f(deps);
         try {
+            if (typeof value === 'string') {
+                return [{ type: 'plain', data: value }];
+            }
             return [{ type: 'plain', data: JSON.stringify(value) ?? 'undefined' }];
         } catch (err) {
             return [{ type: 'plain', data: `Result cant be stringified: ${value}` }];

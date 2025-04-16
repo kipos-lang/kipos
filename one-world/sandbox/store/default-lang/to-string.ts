@@ -91,7 +91,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 '}',
             ]);
         case 'if':
-            return group(expr.src.id, ['() => {', ifToString(expr, res, true), '}']);
+            return group(expr.src.id, ['(() => {', ifToString(expr, res, true), '})()']);
         case 'match':
             return group(expr.src.id, [
                 '() => {',
