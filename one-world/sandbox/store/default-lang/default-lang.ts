@@ -60,7 +60,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
         },
         parse(macros, node) {
             const trace: Event[] = [];
-            const TRACE = true;
+            const TRACE = false;
             const result = parser.parse(
                 macros,
                 node,

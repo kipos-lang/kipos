@@ -41,6 +41,28 @@ and that's it! right.
 
 once we have vendored things, that might play into it. but not yet.
 
+Currently our history tracking (undo/redo) is isolated to the module level,
+and trimmed to like the last 100 changes,
+and such.
+
+could my notion of commits supercede history tracking?
+OK ANOTHER THOUGHT, smarter undo/redo:
+- if you do ctrl-z and your selection is in the same toplevel (or module?) that
+  the most recent change happened, and the change was less than (5 minutes) ago,
+  we just undo the change, easy peasy.
+- BUT if it's been a while, or you're in a different module, then we enter "rewind mode"
+  -> where there's a slider at the bottom of the screen, and you can switch between
+    - whole project
+    - this module
+    - this toplevel
+      -> might even want to be able to select multiple toplevels to rewind?
+-> while rewinding, we: re-evaluate all the tests n stuff for you, so you can see
+  what is happening.
+b/c like if you're just rewinding one module, it might not get to the point where all tests are passing.
+
+ALSO you should be able to navigate to other modules while in rewind mode, to see what execution
+results look like over there.
+
 ## Editor experience thoughts:
 
 - [ ] IF we have an error in a thing, I don't actually want to propagate execution down the line.
