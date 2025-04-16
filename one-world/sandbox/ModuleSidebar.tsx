@@ -138,11 +138,14 @@ const ModuleTitle = ({
             {status.test.total ? (
                 <div
                     style={{
-                        backgroundColor: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
-                        width: 20,
-                        height: 20,
+                        backgroundColor: 'white',
+                        border: '2px solid currentColor',
+                        borderColor: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
+                        // color: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
+                        width: 15,
+                        height: 15,
                         textAlign: 'center',
-                        color: 'white',
+                        color: 'black',
                         fontFamily: 'Jet Brains',
                         borderRadius: 8,
                         fontSize: '80%',
