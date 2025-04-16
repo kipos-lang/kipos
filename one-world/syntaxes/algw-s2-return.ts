@@ -34,7 +34,7 @@ import { genId } from '../keyboard/ui/genId';
 import { Import, ParsedImport } from '../sandbox/types';
 
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
-export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
+export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*=', '&&', '||'];
 
 const tableConfig = tx(
     group(
@@ -187,8 +187,8 @@ export type Suffix =
     | CallArgs
     | { type: 'attribute'; attribute: Id<Loc>; src: Src };
 
-const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }): Expr => {
-    if (!suffixes.length) return base;
+const parseSmoosh = (base: Expr, suffixes: Suffix[], prefixes: Id<Loc>[], src: Src & { id: string }): Expr => {
+    if (!suffixes.length && !prefixes.length) return base;
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
@@ -215,6 +215,9 @@ const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }):
             //     throw new Error(`not doing ${(suffix as any).type} right now`);
         }
     });
+    for (let i = prefixes.length - 1; i >= 0; i--) {
+        base = { type: 'uop', op: prefixes[i], target: base, src: mergeSrc(nodesSrc(prefixes[i]), base.src) };
+    }
     return { ...base, src };
 };
 
@@ -260,6 +263,8 @@ const exprs: Record<string, Rule<Expr>> = {
     'expr!': list('smooshed', ref('expr..')),
     'expr wrap': tx(list('round', ref('expr', 'inner')), (ctx, _) => ctx.ref<Expr>('inner')),
 };
+
+export const unops = ['+', '-', '!', '~'];
 
 const rules = {
     toplevel_spaced: or(...Object.keys(toplevels_spaced).map((name) => ref<TopItem>(name))),
@@ -522,6 +527,7 @@ const rules = {
         ref('quote'),
         tx<Expr>(
             seq(
+                group('prefixes', star(or(...unops.map((k) => kwd(k, 'uop'))))),
                 ref('expr', 'base'),
                 group(
                     'suffixes',
@@ -542,7 +548,7 @@ const rules = {
                     ),
                 ),
             ),
-            (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), src),
+            (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), ctx.ref<Id<Loc>[]>('prefixes'), src),
         ),
     ),
     expr: or(...Object.keys(exprs).map((name) => ref(name)), list('spaced', ref('expr ')), ref('block')),

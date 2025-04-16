@@ -67,6 +67,8 @@ const maybeWrap = (expr: Expr, res: Resolutions) => {
 
 const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
     switch (expr.type) {
+        case 'uop':
+            return group(expr.src.id, [expr.op.text, maybeWrap(expr.target, res)]);
         case 'throw':
             return group(expr.src.id, ['(() => {throw ', exprToString(expr.value, res), ';})()']);
         case 'new':

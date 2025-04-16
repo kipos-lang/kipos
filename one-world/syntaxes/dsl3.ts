@@ -158,13 +158,13 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
 
 // TODO: track a pathhhh
 export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<any> => {
-    const node = parent.nodes[at];
+    const node = parent.nodes[at] as RecNode | null;
     switch (rule.type) {
         case 'kwd':
             if (node?.type !== 'id' || node.text !== rule.kwd)
                 return ctx.trace?.({
                     type: 'mismatch',
-                    message: 'not the kwd "' + rule.kwd + '" - ' + (node.type === 'id' ? node.text : `type: ${node.type}`),
+                    message: 'not the kwd "' + rule.kwd + '" - ' + (node?.type === 'id' ? node.text : `type: ${node?.type}`),
                 });
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
@@ -335,6 +335,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return inner;
         }
         case 'meta': {
+            if (!node) return;
             const inner = match(rule.inner, ctx, parent, at);
             if (inner) ctx.meta[node.loc] = { kind: rule.meta };
             return inner;
@@ -368,6 +369,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             const start = at;
             const values: any[] = [];
             while (at < parent.nodes.length) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['star(', values.length + '', ')'] });
                 if (isBlank(parent.nodes[at])) {
                     at++;
                     continue;
@@ -377,6 +380,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                 values.push(m.value);
                 at += m.consumed;
             }
+            ctx.trace?.({ type: 'stack-pop' });
+            ctx.trace?.({ type: 'stack-push', text: ['star(', values.length + '', ') - finished'] });
             return { consumed: at - start, value: values };
         }
         case 'or': {

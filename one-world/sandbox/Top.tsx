@@ -131,7 +131,6 @@ const renderMessage = (message: string | AnnotationText[]) =>
         : message.map((item, i) => (typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />));
 
 export const TopFailure = ({ id }: { id: string }) => {
-    const update = useUpdate();
     const compileFailure = useTopFailure(id);
     const parseResults = useTopParseResults(id);
     const failure: (FailureKind | { type: 'parse' | 'validation'; message: string | AnnotationText[] })[] = [...(compileFailure ?? [])];
@@ -156,7 +155,7 @@ export const TopFailure = ({ id }: { id: string }) => {
         <div
             className={css({
                 width: '300px',
-                background: '#fee',
+                background: 'red',
                 boxShadow: '0px 0px 2px red',
                 position: 'absolute',
                 top: '5px',
@@ -169,6 +168,7 @@ export const TopFailure = ({ id }: { id: string }) => {
                 maxHeight: '1em',
                 maxWidth: '1em',
                 '&:hover': {
+                    background: '#fee',
                     maxHeight: 'none',
                     overflow: 'auto',
                     maxWidth: 'none',

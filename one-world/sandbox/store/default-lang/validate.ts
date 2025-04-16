@@ -53,15 +53,18 @@ export const builtinEnv = () => {
     builtinEnv.scope['concat'] = generic(['t'], tfns([tapp(tcon('Array'), t), tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
     // builtinEnv.scope['[]'] = generic(['t'], tapp(tcon('Array'), t));
     // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
-    builtinEnv.scope['void'] = concrete({ type: 'con', name: 'void', src: builtinSrc() });
+    builtinEnv.scope['void'] = generic(['t'], tfn(t, { type: 'con', name: 'void', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['>='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['<'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['<='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['&&'] = concrete(tfns([tbool, tbool], tbool, builtinSrc()));
+    builtinEnv.scope['||'] = concrete(tfns([tbool, tbool], tbool, builtinSrc()));
     builtinEnv.scope['='] = generic(['t'], tfns([t, t], tint, builtinSrc()));
     builtinEnv.scope[','] = generic(['a', 'b'], tfns([a, b], tapp(tcon(','), a, b), builtinSrc()));
     builtinEnv.constructors[','] = { free: ['a', 'b'], args: [a, b], result: tapp(tcon(','), a, b) };
@@ -536,7 +539,7 @@ export const inferToplevel = (tenv: Tenv, stmt: TopItem): { value: Type; scope?:
                 const itype = inferExpr(tenv, input);
                 const otype = inferExpr(tenv, output);
                 if (ttype) {
-                    unify(ttype, tfn(itype, otype), input.src, 'target', 'input -> output');
+                    unify(ttype, tfn(itype, otype, input.src), input.src, 'target', 'input -> output');
                 } else {
                     unify(itype, otype, input.src, 'input', 'output');
                 }
@@ -779,6 +782,17 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 expr.src,
                 // bodyType.value ?? bodyType.return ?? { type: 'con', name: 'void' },
             );
+        }
+        case 'uop': {
+            const inner = inferExpr(tenv, expr.target);
+            unify(
+                inner,
+                { type: 'con', name: expr.op.text === '!' ? 'bool' : 'int', src: { type: 'src', id: genId(), left: expr.op.loc } },
+                expr.src,
+                'unary argument',
+                'unary operator',
+            );
+            return gtypeApply(inner);
         }
         case 'bop': {
             // const src = expr.src;

@@ -193,6 +193,7 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
             this.emit('failure', { module, top }, []);
         } else {
             this._failures[module][top] = kind;
+            console.log('FAILURE', module, top, kind);
             this.emit('failure', { module, top }, [kind]);
         }
     }

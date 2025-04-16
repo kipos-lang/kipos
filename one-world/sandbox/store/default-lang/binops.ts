@@ -3,7 +3,7 @@ import { Id, Loc, RecNode } from '../../../shared/cnodes';
 import { Expr } from '../../../syntaxes/algw-s2-types';
 import { Src } from '../../../syntaxes/dsl3';
 
-const precedence = [['!=', '=='], ['>', '<', '>=', '<='], ['%'], ['+', '-'], ['*', '/'], ['^']];
+const precedence = [['&&', '||'], ['!=', '=='], ['>', '<', '>=', '<='], ['%'], ['+', '-'], ['*', '/'], ['^']];
 const opprec: Record<string, number> = {};
 precedence.forEach((row, i) => {
     row.forEach((n) => (opprec[n] = i));
