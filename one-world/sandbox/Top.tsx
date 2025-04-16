@@ -63,6 +63,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
             <div
                 className={css({
                     display: 'flex',
+                    background: 'white',
                     flexDirection: 'row',
                     alignItems: 'flex-start',
                     padding: '12px',

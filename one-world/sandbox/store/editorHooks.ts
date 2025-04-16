@@ -41,8 +41,8 @@ export const useTopParseResults = (top: string) => {
 
     useTick(`top:${top}:parse-results`);
     return {
-        ...estore.state[module].parseResults[top],
-        validation: estore.state[module].validationResults[estore.state[module].dependencies.components.pointers[top]],
+        ...estore.state[module]?.parseResults[top],
+        validation: estore.state[module]?.validationResults[estore.state[module].dependencies.components.pointers[top]],
         spans: {},
     };
 };
@@ -52,7 +52,7 @@ export function useDependencyGraph() {
     const selected = store.selected();
     const estore = store.estore();
     useTick(`module:${selected}:dependency-graph`);
-    return estore.state[selected].dependencies;
+    return estore.state[selected]?.dependencies;
 }
 
 export function useTopSource(top: string) {

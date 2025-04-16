@@ -1,6 +1,6 @@
 import { css } from 'goober';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { CirclePlusIcon, EditIcon, HDots } from './icons';
+import { ChevronDownIcon, ChevronRightIcon, CirclePlusIcon, EditIcon, HDots } from './icons';
 import { useStore, newModule, Store } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
@@ -127,21 +127,23 @@ const ModuleTitle = ({
             }}
         >
             <div
-                style={{ visibility: collapsed === null ? 'hidden' : 'visible', cursor: 'pointer', width: '1em' }}
+                style={{ visibility: collapsed === null ? 'hidden' : 'visible', cursor: 'pointer', width: 24, height: 24 }}
                 onClick={(evt) => {
                     evt.stopPropagation();
                     setCollapsed(!collapsed);
                 }}
             >
-                {collapsed ? '>' : 'v'}
+                {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
             </div>
             {status.test.total ? (
                 <div
                     style={{
-                        backgroundColor: status.test.failed ? 'red' : 'green',
+                        backgroundColor: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
                         width: 20,
                         height: 20,
                         textAlign: 'center',
+                        color: 'white',
+                        fontFamily: 'Jet Brains',
                         borderRadius: 8,
                         fontSize: '80%',
                         display: 'flex',

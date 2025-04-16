@@ -56,13 +56,17 @@ export const Editor = () => {
                     <Drag>
                         <div
                             className={css({
-                                padding: '8px 16px',
+                                paddingBottom: '1px',
                                 boxShadow: `0 1px 4px ${zedlight['info.background']}`,
                                 background: zedlight['info.background'],
                                 borderRadius: '4px',
                             })}
                         >
-                            <div>
+                            <div
+                                className={css({
+                                    padding: '8px 16px',
+                                })}
+                            >
                                 Imports
                                 <span
                                     onClick={() => {
