@@ -32,7 +32,7 @@ Options include:
   - I also want ... to have the backend deal with files. right?
 - [ ] make it so I can disable a module
 
-- [ ] MOCK setInterval and setTimeout so they get cleared on re-evaluation.
+- [x] MOCK setInterval and setTimeout so they get cleared on re-evaluation.
 ...
 HOW do I make it so that `kipos.update` actually updates the thing we were coming from?
 idk. for now, we have to pass it around.

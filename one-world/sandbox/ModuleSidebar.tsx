@@ -1,6 +1,6 @@
 import { css } from 'goober';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, CirclePlusIcon, EditIcon, HDots } from './icons';
+import { BadgeCheck, CancelIcon, ChevronDownIcon, ChevronRightIcon, CirclePlusIcon, EditIcon, HDots } from './icons';
 import { useStore, newModule, Store } from './store/store';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
@@ -135,29 +135,6 @@ const ModuleTitle = ({
             >
                 {collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
             </div>
-            {status.test.total ? (
-                <div
-                    style={{
-                        backgroundColor: 'white',
-                        border: '2px solid currentColor',
-                        borderColor: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
-                        // color: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
-                        width: 15,
-                        height: 15,
-                        textAlign: 'center',
-                        color: 'black',
-                        fontFamily: 'Jet Brains',
-                        borderRadius: 8,
-                        fontSize: '80%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 8,
-                    }}
-                >
-                    {status.test.failed ? status.test.failed : status.test.total}
-                </div>
-            ) : null}
             {editing != null ? (
                 <input
                     value={editing}
@@ -186,11 +163,38 @@ const ModuleTitle = ({
                 </span>
             )}
             <div style={{ flexBasis: 16, minWidth: 16, flexGrow: 1 }} />
+            {status.test.total ? (
+                <div
+                    style={{
+                        // backgroundColor: 'white',
+                        // border: '2px solid currentColor',
+                        color: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
+                        fontSize: 22,
+                        // color: status.test.failed ? zedlight.syntax['punctuation.special'].color : zedlight.syntax['constant'].color,
+                        // width: 15,
+                        // height: 15,
+                        // textAlign: 'center',
+                        // color: 'black',
+                        // fontFamily: 'Jet Brains',
+                        // borderRadius: 8,
+                        // fontSize: '80%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        // marginRight: 8,
+                    }}
+                >
+                    {status.test.failed ? <CancelIcon /> : <BadgeCheck />}
+                </div>
+            ) : null}
             <div
                 className={
                     'icon ' +
                     css({
                         opacity: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     })
                 }
                 onMouseDown={onMouseDown}
