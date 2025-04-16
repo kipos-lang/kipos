@@ -176,6 +176,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
         }
 
         const allAnnotations: Record<string, Record<string, Annotation[]>> = {};
+        let failed = false;
 
         asts.forEach(({ ast, tid }, i) => {
             const annotations: Record<string, Annotation[]> = {};
@@ -190,12 +191,16 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 add({ type: 'type', annotation: typeToNode(res[i]), src: ast.src, primary: true });
             } else {
                 add({ type: 'error', message: ['unable to infer: ', error!], src: ast.src });
+                failed = true;
             }
 
             // console.log('events', tid, eventsByTop[i]);
 
             eventsByTop[i]?.forEach((evt) => {
                 if (evt.type === 'error' || evt.type === 'warning') {
+                    if (evt.type === 'error') {
+                        failed = true;
+                    }
                     const message: AnnotationText[] = evt.message.map((item) => {
                         if (typeof item === 'string') {
                             return item;
@@ -218,6 +223,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
         return {
             result: { scope, resolutions: glob.resolutions },
             meta: {},
+            failed,
             events: glob.events,
             annotations: allAnnotations,
         };

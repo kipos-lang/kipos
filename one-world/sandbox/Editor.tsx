@@ -33,8 +33,8 @@ export const Editor = () => {
         const nums: Record<string, { at: number; count: number }> = {};
         let at = 1;
         return module.roots.map((id) => {
-            const hid = deps.components.pointers[id];
-            if (deps.components.entries[hid]?.length === 1) {
+            const hid = deps?.components.pointers[id] ?? id;
+            if (deps?.components.entries[hid]?.length === 1) {
                 return at++ + '';
             }
             if (!nums[hid]) {

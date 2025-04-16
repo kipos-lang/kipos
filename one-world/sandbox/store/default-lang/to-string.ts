@@ -118,7 +118,8 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
             const resolution = res[expr.src.id];
             if (!resolution) {
                 if (!expr.name) {
-                    return `undefined`;
+                    throw new Error(`blank identifier found during code generation`);
+                    // return `(() => {throw new Error('blank identifier')})()`;
                 }
                 // console.warn(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
                 return expr.name;

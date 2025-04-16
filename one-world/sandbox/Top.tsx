@@ -182,7 +182,7 @@ export const TopFailure = ({ id }: { id: string }) => {
                     case 'dependencies':
                         return <div key={i}>Missing {fail.deps.length} deps</div>;
                     case 'evaluation':
-                        return <div key={i}>E: {fail.message}</div>;
+                        return <div key={i}>Eval error: {fail.message}</div>;
                     case 'parse':
                         return <div key={i}>P: {renderMessage(fail.message)}</div>;
                     case 'validation':

@@ -88,6 +88,7 @@ export type Annotation =
 
 export type ValidateResult<ValidationInfo> = {
     result: ValidationInfo;
+    failed: boolean;
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...

@@ -1,4 +1,27 @@
 
+## Editor experience thoughts:
+
+- [ ] IF we have an error in a thing, I don't actually want to propagate execution down the line.
+  AND I want to indicate somehow, for the downstream ones, that their execution is "paused" due to
+  a parent being in a bad state.
+- [x] when swithing from evaluation -> defintion, we need to clear the results
+- [ ] "blanks" shouldn't resolve to `undefined`
+- [ ] suppress space from a blank
+
+
+## Thoughts on blanks:
+
+- should not block type checking. Should be an "anything"
+  - ah but it can still be reported as an error. that's fine.
+- should block code generation.
+  - orr maybe should be a runtime error?
+  - yeah let's block code generation. we don't have the infrastructure to do "hole propagation" well
+
+- [x] type errors should always block re-evaluation
+
+
+##
+
 hmm.
 so
 arright folks, let's get this showing some sort of color or something.
@@ -20,6 +43,11 @@ Options include:
   - idk it kinda appeals. could get something quick & dirty together.
 
 
+# Social Media feedback on dependencies and such
+
+https://x.com/ForrestTheWoods/status/1912337191327658250
+
+
 # BACK ON TRACK
 
 - [x] a little bit of imports working
@@ -36,6 +64,8 @@ Options include:
 ...
 HOW do I make it so that `kipos.update` actually updates the thing we were coming from?
 idk. for now, we have to pass it around.
+
+- [ ] -
 
 
 # DECISION

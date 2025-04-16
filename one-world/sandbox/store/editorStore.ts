@@ -177,10 +177,16 @@ export class EditorStore {
                 asts[key] = { ast: parse.result, kind: parse.kind };
             });
         });
+        let failed = false;
         const infos: Record<string, TInfo> = {};
         heads.forEach((key) => {
-            infos[key] = this.state[module].validationResults[key]?.result;
+            const vr = this.state[module].validationResults[key];
+            if (!vr?.result || vr.failed) {
+                failed = true;
+            }
+            infos[key] = vr?.result;
         });
+        if (failed) return;
         try {
             this.compilers[this.modules[module].languageConfiguration].loadModule(module, this.state[module].dependencies, asts, infos);
         } catch (err) {
@@ -289,6 +295,8 @@ export class EditorStore {
             }
         }
 
+        let failed = result == null;
+
         if (result != null) {
             if (result.source.type === 'project') {
                 const other = result.source.module;
@@ -333,6 +341,7 @@ export class EditorStore {
         return {
             result,
             annotations: { [top]: annotations },
+            failed,
             meta,
         };
     }

@@ -290,12 +290,14 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                             });
 
                         this._results[module][top] = { type: 'definition', scope };
+                        this.emit('results', { module, top }, { results: [] });
                         this.logFailure(module, top, null);
                     });
                 } catch (err) {
                     // console.error('bad news bears', err);
                     components.forEach((top) => {
                         this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                        this.emit('results', { module, top }, { results: [] });
                     });
                 }
             } else {

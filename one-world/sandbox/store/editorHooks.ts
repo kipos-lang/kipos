@@ -61,6 +61,9 @@ export function useTopSource(top: string) {
     const compiler = store.compiler();
     const [results, setResults] = useState(null as null | string);
     useEffect(() => {
+        setResults(null);
+    }, [top]);
+    useEffect(() => {
         return compiler.listen('viewSource', { module: selected, top }, ({ source }) => setResults(source));
     }, [top]);
     return results;

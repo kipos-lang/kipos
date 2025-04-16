@@ -19,6 +19,7 @@ import {
     useSelectedTop,
     useSelection,
     useTopParseResults,
+    useTopResults,
     useTopSource,
 } from './store/editorHooks';
 import { useStore } from './store/store';
@@ -302,12 +303,22 @@ export const DebugSidebar = () => {
                 <Collapsible title="Module Status">
                     <ShowModuleStatus />
                 </Collapsible>
+                <Collapsible title="Evaluation Results">
+                    <ShowEvaluationResults />
+                </Collapsible>
                 <Collapsible title="Theme Colors">
                     <ShowColors />
                 </Collapsible>
             </div>
         </Resizebar>
     );
+};
+
+const ShowEvaluationResults = () => {
+    const top = useSelectedTop();
+    const results = useTopResults(top);
+
+    return <div>{JSON.stringify(results)}</div>;
 };
 
 const ShowModuleStatus = () => {
