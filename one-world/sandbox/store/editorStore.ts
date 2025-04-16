@@ -9,6 +9,7 @@ import equal from 'fast-deep-equal';
 import { genId } from '../../keyboard/ui/genId';
 
 export type EditorState<AST, TypeInfo> = {
+    processLog: { [top: string]: string[] };
     parseResults: { [top: string]: ParseResult<AST, ParseKind> };
     importResults: { [top: string]: ParseResult<ParsedImport, null> };
     validatedImports: { [top: string]: ValidateResult<Import | null> };
@@ -35,6 +36,7 @@ export type Dependencies = {
 export class EditorStore {
     state: Record<string, EditorState<any, any>>;
     modules: Record<string, Module>;
+    modulesLog: { [module: string]: string[] };
     languages: Record<string, Language<any, any, any>>;
     compilers: Record<string, Compiler<any, any>>;
     moduleDeps: { forward: { [module: string]: { [top: string]: { module: string; top: string }[] } }; sorted: string[] };
@@ -42,6 +44,7 @@ export class EditorStore {
     constructor(modules: Record<string, Module>, languages: Record<string, Language<any, any, any>>) {
         this.state = {};
         this.moduleDeps = { forward: {}, sorted: [] };
+        this.modulesLog = {};
         this.modules = modules;
         this.languages = languages;
         this.compilers = {};
@@ -68,6 +71,7 @@ export class EditorStore {
         // TODO: also know what language we're dealing with
         Object.keys(this.modules).forEach((key) => {
             this.state[key] = {
+                processLog: {},
                 parseResults: {},
                 importResults: {},
                 validationResults: {},
@@ -109,6 +113,7 @@ export class EditorStore {
                         }
                     }
                 }
+                this.log(key, top.id, `Parsed import ${res.result ? '' : 'un'}successfully`);
             });
         });
 
@@ -129,6 +134,9 @@ export class EditorStore {
         sorted.forEach((key) => {
             if (components.entries[key].length !== 1) {
                 console.error(`Skipping modules with cycle`, components.entries[key]);
+                components.entries[key].forEach((mid) => {
+                    this.mlog(mid, `Module has cycle! ${components.entries[key].join(', ')}`);
+                });
             }
 
             const macros: any[] = [];
@@ -140,7 +148,9 @@ export class EditorStore {
 
             this.modules[key].roots.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                this.state[key].parseResults[top.id] = this.languages[language].parser.parse(macros, root({ top }));
+                const pr = this.languages[language].parser.parse(macros, root({ top }));
+                this.state[key].parseResults[top.id] = pr;
+                this.log(key, top.id, `Parsed toplevel ${pr.result ? '' : 'un'}successfully`);
             });
             this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, imports));
             this.runValidation(key);
@@ -166,6 +176,7 @@ export class EditorStore {
 
     recompile(module: string, heads: string[] = this.state[module].dependencies.traversalOrder) {
         if (!heads.length) return;
+        this.mlog(module, `recompile ` + heads.join(', '));
         type AST = any;
         type TInfo = any;
         const asts: Record<string, { ast: AST; kind: ParseKind }> = {};
@@ -173,20 +184,17 @@ export class EditorStore {
             if (this.modules[module].imports.includes(hid)) throw new Error('trying to compile an import');
             this.state[module].dependencies.components.entries[hid].forEach((key) => {
                 const parse = this.state[module].parseResults[key];
-                if (!parse?.result) return;
+                if (!parse?.result) {
+                    return;
+                }
                 asts[key] = { ast: parse.result, kind: parse.kind };
             });
         });
-        let failed = false;
         const infos: Record<string, TInfo> = {};
         heads.forEach((key) => {
             const vr = this.state[module].validationResults[key];
-            if (!vr?.result || vr.failed) {
-                failed = true;
-            }
-            infos[key] = vr?.result;
+            infos[key] = vr?.failed ? undefined : vr?.result;
         });
-        if (failed) return;
         try {
             this.compilers[this.modules[module].languageConfiguration].loadModule(module, this.state[module].dependencies, asts, infos);
         } catch (err) {
@@ -195,6 +203,7 @@ export class EditorStore {
     }
 
     updateModules(mod: string, ids: string[], changed: Record<string, true>, changedKeys: Record<string, true>) {
+        this.mlog(mod, `updateModules, toplevels: ` + ids.join(', '));
         // Toplevels to update within each module
         const thingsToUpdate: { [module: string]: string[] } = {};
         thingsToUpdate[mod] = ids;
@@ -270,6 +279,13 @@ export class EditorStore {
         // console.log('other notified', ids, otherNotified);
         this.state[mod].dependencies = newDeps;
         return this.runValidation(mod, ids.concat(otherNotified), changedKeys);
+    }
+
+    mlog(mod: string, message: string) {
+        add(this.modulesLog, mod, message);
+    }
+    log(mod: string, top: string, message: string) {
+        add(this.state[mod].processLog, top, message);
     }
 
     validateImport(mod: string, top: string, imp: ParsedImport): ValidateResult<Import | null> {
@@ -368,6 +384,7 @@ export class EditorStore {
     }
 
     runValidation(mod: string, changedTops?: string[], changedKeys?: Record<string, true>): string[] {
+        this.mlog(mod, `running validation for ${changedTops?.join(', ') ?? 'all'}`);
         const lang = this.languages[this.modules[mod].languageConfiguration];
         const module = this.modules[mod];
 
@@ -386,9 +403,11 @@ export class EditorStore {
             if (onlyUpdate) {
                 if (!onlyUpdate.includes(id)) continue;
             }
+            const entries = this.state[mod].dependencies.components.entries[id];
+            this.log(mod, id, entries.length > 1 ? `validate head ${id} of group ${entries.join(', ')}` : `validate singleton ${id}`);
             let skip = false;
             let parseResults: { tid: string; ast: any }[] = [];
-            for (let cid of this.state[mod].dependencies.components.entries[id]) {
+            for (let cid of entries) {
                 if (!this.state[mod].parseResults[cid]) {
                     // This should be ... smoother.
                     throw new Error(`something didnt get parsed: ${cid}`);
@@ -408,21 +427,26 @@ export class EditorStore {
                 parseResults.push({ tid: cid, ast: result });
             }
             if (skip) {
-                console.warn(`skipping validation for ${id} because of parse error`);
+                this.log(mod, id, `skipping validation because of parse error`);
                 continue;
             }
             for (let did of this.state[mod].dependencies.headDeps[id]) {
                 if (!this.state[mod].validationResults[did]) {
+                    this.log(mod, id, `wrong evaluation order: ${did} should be ready before ${id}`);
                     throw new Error(`wrong evaluation order: ${did} should be ready before ${id}`);
                 }
             }
+
+            this.log(mod, id, `local dependencies: ` + this.state[mod].dependencies.headDeps[id].join(', '));
 
             const localDeps = this.state[mod].dependencies.headDeps[id].map((did) => this.state[mod].validationResults[did].result);
             const projectDeps = this.state[mod].dependencies.importDeps[id]
                 .map(({ module, top }) => this.state[module]?.validationResults[top]?.result)
                 .filter(Boolean);
 
-            this.state[mod].validationResults[id] = lang.validate(module.id, parseResults, projectDeps.concat(localDeps));
+            const vr = lang.validate(module.id, parseResults, projectDeps.concat(localDeps));
+            this.state[mod].validationResults[id] = vr;
+            this.log(mod, id, vr.failed ? `validation failed` : `validation complete.`);
 
             // NEED a way, if a previous thing fails,
             // to indicate that a value exists but has type errors

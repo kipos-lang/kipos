@@ -156,6 +156,7 @@ export const TopFailure = ({ id }: { id: string }) => {
             className={css({
                 width: '300px',
                 background: 'red',
+                color: 'white',
                 boxShadow: '0px 0px 2px red',
                 position: 'absolute',
                 top: '5px',
@@ -168,6 +169,7 @@ export const TopFailure = ({ id }: { id: string }) => {
                 maxHeight: '1em',
                 maxWidth: '1em',
                 '&:hover': {
+                    color: 'black',
                     background: '#fee',
                     maxHeight: 'none',
                     overflow: 'auto',

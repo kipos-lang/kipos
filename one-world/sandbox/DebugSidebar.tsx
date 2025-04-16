@@ -233,6 +233,27 @@ const ShowAST = () => {
     );
 };
 
+const ShowModuleLog = () => {
+    const mod = useStore().selected();
+    const estore = useStore().estore();
+    return (
+        <div style={{ width: 500, overflow: 'auto' }}>
+            <pre style={{ whiteSpace: 'pre-wrap' }}>{estore.modulesLog[mod]?.join('\n')}</pre>
+        </div>
+    );
+};
+
+const ShowLog = () => {
+    const mod = useStore().selected();
+    const top = useSelectedTop();
+    const estore = useStore().estore();
+    return (
+        <div style={{ width: 500, overflow: 'auto' }}>
+            <pre>{estore.state[mod].processLog[top]?.join('\n')}</pre>
+        </div>
+    );
+};
+
 const ShowSource = () => {
     const top = useSelectedTop();
     const results = useTopSource(top);
@@ -299,6 +320,12 @@ export const DebugSidebar = () => {
                 </Collapsible>
                 <Collapsible title="Selection">
                     <ShowSelection />
+                </Collapsible>
+                <Collapsible title="Module Log">
+                    <ShowModuleLog />
+                </Collapsible>
+                <Collapsible title="Process Log">
+                    <ShowLog />
                 </Collapsible>
                 <Collapsible title="Module Status">
                     <ShowModuleStatus />

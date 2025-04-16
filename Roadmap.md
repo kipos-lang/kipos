@@ -5,7 +5,7 @@
   AND I want to indicate somehow, for the downstream ones, that their execution is "paused" due to
   a parent being in a bad state.
 - [x] when swithing from evaluation -> defintion, we need to clear the results
-- [ ] "blanks" shouldn't resolve to `undefined`
+- [x] "blanks" shouldn't resolve to `undefined`
 - [ ] suppress space from a blank
 
 
