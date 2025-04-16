@@ -191,6 +191,11 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 ).flat(),
                 ']',
             ]);
+        case 'tuple':
+            if (expr.items.length === 1 && expr.items[0].type !== 'spread') {
+                return exprToString(expr.items[0], res);
+            }
+            throw new Error(`cant to-string a tuple`);
         case 'constructor':
             if (!expr.args) {
                 return group(expr.src.id, ['{"type":', JSON.stringify(expr.name.text), '}']);

@@ -238,7 +238,7 @@ const ShowModuleLog = () => {
     const estore = useStore().estore();
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{estore.modulesLog[mod]?.join('\n')}</pre>
+            <pre style={{ whiteSpace: 'pre-wrap' }}>{estore.modulesLog[mod]?.join('\n\n')}</pre>
         </div>
     );
 };
@@ -249,7 +249,7 @@ const ShowLog = () => {
     const estore = useStore().estore();
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
-            <pre>{estore.state[mod].processLog[top]?.join('\n')}</pre>
+            <pre>{estore.state[mod].processLog[top]?.join('\n\n')}</pre>
         </div>
     );
 };

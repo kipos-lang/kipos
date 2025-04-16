@@ -204,20 +204,22 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
             this.emit('failure', { module, top }, []);
         } else {
             this._failures[module][top] = kind;
-            console.log('FAILURE', module, top, kind);
             this.emit('failure', { module, top }, [kind]);
         }
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: TopItem }>, infos: Record<string, TInfo>): void {
-        // console.warn(`loading module ${module}`);
+        // console.warn(`loading module ${module}`, Object.keys(asts));
         if (!this.code[module]) this.code[module] = {};
         if (!this._results[module]) this._results[module] = {};
         deps.traversalOrder.forEach((hid) => {
-            if (!asts[hid] || !infos[hid]) return; // skipping Iguess
+            if (!asts[hid] || !infos[hid]) {
+                // console.log(`skipping ${hid} because we dont have ast or infos`);
+                return; // skipping Iguess
+            }
+            // console.log(`COMPILING`, hid);
 
             const depValues: Record<string, any> = {};
             const names: Record<string, string> = {};
-            if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
             const fixedSources: Resolutions = { ...infos[hid].resolutions };
 
             let missingDeps: { module: string; toplevel: string; name: string; message?: string }[] = [];
@@ -264,11 +266,15 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
 
             if (components.length > 1 || asts[components[0]].kind.type === 'definition') {
                 const codes = components.map((top) => {
-                    const code = stmtToString((asts[top].ast as TopItem & { type: 'stmt' }).stmt, fixedSources, true);
-                    const source = toString(code);
-                    this.code[module][top] = source;
-                    this.emit('viewSource', { module, top }, { source });
-                    return source;
+                    try {
+                        const code = stmtToString((asts[top].ast as TopItem & { type: 'stmt' }).stmt, fixedSources, true);
+                        const source = toString(code);
+                        this.code[module][top] = source;
+                        this.emit('viewSource', { module, top }, { source });
+                        return source;
+                    } catch (err) {
+                        return `(() => {throw new Error("Unable to generate source")})()`;
+                    }
                 });
                 const provides = components.flatMap((top) =>
                     (asts[top].kind as ParseKind & { type: 'definition' }).provides.filter((p) => p.kind === 'value'),
@@ -289,7 +295,6 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                                 scope[p.loc] = rawscope[p.name];
                             });
 
-                        console.log(`DEFINITION`, module, top);
                         this._results[module][top] = { type: 'definition', scope };
                         this.emit('results', { module, top }, { results: [] });
                         this.logFailure(module, top, null);

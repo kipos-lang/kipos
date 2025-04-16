@@ -60,6 +60,7 @@ export const builtinEnv = () => {
     builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['!='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['>='] = concrete(tfns([tint, tint], tbool, builtinSrc()));

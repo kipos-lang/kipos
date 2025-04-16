@@ -284,10 +284,19 @@ export class EditorStore {
     }
 
     mlog(mod: string, message: string) {
-        add(this.modulesLog, mod, message);
+        if (!this.modulesLog[mod]) {
+            this.modulesLog[mod] = [message];
+        } else {
+            this.modulesLog[mod].push(message);
+        }
     }
+
     log(mod: string, top: string, message: string) {
-        add(this.state[mod].processLog, top, message);
+        if (!this.state[mod].processLog[top]) {
+            this.state[mod].processLog[top] = [message];
+        } else {
+            this.state[mod].processLog[top].push(message);
+        }
     }
 
     validateImport(mod: string, top: string, imp: ParsedImport): ValidateResult<Import | null> {

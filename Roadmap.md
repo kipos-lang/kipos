@@ -1,4 +1,46 @@
 
+# OK FAM
+
+I just want to say
+that I want a way
+to snapshot stuff.
+and maybe it's just git
+(?)
+
+but also.
+maybe I want to autosnapshot things?
+like on a timer
+and then
+we can ditch snapshots that we don't need
+
+ok and when we snapshot, we're going all in on hashing and structural sharing.
+
+hm like I could still use git though, right?
+
+AND you can select a toplevel and "scrub through" the history to compare things,
+and `revert to this one` if you want.
+
+AND you can have a global "history scrub".
+
+SO: how about them commits?
+
+Commit messages:
+- should include tests passing/failing, as long as (all evaluations have coalesced)
+- might include screenshots of pinned dealios? (maybe only do this for manual snapshots)
+
+hmmmmm I think I might not *actually* want git.
+At least, I probably want my own thing, which can be *lowered* to git, and *raised* from git as well.
+but I can definitely do better on diffing.
+
+yeahhh so the theoretical "file structure" would be
+- {root}/modules/{moduleid}/module.json
+- {root}/modules/{moduleid}/history.json
+- {root}/modules/{moduleid}/toplevels/{toplevelid}.json
+
+and that's it! right.
+
+once we have vendored things, that might play into it. but not yet.
+
 ## Editor experience thoughts:
 
 - [ ] IF we have an error in a thing, I don't actually want to propagate execution down the line.
@@ -8,6 +50,7 @@
 - [x] "blanks" shouldn't resolve to `undefined`
 - [ ] suppress space from a blank
 - [x] figure out why recompilation wasnt happening
+- [ ] if the failure is with source code gen, not sure if I can/need to do the "stop the presses"
 
 
 ## Thoughts on blanks:
