@@ -136,7 +136,7 @@ type InputValue =
 
 export type FailureKind =
     | { type: 'compilation'; message: string }
-    | { type: 'dependencies'; deps: { module: string; toplevel: string; message?: string }[] }
+    | { type: 'dependencies'; deps: { module: string; toplevel: string; name: string; message?: string }[] }
     | { type: 'evaluation'; message: string };
 
 export type ModuleTestResults = { top: string; results: LocatedTestResult[] }[];

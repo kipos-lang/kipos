@@ -220,7 +220,7 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
             if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
             const fixedSources: Resolutions = { ...infos[hid].resolutions };
 
-            let missingDeps: { module: string; toplevel: string; message?: string }[] = [];
+            let missingDeps: { module: string; toplevel: string; name: string; message?: string }[] = [];
 
             Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
                 if (source.type === 'toplevel') {
@@ -289,6 +289,7 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                                 scope[p.loc] = rawscope[p.name];
                             });
 
+                        console.log(`DEFINITION`, module, top);
                         this._results[module][top] = { type: 'definition', scope };
                         this.emit('results', { module, top }, { results: [] });
                         this.logFailure(module, top, null);

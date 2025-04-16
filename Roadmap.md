@@ -7,6 +7,7 @@
 - [x] when swithing from evaluation -> defintion, we need to clear the results
 - [x] "blanks" shouldn't resolve to `undefined`
 - [ ] suppress space from a blank
+- [x] figure out why recompilation wasnt happening
 
 
 ## Thoughts on blanks:

@@ -194,6 +194,8 @@ export class EditorStore {
         heads.forEach((key) => {
             const vr = this.state[module].validationResults[key];
             infos[key] = vr?.failed ? undefined : vr?.result;
+            const ready = !!infos[key] && this.state[module].dependencies.components.entries[key].every((id) => !!asts[id]);
+            this.log(module, key, ready ? `ready to compile` : `not ready to compile`);
         });
         try {
             this.compilers[this.modules[module].languageConfiguration].loadModule(module, this.state[module].dependencies, asts, infos);
