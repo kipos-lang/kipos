@@ -114,11 +114,11 @@ const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
 
     const visual: Visual = {
         up(sel) {
-            const top = store.module(store.selected()).toplevels[tid];
+            const top = store.module(store.selected).toplevels[tid];
             return posUp(sel, top, refs, genId);
         },
         down(sel) {
-            const top = store.module(store.selected()).toplevels[tid];
+            const top = store.module(store.selected).toplevels[tid];
             return posDown(sel, top, refs, genId);
         },
         spans: [], //cspans.current,

@@ -41,7 +41,7 @@ export const useModuleStatus = (id: string) => {
                 }),
             );
             module.roots.forEach((tid) => {
-                const state = store.estore().state[id];
+                const state = store.estore.state[id];
                 if (!state?.parseResults[tid]?.result) {
                     status.parse++;
                 }

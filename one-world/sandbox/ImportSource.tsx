@@ -80,7 +80,7 @@
 //         const mod = store.module(source.module);
 //         if (mod) {
 //             options = [];
-//             const es = store.estore();
+//             const es = store.estore;
 //             Object.values(es.state[source.module].parseResults).forEach((res) => {
 //                 if (res.kind.type === 'definition') {
 //                     res.kind.provides.forEach((prov) => {

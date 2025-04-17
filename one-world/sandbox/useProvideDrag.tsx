@@ -37,9 +37,9 @@ export const useUpdate = () => {
     const store = useStore();
     return useCallback(
         (action: Action) => {
-            return store.update(store.selected(), action);
+            return store.update(store.selected, action);
         },
-        [store.selected()],
+        [store.selected],
     );
 };
 type HoverCtxT = { onHover(key?: string): boolean; setHover(key: string, on: boolean, persistent: boolean): void; clearHover(): void };

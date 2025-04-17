@@ -36,7 +36,7 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
     const store = useStore();
     const update = useUpdate();
 
-    const getTop = useCallback(() => store.module(store.selected()).toplevels[id], [id]);
+    const getTop = useCallback(() => store.module(store.selected).toplevels[id], [id]);
 
     const isSelected = useIsSelectedTop(id);
 

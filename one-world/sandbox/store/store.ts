@@ -16,19 +16,110 @@ export type ModuleChildren = Record<string, string[]>;
 
 type ModuleUpdate = Partial<Omit<Module, 'toplevels' | 'history' | 'selections'>> & { id: string };
 
-export interface Store {
-    compiler(): Compiler<any, any>;
-    estore(): EditorStore;
-    module(id: string): Module;
-    listen(evt: Evt, f: () => void): () => void;
-    selected(): string;
-    select(id: string): void;
-    addModule(module: Module): void;
-    updateModule(update: ModuleUpdate): void;
-    update(module: string, action: Action): void;
-    useSelected(): string;
-    useModuleChildren(): ModuleChildren;
-    moduleChildren(): ModuleChildren;
+export class Store {
+    estore: EditorStore;
+    modules: Record<string, Module>;
+    treeCache: ModuleChildren;
+    listeners: Partial<Record<Evt, (() => void)[]>>;
+    selected: string;
+
+    constructor(modules: Record<string, Module>) {
+        this.treeCache = makeModuleTree(modules);
+        this.modules = modules;
+        this.selected = location.hash.slice(1);
+        if (!this.selected) {
+            if (this.treeCache.root.length) {
+                this.selected = this.treeCache.root[0];
+            }
+        }
+        if (!this.selected) {
+            const module = newModule();
+            modules[module.id] = module;
+            this.selected = module.id;
+            this.treeCache.root.push(module.id);
+        }
+
+        this.listeners = {};
+
+        const f = () => {
+            const id = location.hash.slice(1);
+            this.selected = id;
+            this.shout('selected');
+        };
+        window.addEventListener('hashchange', f);
+
+        this.estore = new EditorStore(modules, { default: defaultLang });
+    }
+    compiler(): Compiler<any, any> {
+        return this.estore.compilers.default;
+    }
+    module(id: string) {
+        return this.modules[id];
+    }
+    listen(evt: Evt, fn: () => void): () => void {
+        if (!this.listeners[evt]) this.listeners[evt] = [fn];
+        else this.listeners[evt].push(fn);
+        return () => {
+            if (!this.listeners[evt]) return;
+            const at = this.listeners[evt].indexOf(fn);
+            if (at !== -1) this.listeners[evt].splice(at, 1);
+        };
+    }
+    shout(evt: Evt) {
+        this.listeners[evt]?.forEach((f) => f());
+    }
+    updateModule(update: ModuleUpdate) {
+        Object.assign(this.modules[update.id], update);
+        saveModule(this.modules[update.id], []);
+        this.treeCache = makeModuleTree(this.modules);
+        this.shout(`module:${update.id}`);
+        this.shout(`modules`);
+    }
+    addModule(module: Module) {
+        this.modules[module.id] = module;
+        saveModule(module, Object.keys(module.toplevels));
+        this.treeCache = makeModuleTree(this.modules);
+        this.shout('modules');
+    }
+    moduleChildren() {
+        return this.treeCache;
+    }
+    useModuleChildren() {
+        useTick(`modules`);
+        return this.treeCache;
+    }
+    select(id: string) {
+        this.selected = id;
+        this.shout('selected');
+    }
+    useSelected() {
+        useTick('selected');
+        return this.selected;
+    }
+    update(module: string, action: Action) {
+        const mod = this.modules[this.selected];
+        const { changed, changedTops, evts } = update(mod, this.estore.languages[mod.languageConfiguration], action);
+        if (changedTops.length) {
+            const keys: Record<string, true> = {};
+            const estore = this.estore;
+            estore.updateModules(module, changedTops, changed, keys);
+            Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
+
+            evts.push(`module:${mod.id}:dependency-graph`);
+            evts.push(`module:${mod.id}:parse-results`);
+            changedTops.forEach((key) => {
+                evts.push(`top:${key}:parse-results`);
+            });
+        }
+
+        evts.forEach((evt) => this.shout(evt));
+
+        Object.keys(changed).forEach((k) => {
+            this.shout(`node:${k}`);
+        });
+
+        saveModule(mod, changedTops);
+    }
 }
 
 export interface EditorStoreI {
@@ -101,109 +192,7 @@ export type Evt =
     | `module:${string}:roots`;
 
 export const createStore = (modules: Record<string, Module>): Store => {
-    // const modules = loadModules();
-
-    let treeCache = makeModuleTree(modules);
-    let selected = location.hash.slice(1);
-    if (!selected) {
-        if (treeCache.root.length) {
-            selected = treeCache.root[0];
-        }
-    }
-    if (!selected) {
-        const module = newModule();
-        modules[module.id] = module;
-        selected = module.id;
-        treeCache.root.push(module.id);
-    }
-
-    const listeners: Partial<Record<Evt, (() => void)[]>> = {};
-    const listen = (evt: Evt, fn: () => void) => {
-        if (!listeners[evt]) listeners[evt] = [fn];
-        else listeners[evt].push(fn);
-        return () => {
-            if (!listeners[evt]) return;
-            const at = listeners[evt].indexOf(fn);
-            if (at !== -1) listeners[evt].splice(at, 1);
-        };
-    };
-    const shout = (evt: Evt) => listeners[evt]?.forEach((f) => f());
-
-    const f = () => {
-        const id = location.hash.slice(1);
-        selected = id;
-        shout('selected');
-    };
-    window.addEventListener('hashchange', f);
-
-    const language = defaultLang;
-    const estore = new EditorStore(modules, { default: language });
-
-    return {
-        compiler() {
-            return estore.compilers.default;
-        },
-        estore() {
-            return estore;
-        },
-        module(id: string) {
-            return modules[id];
-        },
-        listen,
-        selected() {
-            return selected;
-        },
-        updateModule(update) {
-            Object.assign(modules[update.id], update);
-            saveModule(modules[update.id], []);
-            treeCache = makeModuleTree(modules);
-            shout(`module:${update.id}`);
-            shout(`modules`);
-        },
-        addModule(module) {
-            modules[module.id] = module;
-            saveModule(module, Object.keys(module.toplevels));
-            treeCache = makeModuleTree(modules);
-            shout('modules');
-        },
-        moduleChildren: () => treeCache,
-        useModuleChildren() {
-            useTick(`modules`);
-            return treeCache;
-        },
-        select(id: string) {
-            selected = id;
-            shout('selected');
-        },
-        useSelected() {
-            useTick('selected');
-            return selected;
-        },
-        update(module: string, action: Action) {
-            const mod = modules[selected];
-            const { changed, changedTops, evts } = update(mod, language, action);
-            if (changedTops.length) {
-                const keys: Record<string, true> = {};
-                const estore = this.estore();
-                estore.updateModules(module, changedTops, changed, keys);
-                Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
-
-                evts.push(`module:${mod.id}:dependency-graph`);
-                evts.push(`module:${mod.id}:parse-results`);
-                changedTops.forEach((key) => {
-                    evts.push(`top:${key}:parse-results`);
-                });
-            }
-
-            evts.forEach((evt) => shout(evt));
-
-            Object.keys(changed).forEach((k) => {
-                shout(`node:${k}`);
-            });
-
-            saveModule(mod, changedTops);
-        },
-    };
+    return new Store(modules);
 };
 
 export const StoreCtx = createContext({

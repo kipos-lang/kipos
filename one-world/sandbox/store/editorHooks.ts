@@ -36,8 +36,8 @@ export const useTick = (evt: Evt) => {
 
 export const useTopParseResults = (top: string) => {
     const store = useStore();
-    const module = store.selected();
-    const estore = store.estore();
+    const module = store.selected;
+    const estore = store.estore;
 
     useTick(`top:${top}:parse-results`);
     return {
@@ -49,15 +49,15 @@ export const useTopParseResults = (top: string) => {
 
 export function useDependencyGraph() {
     const store = useStore();
-    const selected = store.selected();
-    const estore = store.estore();
+    const selected = store.selected;
+    const estore = store.estore;
     useTick(`module:${selected}:dependency-graph`);
     return estore.state[selected]?.dependencies;
 }
 
 export function useTopSource(top: string) {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     const compiler = store.compiler();
     const [results, setResults] = useState(null as null | string);
     useEffect(() => {
@@ -70,7 +70,7 @@ export function useTopSource(top: string) {
 }
 export function useTopFailure(top: string) {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     const compiler = store.compiler();
     const [results, setResults] = useState(null as null | FailureKind[]);
     useEffect(() => {
@@ -91,7 +91,7 @@ export function useTestResults(module: string) {
 
 export function useTopResults(top: string) {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     const compiler = store.compiler();
     const [results, setResults] = useState(null as null | EvaluationResult[]);
     useEffect(() => {
@@ -102,33 +102,33 @@ export function useTopResults(top: string) {
 
 export function useParseResults() {
     const store = useStore();
-    const selected = store.selected();
-    const estore = store.estore();
+    const selected = store.selected;
+    const estore = store.estore;
     useTick(`module:${selected}:parse-results`);
     return estore.state[selected].parseResults;
 }
 export function useModule() {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     useTick(`module:${selected}`);
     return store.module(selected);
 }
 export function useSelection() {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     useTick(`module:${selected}:selection`);
     return store.module(selected).selections;
 }
 export function useIsSelectedTop(top: string) {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     return useTickCompute(`module:${selected}:selection`, store.module(selected).selections[0].start.path.root.top === top, (old) => {
         return store.module(selected).selections[0].start.path.root.top === top;
     });
 }
 export function useSelectedTop() {
     const store = useStore();
-    const selected = store.selected();
+    const selected = store.selected;
     return useTickCompute(`module:${selected}:selection`, store.module(selected).selections[0].start.path.root.top, (old) => {
         return store.module(selected).selections[0].start.path.root.top;
     });
@@ -138,11 +138,11 @@ export function useSelectedTop() {
 
 export function useAnnotations(top: string, key: string) {
     const store = useStore();
-    const estore = store.estore();
+    const estore = store.estore;
     const tick = useTick(`annotation:${key}`);
     return useMemo(() => {
-        const state = estore.state[store.selected()];
-        const mod = store.module(store.selected());
+        const state = estore.state[store.selected];
+        const mod = store.module(store.selected);
         if (mod.imports.includes(top)) {
             // console.log('getting from the vali', state.validatedImports[top]);
             return state.validatedImports[top]?.annotations[top]?.[key];
@@ -157,15 +157,15 @@ export function useAnnotations(top: string, key: string) {
 export function useRoot(top: string) {
     const store = useStore();
     useTick(`top:${top}:root`);
-    return store.module(store.selected()).toplevels[top].root;
+    return store.module(store.selected).toplevels[top].root;
 }
 
 export function useNode(top: string, path: Path) {
     const tstore = useStore();
-    const store = tstore.estore();
+    const store = tstore.estore;
     const loc = lastChild(path);
     useTick(`node:${loc}`);
-    const mstate = store.state[tstore.selected()];
+    const mstate = store.state[tstore.selected];
     const results = mstate.parseResults[top] ?? mstate.importResults[top];
     let meta = results?.ctx.meta[loc];
     const refs = results?.internalReferences[loc];
@@ -178,7 +178,7 @@ export function useNode(top: string, path: Path) {
         }
     }
     return {
-        node: tstore.module(tstore.selected()).toplevels[top].nodes[loc],
+        node: tstore.module(tstore.selected).toplevels[top].nodes[loc],
         sel: statuses, // selectionStatuses[pathKey(path)],
         meta,
         spans: mstate.spans[top]?.[loc] ?? [], // STOPSHIP store.state.parseResults[top]?.spans[loc],
@@ -219,7 +219,7 @@ export const useMakeSelectionStatuses = (top: string) => {
         [top],
     );
     useEffect(() => {
-        const statuses = getAllSelectionStatuses(store.module(store.selected()).toplevels[top], selection);
+        const statuses = getAllSelectionStatuses(store.module(store.selected).toplevels[top], selection);
         Object.entries(statuses).forEach(([key, value]) => {
             if (!equal(value, state.prev[key])) {
                 state.listeners[key]?.(value);
