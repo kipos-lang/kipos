@@ -1,4 +1,70 @@
 
+# For persisting
+
+I think I'll do a thing where I synchronously persist
+diffs to localstorage, and then debouncedly autocommit to git,
+and once the commit has happened, we can clear from localstorage.
+
+# Ok so the way commits work
+
+// initial ... repo
+// a change ... is a delta
+
+- {root}/modules/{moduleid}/module.json
+- {root}/modules/{moduleid}/history.json
+- {root}/modules/{moduleid}/toplevels/{toplevelid}.json
+
+also ... the hash of the change includes the hashes of the modules
+and the hashes of the modules includes the hashes of the toplevels
+
+and like, for each toplevel, we need to be ... storing the hashed things?
+hm. wait we don't, because we're storing the history deltas.
+so how does that work?
+-> like, you can rewind things to reproduce the hash of a thing?
+
+ahhh. OKso.
+critially, the "commit hash" is *not* a hash of the delta,
+but rather a hash of the whole system, with the delta applied.
+
+and so, we need:
+- list of commits
+- current state of the world, with hashes precomputed
+
+And then adding a commit is just "apply the delta, recompute hashes,
+and then use the final hash as the hash of the commit".
+
+and, rewinding involves reverse-applying a bunch of commits.
+switching to a new branch ... involves rewinding to the shared
+ancestor and then applying and such.
+
+## VCS
+
+So, history, undo & redo will be in-memory things managed by the editor.
+
+hmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+ok what if I literally do want to use git
+because it already has so many things solved.
+and what if I just format things so that line-level diffs are fine.
+
+so the module file is a newline-separated list of [attribute]\t[jsonified value]
+and the toplevel file is the same
+followed by a line for each node, with alphabetically sorted IDs
+always with a trailing newline probably
+
+issss this really unreasonable to do?
+hm.
+I mean what I'm currently doing is serializing a whole module to disk on every thing.
+So doing that for a toplevel is probably fine.
+
+
+## OOOH OK so here's how to solve the "browse files in git" problem
+-> make a github pages thing? hm. but then you can't do historical.
+  -> but also, having an automatic github pages story (github action?) sounds dope.
+-> make a ... yeah honestly I guess reifying the text in a parallel file makes sense.
+
+
+
+
 # OK FAM
 
 I just want to say

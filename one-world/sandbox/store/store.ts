@@ -100,8 +100,8 @@ export type Evt =
     | `module:${string}`
     | `module:${string}:roots`;
 
-const createStore = (): Store => {
-    const modules = loadModules();
+export const createStore = (modules: Record<string, Module>): Store => {
+    // const modules = loadModules();
 
     let treeCache = makeModuleTree(modules);
     let selected = location.hash.slice(1);
@@ -155,14 +155,14 @@ const createStore = (): Store => {
         },
         updateModule(update) {
             Object.assign(modules[update.id], update);
-            saveModule(modules[update.id]);
+            saveModule(modules[update.id], []);
             treeCache = makeModuleTree(modules);
             shout(`module:${update.id}`);
             shout(`modules`);
         },
         addModule(module) {
             modules[module.id] = module;
-            saveModule(module);
+            saveModule(module, Object.keys(module.toplevels));
             treeCache = makeModuleTree(modules);
             shout('modules');
         },
@@ -201,16 +201,20 @@ const createStore = (): Store => {
                 shout(`node:${k}`);
             });
 
-            saveModule(mod);
+            saveModule(mod, changedTops);
         },
     };
 };
 
-const StoreCtx = createContext({ store: null } as { store: null | Store });
+export const StoreCtx = createContext({
+    get store(): Store {
+        throw new Error(`no context`);
+    },
+} as { readonly store: Store });
 
 export const useStore = (): Store => {
     const v = useContext(StoreCtx);
-    if (!v.store) v.store = createStore();
+    // if (!v.store) v.store = createStore();
 
     return v.store;
 };
