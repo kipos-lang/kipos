@@ -9,7 +9,7 @@ import { defaultLang, TInfo } from './default-lang/default-lang';
 import { EditorState, EditorStore } from './editorStore';
 import { Compiler, Language, Meta, ParseKind } from './language';
 import { Action, AppState, reduce } from './state';
-import { loadModules, saveModule } from './storage';
+import { committer, loadModules, saveModule } from './storage';
 import { useTick } from './editorHooks';
 
 export type ModuleChildren = Record<string, string[]>;
@@ -22,6 +22,7 @@ export class Store {
     treeCache: ModuleChildren;
     listeners: Partial<Record<Evt, (() => void)[]>>;
     selected: string;
+    committer: (module: Module, withMeta: boolean, tops: string[]) => void;
 
     constructor(modules: Record<string, Module>) {
         this.treeCache = makeModuleTree(modules);
@@ -49,6 +50,17 @@ export class Store {
         window.addEventListener('hashchange', f);
 
         this.estore = new EditorStore(modules, { default: defaultLang });
+
+        this.committer = committer({
+            async commit(change) {
+                console.log('committting change');
+            },
+            minWait: 2000,
+            maxWait: 30000,
+            onStatus(status) {
+                console.log(`status!`, status);
+            },
+        });
     }
     compiler(): Compiler<any, any> {
         return this.estore.compilers.default;
@@ -71,6 +83,7 @@ export class Store {
     updateModule(update: ModuleUpdate) {
         Object.assign(this.modules[update.id], update);
         saveModule(this.modules[update.id], []);
+        this.committer(this.modules[update.id], true, []);
         this.treeCache = makeModuleTree(this.modules);
         this.shout(`module:${update.id}`);
         this.shout(`modules`);
@@ -78,6 +91,7 @@ export class Store {
     addModule(module: Module) {
         this.modules[module.id] = module;
         saveModule(module, Object.keys(module.toplevels));
+        this.committer(module, true, Object.keys(module.toplevels));
         this.treeCache = makeModuleTree(this.modules);
         this.shout('modules');
     }
@@ -119,6 +133,9 @@ export class Store {
         });
 
         saveModule(mod, changedTops);
+        if (changedTops.length) {
+            this.committer(mod, true, changedTops);
+        }
     }
 }
 

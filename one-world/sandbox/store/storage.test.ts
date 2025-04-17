@@ -37,12 +37,12 @@ const newArgs = (save: Change | null, change: Change | null) => {
                     delete state.timers[id as any];
                 },
             },
-            localStorage: {
+            storage: {
                 setItem(key, value) {
                     state.storage[key as typeof changeKey] = value;
                 },
                 getItem(key) {
-                    return state.storage[key as typeof changeKey] ?? undefined;
+                    return state.storage[key as typeof changeKey];
                 },
             },
         } satisfies Args,
@@ -83,7 +83,42 @@ test('very basic', async () => {
 
     // Signal commit success, it should clean up
     state.commit!.res(true);
-    await new Promise((res) => res(0));
+    await tick();
+    expect(state.status).toBe('clean');
+    expect(state.storage[changeKey]).toBe('null');
+    expect(state.storage[savingKey]).toBe('null');
+});
+
+const tick = () => new Promise((res) => res(null));
+
+test('change while saving', async () => {
+    const { args, state } = newArgs(null, null);
+    const save = committer(args);
+    expect(state.status).toBe(null);
+
+    // First save
+    save({ ...basicMeta, history: [], toplevels: {} }, true, []);
+
+    // Trigger the debounce timer, it should call `commit()`
+    state.timers[0].fn();
+
+    // Save in the middle
+    save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, []);
+
+    // Signal commit success, it should clean up
+    state.commit!.res(true);
+    await tick();
+    expect(state.status).toBe('dirty');
+    expect(JSON.parse(state.storage[changeKey]!)).toEqual({
+        [basicMeta.id]: { meta: { ...basicMeta, name: 'newname' } },
+    });
+    expect(state.storage[savingKey]).toBe('null');
+
+    // Trigger the next timer, it should call `commit()`
+    state.timers[1].fn();
+    state.commit!.res(true);
+    await tick();
+    // And all is right with the world
     expect(state.status).toBe('clean');
     expect(state.storage[changeKey]).toBe('null');
     expect(state.storage[savingKey]).toBe('null');
@@ -92,14 +127,12 @@ test('very basic', async () => {
 /*
 I want to test:
 
-- one change, wait the time, saving completes
-- multiple changes, wait the time, saving completes
-- multiple changes, wait the time, while saving is happening, make more changes
-- saving fails and there are pending changes
+- [x] one change, wait the time, saving completes
+- [-] multiple changes, wait the time, saving completes
+- [x] multiple changes, wait the time, while saving is happening, make more changes
+- saving fails and there are pending changes, should merge back together
 - the page closes in the middle of saving
+    - equivalent to opening the page w/ :saving populated (and maybe :pending)
 - the page closes in the middle of waiting
-
-
-
-
+    - equivalent to opening the page w/ :pending populated
 */
