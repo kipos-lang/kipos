@@ -1,20 +1,17 @@
 import { Module } from '../types';
 
-import LightningFS from '@isomorphic-git/lightning-fs';
-import http from 'isomorphic-git/http/web';
-import git from 'isomorphic-git';
-import { Buffer } from 'buffer';
 import { Change } from './versionings';
 
-export const key = (id: string) => `kipos:${id}`;
+export type ModuleMeta = Omit<Module, 'toplevels' | 'history'>;
 
-const moduleKey = (id: string) => key('module:' + id);
-const lcKey = (id: string) => key('language:' + id);
+export type Project = {
+    id: string;
+    name: string;
+    created: number;
+    opened: number;
+};
 
-// what we should do:
-//
-
-const moduleMeta = (module: Module): Omit<Module, 'toplevels' | 'history'> => {
+const moduleMeta = (module: Module): ModuleMeta => {
     const { toplevels, history, ...meta } = module;
     return meta;
 };
@@ -173,6 +170,12 @@ export function committer({
     };
     return { commit: externalCommit, change };
 }
+
+// YHR OLF WAY
+
+export const key = (id: string) => `kipos:${id}`;
+const moduleKey = (id: string) => key('module:' + id);
+const lcKey = (id: string) => key('language:' + id);
 
 export const saveModule = (module: Module, changedTops: string[]) => {
     // const current = localStorage.getItem(moduleKey(module.id));

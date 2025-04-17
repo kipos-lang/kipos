@@ -9,7 +9,7 @@ import { defaultLang, TInfo } from './default-lang/default-lang';
 import { EditorState, EditorStore } from './editorStore';
 import { Compiler, Language, Meta, ParseKind } from './language';
 import { Action, AppState, reduce } from './state';
-import { committer, loadModules, saveModule } from './storage';
+import { committer } from './storage';
 import { useTick } from './editorHooks';
 
 export type ModuleChildren = Record<string, string[]>;
@@ -23,8 +23,11 @@ export class Store {
     listeners: Partial<Record<Evt, (() => void)[]>>;
     selected: string;
     committer: (module: Module, withMeta: boolean, tops: string[]) => void;
+    saveModule: (module: Module, tops: string[]) => void;
+    project: string;
 
-    constructor(modules: Record<string, Module>) {
+    constructor(project: string, modules: Record<string, Module>, saveModule: (module: Module, tops: string[]) => void) {
+        this.project = project;
         const { commit, change } = committer({
             async commit(change) {
                 console.log('committting change');
@@ -34,8 +37,17 @@ export class Store {
             onStatus(status) {
                 console.log(`status!`, status);
             },
+            storage: {
+                setItem(key, value) {
+                    localStorage[project + ':' + key] = value;
+                },
+                getItem(key) {
+                    return localStorage[project + ':' + key];
+                },
+            },
         });
         this.committer = commit;
+        this.saveModule = saveModule;
         // Load up any saved `change`s
         Object.entries(change ?? {}).forEach(([id, mod]) => {
             if (!mod) delete modules[id];
@@ -96,7 +108,7 @@ export class Store {
     }
     updateModule(update: ModuleUpdate) {
         Object.assign(this.modules[update.id], update);
-        saveModule(this.modules[update.id], []);
+        this.saveModule(this.modules[update.id], []);
         this.committer(this.modules[update.id], true, []);
         this.treeCache = makeModuleTree(this.modules);
         this.shout(`module:${update.id}`);
@@ -104,7 +116,7 @@ export class Store {
     }
     addModule(module: Module) {
         this.modules[module.id] = module;
-        saveModule(module, Object.keys(module.toplevels));
+        this.saveModule(module, Object.keys(module.toplevels));
         this.committer(module, true, Object.keys(module.toplevels));
         this.treeCache = makeModuleTree(this.modules);
         this.shout('modules');
@@ -146,7 +158,7 @@ export class Store {
             this.shout(`node:${k}`);
         });
 
-        saveModule(mod, changedTops);
+        this.saveModule(mod, changedTops);
         if (changedTops.length) {
             this.committer(mod, true, changedTops);
         }
@@ -222,8 +234,8 @@ export type Evt =
     | `module:${string}`
     | `module:${string}:roots`;
 
-export const createStore = (modules: Record<string, Module>): Store => {
-    return new Store(modules);
+export const createStore = (project: string, modules: Record<string, Module>, saveModule: (module: Module, top: string[]) => void): Store => {
+    return new Store(project, modules, saveModule);
 };
 
 export const StoreCtx = createContext({
@@ -234,7 +246,6 @@ export const StoreCtx = createContext({
 
 export const useStore = (): Store => {
     const v = useContext(StoreCtx);
-    // if (!v.store) v.store = createStore();
 
     return v.store;
 };

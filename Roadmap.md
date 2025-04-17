@@ -10,6 +10,11 @@ and once the commit has happened, we can clear from localstorage.
 - [ ] let's go right to file systems, ok? idk maybe
 - [ ] make a button that is `export the whole dealio` and it gives you a JSON file of all modules
 - [ ] then make the switch, start fresh; and then do `upload that json blob`
+- [ ] and now we're running hot.
+  - oh wait when loading up the ... modules, we need to know what
+    the most recent ... things are.
+
+and nowww we'll abstract loading and storing?
 
 # Ok so the way commits work
 

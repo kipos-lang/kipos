@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { selStart } from '../keyboard/utils';
-import { createStore, SelStatus, Store, StoreCtx, useStore } from './store/store';
 import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
-import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
-import { useSelection } from './store/editorHooks';
-import { loadModules } from './store/storage';
-import { Module } from './types';
+import { loadModules, saveModule } from './store/storage';
+import { createStore, Store, StoreCtx } from './store/store';
 
 export const Loader = ({ children }: { children: React.ReactNode }) => {
     const [modules, setModules] = useState(null as null | { store: Store });
     useEffect(() => {
-        loadModules().then((modules) => setModules({ store: createStore(modules) }));
+        loadModules().then((modules) => setModules({ store: createStore('', modules, saveModule) }));
     }, []);
     if (!modules) return null;
     return <StoreCtx.Provider value={modules}>{children}</StoreCtx.Provider>;
@@ -31,7 +27,6 @@ export const App = () => {
                 <ModuleSidebar />
                 <Editor />
             </Loader>
-            {/* <ShowColors /> */}
         </div>
     );
 };
