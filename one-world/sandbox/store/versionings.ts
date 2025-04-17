@@ -1,4 +1,5 @@
 import { Node } from '../../shared/cnodes';
+import { Delta } from '../history';
 import { Module, Toplevel } from '../types';
 import { Project } from './storage';
 
@@ -34,15 +35,15 @@ export type Change = {
     };
 };
 
-type Diff = {
-    [module: string]: null | {
+export type Diff = {
+    [module: string]: {
         // module.json
-        meta?: Omit<Module, 'toplevels' | 'history'>;
+        meta?: Delta<null | Omit<Module, 'toplevels' | 'history'>>;
         // toplevels/{id}.json
         toplevels?: {
-            [toplevel: string]: null | {
-                meta?: Omit<Toplevel, 'nodes'>;
-                nodes?: { [node: string]: Node };
+            [toplevel: string]: {
+                meta?: Delta<null | Omit<Toplevel, 'nodes'>>;
+                nodes?: { [node: string]: Delta<Node | null> };
             };
         };
     };
@@ -63,5 +64,5 @@ export interface Backend {
     loadProject(project: string): Promise<Record<string, Module>>;
     saveModule(project: string, module: Module): Promise<void>;
     saveChange(project: string, change: Change, message: string): Promise<void>;
-    history(project: string, current: string | null, count: number): Promise<{ diff: Diff; ts: number; message: string; id: string }>;
+    history(project: string, current: string | null, count: number): Promise<{ diff: Diff; ts: number; message: string; id: string }[]>;
 }

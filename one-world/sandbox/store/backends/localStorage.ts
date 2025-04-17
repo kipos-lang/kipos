@@ -16,7 +16,7 @@ export const LS: Backend = {
         saveModule(module);
     },
     async history(id: string, start: string | null, count: number) {
-        throw new Error('not yet');
+        return []; // not implemented at all
     },
     async saveChange(project: string, change: Change, message: string) {
         throw new Error('not yet');

@@ -11,7 +11,7 @@ export type Project = {
     opened: number;
 };
 
-const moduleMeta = (module: Module): ModuleMeta => {
+export const moduleMeta = (module: Module): ModuleMeta => {
     const { toplevels, history, ...meta } = module;
     return meta;
 };

@@ -16,6 +16,20 @@ and once the commit has happened, we can clear from localstorage.
 
 and nowww we'll abstract loading and storing?
 
+OK FUTURE QUESTION currently I'm saying "toplevel" is the smallest single
+unit of measure ... but would it not make sense to go with "node"?
+
+IN ORDER TO make that possible
+I would need to
+haveeee the `Change` type ...
+yeah I mean I would have to make writes slower for one side or the other...
+right?
+wait
+I could
+still send the full toplevel, but also send the "changed nodes" list.
+yeah.
+then I could support either one.
+
 # Ok so the way commits work
 
 // initial ... repo
