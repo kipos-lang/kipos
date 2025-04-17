@@ -66,7 +66,7 @@ test('very basic', async () => {
     expect(state.status).toBe(null);
 
     // Add a change with just meta, it should set a timer
-    save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, []);
+    save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, {});
     expect(state.status).toBe('dirty');
     expect(state.tid).toBe(1);
     expect(state.commit).toBe(null);
@@ -97,13 +97,13 @@ test('change while saving', async () => {
     expect(state.status).toBe(null);
 
     // First save
-    save({ ...basicMeta, history: [], toplevels: {} }, true, []);
+    save({ ...basicMeta, history: [], toplevels: {} }, true, {});
 
     // Trigger the debounce timer, it should call `commit()`
     state.timers[0].fn();
 
     // Save in the middle
-    save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, []);
+    save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, {});
 
     // Signal commit success, it should clean up
     state.commit!.res();

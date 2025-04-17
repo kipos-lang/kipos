@@ -92,8 +92,17 @@ export class EditorStore {
             if (!Array.isArray(this.modules[key].imports)) this.modules[key].imports = [];
             this.modules[key].imports.forEach((id) => {
                 const top = this.modules[key].toplevels[id];
-                const res = this.languages[language].parser.parseImport(root({ top }));
-                this.state[key].importResults[top.id] = res;
+                let res;
+                try {
+                    const rec = root<string>({ top });
+                    res = this.languages[language].parser.parseImport(rec);
+                    this.state[key].importResults[top.id] = res;
+                } catch (err) {
+                    debugger;
+                    console.log('no dice');
+                    console.log(top);
+                    return;
+                }
                 if (res.result) {
                     if (res.result.source.type === 'raw') {
                         const other = modulesByName[res.result.source.text];
@@ -147,10 +156,19 @@ export class EditorStore {
             });
 
             this.modules[key].roots.forEach((id) => {
-                const top = this.modules[key].toplevels[id];
-                const pr = this.languages[language].parser.parse(macros, root({ top }));
-                this.state[key].parseResults[top.id] = pr;
-                this.log(key, top.id, `Parsed toplevel ${pr.result ? '' : 'un'}successfully`);
+                let top = this.modules[key].toplevels[id];
+                if ('top' in top) {
+                    debugger;
+                    top = top.top as Toplevel;
+                }
+                try {
+                    const rec = root<string>({ top });
+                    const pr = this.languages[language].parser.parse(macros, rec);
+                    this.state[key].parseResults[top.id] = pr;
+                    this.log(key, top.id, `Parsed toplevel ${pr.result ? '' : 'un'}successfully`);
+                } catch (err) {
+                    this.log(key, top.id, `Error parsing... ${err}`);
+                }
             });
             this.state[key].dependencies = calculateDependencyGraph(parseResultsDependencyInput(this.state[key].parseResults, imports));
             this.runValidation(key);
@@ -526,7 +544,7 @@ export class EditorStore {
 const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown, ParseKind>>) => {
     const available: { [kind: string]: { [name: string]: string[] } } = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
-        if (results.kind.type === 'definition') {
+        if (results.kind.type === 'defnition') {
             results.kind.provides.forEach((item) => {
                 if (!Object.hasOwn(available, item.kind)) available[item.kind] = {};
                 if (!Object.hasOwn(available[item.kind], item.name)) available[item.kind][item.name] = [];

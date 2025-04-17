@@ -11,6 +11,7 @@ import { Compiler, Language, Meta, ParseKind } from './language';
 import { Action, AppState, reduce } from './state';
 import { committer } from './storage';
 import { useTick } from './editorHooks';
+import { Backend } from './versionings';
 
 export type ModuleChildren = Record<string, string[]>;
 
@@ -22,14 +23,15 @@ export class Store {
     treeCache: ModuleChildren;
     listeners: Partial<Record<Evt, (() => void)[]>>;
     selected: string;
-    committer: (module: Module, withMeta: boolean, tops: string[]) => void;
-    saveModule: (module: Module, tops: string[]) => void;
+    committer: (module: Module, withMeta: boolean, tops: ChangedTops) => void;
+    backend: Backend;
     project: string;
 
-    constructor(project: string, modules: Record<string, Module>, saveModule: (module: Module, tops: string[]) => void) {
+    constructor(project: string, modules: Record<string, Module>, backend: Backend) {
         this.project = project;
         const { commit, change } = committer({
             async commit(change) {
+                // backend.saveChange(project, change, `auto commit`)
                 console.log('committting change');
             },
             minWait: 2000,
@@ -47,8 +49,11 @@ export class Store {
             },
         });
         this.committer = commit;
-        this.saveModule = saveModule;
+        this.backend = backend;
         // Load up any saved `change`s
+        if (change) {
+            console.log(`restoring uncommitted change`, change);
+        }
         Object.entries(change ?? {}).forEach(([id, mod]) => {
             if (!mod) delete modules[id];
             else {
@@ -56,7 +61,13 @@ export class Store {
                     Object.assign(modules[id], mod.meta);
                 }
                 if (mod.toplevels) {
-                    Object.assign(modules[id].toplevels, mod.toplevels);
+                    Object.entries(mod.toplevels).forEach(([tid, top]) => {
+                        if (!top) {
+                            delete modules[id].toplevels[tid];
+                        } else {
+                            modules[id].toplevels[tid] = top.top;
+                        }
+                    });
                 }
             }
         });
@@ -108,16 +119,16 @@ export class Store {
     }
     updateModule(update: ModuleUpdate) {
         Object.assign(this.modules[update.id], update);
-        this.saveModule(this.modules[update.id], []);
-        this.committer(this.modules[update.id], true, []);
+        this.backend.saveModule(this.project, this.modules[update.id]);
+        this.committer(this.modules[update.id], true, {});
         this.treeCache = makeModuleTree(this.modules);
         this.shout(`module:${update.id}`);
         this.shout(`modules`);
     }
     addModule(module: Module) {
         this.modules[module.id] = module;
-        this.saveModule(module, Object.keys(module.toplevels));
-        this.committer(module, true, Object.keys(module.toplevels));
+        this.backend.saveModule(this.project, module);
+        this.committer(module, true, Object.fromEntries(Object.keys(module.toplevels).map((id) => [id, { meta: true, nodes: true }])));
         this.treeCache = makeModuleTree(this.modules);
         this.shout('modules');
     }
@@ -139,15 +150,15 @@ export class Store {
     update(module: string, action: Action) {
         const mod = this.modules[this.selected];
         const { changed, changedTops, evts } = update(mod, this.estore.languages[mod.languageConfiguration], action);
-        if (changedTops.length) {
+        if (Object.keys(changedTops).length) {
             const keys: Record<string, true> = {};
             const estore = this.estore;
-            estore.updateModules(module, changedTops, changed, keys);
+            estore.updateModules(module, Object.keys(changedTops), changed, keys);
             Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
 
             evts.push(`module:${mod.id}:dependency-graph`);
             evts.push(`module:${mod.id}:parse-results`);
-            changedTops.forEach((key) => {
+            Object.keys(changedTops).forEach((key) => {
                 evts.push(`top:${key}:parse-results`);
             });
         }
@@ -158,8 +169,8 @@ export class Store {
             this.shout(`node:${k}`);
         });
 
-        this.saveModule(mod, changedTops);
-        if (changedTops.length) {
+        this.backend.saveModule(this.project, mod);
+        if (Object.keys(changedTops).length) {
             this.committer(mod, true, changedTops);
         }
     }
@@ -234,8 +245,8 @@ export type Evt =
     | `module:${string}`
     | `module:${string}:roots`;
 
-export const createStore = (project: string, modules: Record<string, Module>, saveModule: (module: Module, top: string[]) => void): Store => {
-    return new Store(project, modules, saveModule);
+export const createStore = (project: string, modules: Record<string, Module>, backend: Backend): Store => {
+    return new Store(project, modules, backend);
 };
 
 export const StoreCtx = createContext({
@@ -313,6 +324,8 @@ const update = (mod: Module, language: Language<any, any, any>, action: Action) 
     return { changed, changedTops, evts };
 };
 
+export type ChangedTops = Record<string, { meta: boolean; nodes: true | string[] }>;
+
 const applyChanges = (result: AppState, mod: Module) => {
     const evts: Evt[] = [];
     const changed = allIds(result.selections);
@@ -322,35 +335,52 @@ const applyChanges = (result: AppState, mod: Module) => {
         evts.push(`module:${mod.id}:selection`);
     }
 
-    const changedTops: string[] = [];
+    const changedTops: ChangedTops = {};
 
     Object.entries(result.tops).forEach(([key, top]) => {
         if (!mod.toplevels[key]) {
             mod.toplevels[key] = top;
+            changedTops[key] = { meta: true, nodes: true };
             return;
         }
-        let nodesChanged = false;
+
+        let metaChanged = false;
+        let nodesChanged: string[] = [];
         Object.keys(top.nodes).forEach((k) => {
             if (mod.toplevels[key].nodes[k] !== top.nodes[k]) {
                 changed[k] = true;
-                nodesChanged = true;
+                nodesChanged.push(k);
             }
         });
+        Object.keys(mod.toplevels[key].nodes).forEach((k) => {
+            if (!top.nodes[k]) {
+                changed[k] = true;
+                nodesChanged.push(k);
+            }
+        });
+
         mod.toplevels[key].nodes = top.nodes;
         if (mod.toplevels[key].root !== top.root) {
             mod.toplevels[key].root = top.root;
             evts.push(`top:${key}:root`);
             evts.push(`top:${key}`);
-            nodesChanged = true;
+            metaChanged = true;
         }
         if (top.children !== mod.toplevels[key].children) {
             mod.toplevels[key].children = top.children;
             evts.push(`top:${key}:children`);
             evts.push(`top:${key}`);
+            metaChanged = true;
+        }
+        if (mod.toplevels[key].submodule !== top.submodule) {
+            mod.toplevels[key].submodule = top.submodule;
+            evts.push(`top:${key}:submodule`);
+            evts.push(`top:${key}`);
+            metaChanged = true;
         }
 
-        if (nodesChanged) {
-            changedTops.push(key);
+        if (nodesChanged.length || metaChanged) {
+            changedTops[key] = { meta: metaChanged, nodes: nodesChanged };
         }
     });
 

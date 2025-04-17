@@ -26,12 +26,13 @@ import { Project } from './storage';
 // If I knew the line numbers of things, I could probably
 // calculate a `Diff` myself and skip the need to send over the whole 'change'.
 // that's a job for another day.
+
 export type Change = {
     [module: string]: null | {
         // module.json
         meta?: Omit<Module, 'toplevels' | 'history'>;
         // toplevels/{id}.json
-        toplevels?: { [toplevel: string]: null | Toplevel };
+        toplevels?: { [toplevel: string]: null | { top: Toplevel; changedNodes: { meta: boolean; nodes: true | string[] } } };
     };
 };
 

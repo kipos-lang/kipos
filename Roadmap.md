@@ -30,6 +30,13 @@ still send the full toplevel, but also send the "changed nodes" list.
 yeah.
 then I could support either one.
 
+OK, with a little more record keeping, I should be able to equally support
+[whole toplevel] and [broken out by nodes] backends.
+
+honestly I don't know whether the "so many files" thing would be much worse, or just fine.
+
+andddd I keep feeling like I'll want to write my own databasy backend. ...
+
 # Ok so the way commits work
 
 // initial ... repo

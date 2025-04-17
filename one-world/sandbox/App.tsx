@@ -3,11 +3,17 @@ import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
 import { loadModules, saveModule } from './store/storage';
 import { createStore, Store, StoreCtx } from './store/store';
+import { Backend } from './store/versionings';
+import { LS } from './store/backends/localStorage';
 
-export const Loader = ({ children }: { children: React.ReactNode }) => {
+export const Loader = ({ children, backend, project }: { children: React.ReactNode; backend: Backend; project: string }) => {
     const [modules, setModules] = useState(null as null | { store: Store });
     useEffect(() => {
-        loadModules().then((modules) => setModules({ store: createStore('', modules, saveModule) }));
+        backend
+            .loadProject(project)
+            // loadModules()
+            //
+            .then((modules) => setModules({ store: createStore(project, modules, backend) }));
     }, []);
     if (!modules) return null;
     return <StoreCtx.Provider value={modules}>{children}</StoreCtx.Provider>;
@@ -23,7 +29,7 @@ export const App = () => {
                 alignItems: 'stretch',
             }}
         >
-            <Loader>
+            <Loader project="default" backend={LS}>
                 <ModuleSidebar />
                 <Editor />
             </Loader>

@@ -1,4 +1,5 @@
 import { Module } from '../types';
+import { ChangedTops } from './store';
 
 import { Change } from './versionings';
 
@@ -34,15 +35,17 @@ const mergeChanges = (one: Change, two: Change | null) => {
     });
 };
 
-const addToChange = (change: Change, module: Module, withMeta: boolean, tops: string[]) => {
+const addToChange = (change: Change, module: Module, withMeta: boolean, tops: ChangedTops) => {
     let meta = change[module.id]?.meta;
     let toplevels = change[module.id]?.toplevels;
     if (withMeta) {
         meta = moduleMeta(module);
     }
-    if (tops.length) {
+    if (Object.keys(tops).length) {
         if (!toplevels) toplevels = {};
-        tops.forEach((id) => (toplevels![id] = module.toplevels[id] ?? null));
+        Object.entries(tops).forEach(
+            ([id, nodes]) => (toplevels![id] = module.toplevels[id] ? { top: module.toplevels[id], changedNodes: nodes } : null),
+        );
     }
     change[module.id] = { meta, toplevels };
 };
@@ -152,7 +155,7 @@ export function committer({
         }, minWait);
     }
 
-    const externalCommit = (module: Module, withMeta: boolean, changedTops: string[]) => {
+    const externalCommit = (module: Module, withMeta: boolean, changedTops: ChangedTops) => {
         if (!change) change = {};
         addToChange(change, module, withMeta, changedTops);
         saveChange(change, storage);
@@ -177,7 +180,7 @@ export const key = (id: string) => `kipos:${id}`;
 const moduleKey = (id: string) => key('module:' + id);
 const lcKey = (id: string) => key('language:' + id);
 
-export const saveModule = (module: Module, changedTops: string[]) => {
+export const saveModule = (module: Module) => {
     // const current = localStorage.getItem(moduleKey(module.id));
     // ... should we amend ... lets not for the moment
     localStorage.setItem(moduleKey(module.id), JSON.stringify(module));
