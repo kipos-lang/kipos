@@ -24,7 +24,7 @@ export type InMemory = {
 // If I knew the line numbers of things, I could probably
 // calculate a `Diff` myself and skip the need to send over the whole 'change'.
 // that's a job for another day.
-type Change = {
+export type Change = {
     [module: string]: null | {
         // module.json
         meta?: Omit<Module, 'toplevels' | 'history'>;

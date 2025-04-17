@@ -5,6 +5,9 @@ I think I'll do a thing where I synchronously persist
 diffs to localstorage, and then debouncedly autocommit to git,
 and once the commit has happened, we can clear from localstorage.
 
+- [x] make store a real class
+- [ ] have there be an object whose job is to manage debounces and stuff
+
 # Ok so the way commits work
 
 // initial ... repo
