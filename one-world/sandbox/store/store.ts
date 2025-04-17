@@ -25,6 +25,31 @@ export class Store {
     committer: (module: Module, withMeta: boolean, tops: string[]) => void;
 
     constructor(modules: Record<string, Module>) {
+        const { commit, change } = committer({
+            async commit(change) {
+                console.log('committting change');
+            },
+            minWait: 2000,
+            maxWait: 30000,
+            onStatus(status) {
+                console.log(`status!`, status);
+            },
+        });
+        this.committer = commit;
+        // Load up any saved `change`s
+        Object.entries(change ?? {}).forEach(([id, mod]) => {
+            if (!mod) delete modules[id];
+            else {
+                if (mod.meta) {
+                    Object.assign(modules[id], mod.meta);
+                }
+                if (mod.toplevels) {
+                    Object.assign(modules[id].toplevels, mod.toplevels);
+                }
+            }
+        });
+        // TODO:
+
         this.treeCache = makeModuleTree(modules);
         this.modules = modules;
         this.selected = location.hash.slice(1);
@@ -50,17 +75,6 @@ export class Store {
         window.addEventListener('hashchange', f);
 
         this.estore = new EditorStore(modules, { default: defaultLang });
-
-        this.committer = committer({
-            async commit(change) {
-                console.log('committting change');
-            },
-            minWait: 2000,
-            maxWait: 30000,
-            onStatus(status) {
-                console.log(`status!`, status);
-            },
-        });
     }
     compiler(): Compiler<any, any> {
         return this.estore.compilers.default;

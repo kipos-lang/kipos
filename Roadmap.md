@@ -6,7 +6,10 @@ diffs to localstorage, and then debouncedly autocommit to git,
 and once the commit has happened, we can clear from localstorage.
 
 - [x] make store a real class
-- [ ] have there be an object whose job is to manage debounces and stuff
+- [x] have there be an object whose job is to manage debounces and stuff
+- [ ] let's go right to file systems, ok? idk maybe
+- [ ] make a button that is `export the whole dealio` and it gives you a JSON file of all modules
+- [ ] then make the switch, start fresh; and then do `upload that json blob`
 
 # Ok so the way commits work
 

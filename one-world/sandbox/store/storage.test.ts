@@ -12,7 +12,7 @@ const newArgs = (save: Change | null, change: Change | null) => {
         status: null as null | Status,
         timers: {} as Record<number, { fn: Function; time: number }>,
         tid: 0,
-        commit: null as null | { rej: (e: Error) => void; res: (f: boolean) => void; change: Change },
+        commit: null as null | { rej: (e: Error) => void; res: () => void; change: Change },
     };
     return {
         state,
@@ -62,7 +62,7 @@ const basicMeta: Omit<Module, 'toplevels' | 'history'> = {
 
 test('very basic', async () => {
     const { args, state } = newArgs(null, null);
-    const save = committer(args);
+    const { commit: save } = committer(args);
     expect(state.status).toBe(null);
 
     // Add a change with just meta, it should set a timer
@@ -82,7 +82,7 @@ test('very basic', async () => {
     expect(state.storage[savingKey]).toBe(JSON.stringify(state.commit!.change));
 
     // Signal commit success, it should clean up
-    state.commit!.res(true);
+    state.commit!.res();
     await tick();
     expect(state.status).toBe('clean');
     expect(state.storage[changeKey]).toBe('null');
@@ -93,7 +93,7 @@ const tick = () => new Promise((res) => res(null));
 
 test('change while saving', async () => {
     const { args, state } = newArgs(null, null);
-    const save = committer(args);
+    const { commit: save } = committer(args);
     expect(state.status).toBe(null);
 
     // First save
@@ -106,7 +106,7 @@ test('change while saving', async () => {
     save({ ...basicMeta, history: [], toplevels: {}, name: 'newname' }, true, []);
 
     // Signal commit success, it should clean up
-    state.commit!.res(true);
+    state.commit!.res();
     await tick();
     expect(state.status).toBe('dirty');
     expect(JSON.parse(state.storage[changeKey]!)).toEqual({
@@ -116,7 +116,7 @@ test('change while saving', async () => {
 
     // Trigger the next timer, it should call `commit()`
     state.timers[1].fn();
-    state.commit!.res(true);
+    state.commit!.res();
     await tick();
     // And all is right with the world
     expect(state.status).toBe('clean');

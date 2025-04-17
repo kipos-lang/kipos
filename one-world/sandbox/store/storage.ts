@@ -155,7 +155,7 @@ export function committer({
         }, minWait);
     }
 
-    return (module: Module, withMeta: boolean, changedTops: string[]) => {
+    const externalCommit = (module: Module, withMeta: boolean, changedTops: string[]) => {
         if (!change) change = {};
         addToChange(change, module, withMeta, changedTops);
         saveChange(change, storage);
@@ -171,6 +171,7 @@ export function committer({
             save();
         }, minWait);
     };
+    return { commit: externalCommit, change };
 }
 
 export const saveModule = (module: Module, changedTops: string[]) => {
