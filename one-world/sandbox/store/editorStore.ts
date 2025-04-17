@@ -544,7 +544,7 @@ export class EditorStore {
 const moduleDeclarations = (parseResults: Record<string, ParseResult<unknown, ParseKind>>) => {
     const available: { [kind: string]: { [name: string]: string[] } } = {};
     Object.entries(parseResults).forEach(([tid, results]) => {
-        if (results.kind.type === 'defnition') {
+        if (results.kind.type === 'definition') {
             results.kind.provides.forEach((item) => {
                 if (!Object.hasOwn(available, item.kind)) available[item.kind] = {};
                 if (!Object.hasOwn(available[item.kind], item.name)) available[item.kind][item.name] = [];
