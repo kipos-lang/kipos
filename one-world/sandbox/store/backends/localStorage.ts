@@ -2,34 +2,52 @@ import { Module } from '../../types';
 import { Project } from '../storage';
 import { Backend, Change } from '../versionings';
 
-export const LS: Backend = {
+export interface Storage {
+    get length(): number;
+    key(i: number): string | null;
+    setItem(key: string, value: string): void;
+    getItem(key: string): string | null;
+    removeItem(key: string): void;
+}
+
+export class LS implements Backend {
+    storage: Storage;
+    constructor(storage: Storage = localStorage) {
+        this.storage = storage;
+    }
+
     async listProjects() {
         return [{ id: 'default', created: Date.now(), name: 'Default project', opened: Date.now() }];
-    },
+    }
 
     loadProject(id: string) {
-        return loadModules();
-    },
+        return loadModules(this.storage);
+    }
 
     async createProject(project: Project) {
         throw new Error(`localStorage backend only supports one project atm`);
-    },
+    }
 
-    async saveModule(project, module) {
-        saveModule(module);
-    },
+    async saveModule(project: string, module: Module) {
+        saveModule(module, this.storage);
+    }
 
     async history(id: string, start: string | null, count: number) {
         return []; // not implemented at all
-    },
+    }
 
     async saveChange(project: string, change: Change, message: string) {
         Object.entries(change).forEach(([id, mod]) => {
             if (!mod) {
-                return localStorage.removeItem(moduleKey(id));
+                return this.storage.removeItem(moduleKey(id));
             }
-            const module = loadModule(id);
-            if (mod.meta) {
+            let module = loadModule(id, this.storage);
+            if (!module) {
+                if (!mod.meta) {
+                    throw new Error(`non-meta update of nonexistant module`);
+                }
+                module = { ...mod.meta, history: [], toplevels: {} };
+            } else if (mod.meta) {
                 Object.assign(module, mod.meta);
             }
             if (mod.toplevels) {
@@ -41,28 +59,29 @@ export const LS: Backend = {
                     }
                 });
             }
-            saveModule(module);
+            saveModule(module, this.storage);
         });
-    },
-};
+    }
+}
 
 export const key = (id: string) => `kipos:${id}`;
 const moduleKey = (id: string) => key('module:' + id);
 
-export const saveModule = (module: Module) => {
-    localStorage.setItem(moduleKey(module.id), JSON.stringify(module));
+export const saveModule = (module: Module, storage: Storage) => {
+    storage.setItem(moduleKey(module.id), JSON.stringify(module));
 };
 
-export const loadModule = (id: string): Module => {
-    return JSON.parse(localStorage.getItem(moduleKey(id))!);
+export const loadModule = (id: string, storage: Storage): Module | null => {
+    const current = storage.getItem(moduleKey(id))!;
+    return current ? JSON.parse(current) : null;
 };
 
-export const loadModules = async () => {
+export const loadModules = async (storage: Storage) => {
     const modules: Record<string, Module> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
+    for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
         if (key?.startsWith('kipos:module:')) {
-            const module = JSON.parse(localStorage.getItem(key)!);
+            const module = JSON.parse(storage.getItem(key)!);
             modules[module.id] = module;
         }
     }

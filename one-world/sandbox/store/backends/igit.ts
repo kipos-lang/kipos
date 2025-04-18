@@ -98,19 +98,19 @@ export const IGit: Backend = {
         await git.commit({ fs, dir: project.id, author, message: 'create project' });
     },
 
-    async saveModule(project, module) {
-        const base = `/${project}/modules/${module.id}`;
-        if (!(await exists(base))) {
-            await pfs.mkdir(base);
-            await pfs.mkdir(`${base}/toplevels`);
-        }
-        await writeFile(project, `modules/${module.id}/module.json`, JSON.stringify(moduleMeta(module)));
-        const tops = Object.values(module.toplevels).map((top) =>
-            writeFile(project, `modules/${module.id}/toplevels/${top.id}.json`, JSON.stringify(top)),
-        );
-        await Promise.all(tops);
-        await git.commit({ fs, dir: project, author, message: `save module ${module.id}` });
-    },
+    // async saveModule(project, module) {
+    //     const base = `/${project}/modules/${module.id}`;
+    //     if (!(await exists(base))) {
+    //         await pfs.mkdir(base);
+    //         await pfs.mkdir(`${base}/toplevels`);
+    //     }
+    //     await writeFile(project, `modules/${module.id}/module.json`, JSON.stringify(moduleMeta(module)));
+    //     const tops = Object.values(module.toplevels).map((top) =>
+    //         writeFile(project, `modules/${module.id}/toplevels/${top.id}.json`, JSON.stringify(top)),
+    //     );
+    //     await Promise.all(tops);
+    //     await git.commit({ fs, dir: project, author, message: `save module ${module.id}` });
+    // },
 
     async saveChange(project: string, change: Change, message: string) {
         await Promise.all(
@@ -118,6 +118,11 @@ export const IGit: Backend = {
                 if (!change) {
                     await rmdir(`modules/${module}`, '/' + project);
                     return;
+                }
+                const base = `/${project}/modules/${module}`;
+                if (!(await exists(base))) {
+                    await pfs.mkdir(base);
+                    await pfs.mkdir(`${base}/toplevels`);
                 }
                 if (change.meta) {
                     await writeFile(project, `modules/${module}/module.json`, JSON.stringify(change.meta));

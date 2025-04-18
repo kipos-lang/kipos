@@ -63,7 +63,7 @@ export interface Backend {
     listProjects(): Promise<Project[]>;
     createProject(project: Project): Promise<void>;
     loadProject(project: string): Promise<Record<string, Module>>;
-    saveModule(project: string, module: Module): Promise<void>;
+    // saveModule(project: string, module: Module): Promise<void>;
     saveChange(project: string, change: Change, message: string): Promise<void>;
     history(project: string, current: string | null, count: number): Promise<{ diff: Diff; ts: number; message: string; id: string }[]>;
 }

@@ -1,32 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
-import { createStore, Store, StoreCtx } from './store/store';
+import { Store, StoreCtx } from './store/store';
 import { Backend } from './store/versionings';
 import { LS } from './store/backends/localStorage';
 import { IGit } from './store/backends/igit';
+import { defaultLang } from './store/default-lang/default-lang';
 
 export const Loader = ({ children, backend, project }: { children: React.ReactNode; backend: Backend; project: string }) => {
-    const [modules, setModules] = useState(null as null | { store: Store });
+    const [store, setStore] = useState(null as null | { store: Store });
     useEffect(() => {
-        backend.loadProject(project).then((modules) => setModules({ store: createStore(project, modules, backend) }));
+        backend.loadProject(project).then((modules) => {
+            setStore({ store: new Store(project, modules, location.hash.slice(1), backend, { default: defaultLang }) });
+        });
     }, []);
-    if (!modules) return null;
-    return <StoreCtx.Provider value={modules}>{children}</StoreCtx.Provider>;
+    useEffect(() => {
+        if (!store) return;
+        const f = () => store.store.select(location.hash.slice(1));
+        window.addEventListener('hashchange', f);
+
+        return () => window.removeEventListener('hashchange', f);
+    }, [store]);
+    if (!store) return null;
+    return <StoreCtx.Provider value={store}>{children}</StoreCtx.Provider>;
 };
 
-const backends: Record<string, { title: string; backend: Backend }> = {
+const backends: Record<string, { title: string; backend: () => Backend }> = {
     ls: {
         title: 'LocalStorage',
-        backend: LS,
+        backend: () => new LS(),
     },
     igit: {
         title: 'Isomorphic Git',
-        backend: IGit,
+        backend: () => IGit,
     },
 };
 
 export const App = () => {
+    const backend = useMemo(() => new LS(), []);
     return (
         <div
             style={{
@@ -36,7 +47,7 @@ export const App = () => {
                 alignItems: 'stretch',
             }}
         >
-            <Loader project="default" backend={LS}>
+            <Loader project="default" backend={backend}>
                 <ModuleSidebar />
                 <Editor />
             </Loader>

@@ -27,7 +27,7 @@ export type HistoryChange = {
     type: 'change';
     ts: number;
     id: string;
-    // onlyy?: string; // the id or text:index that is the "only" thing that was modified
+    onlyy?: string; // the id or text:index that is the "only" thing that was modified
     // session: string;
     tops: Delta<Record<string, TopUpdate | null>>;
     selections: Delta<NodeSelection[]>;
@@ -43,9 +43,10 @@ export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryCh
     };
 };
 
-const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean] => {
+const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean, string | undefined] => {
     const redo: TopUpdate = { ...next, nodes: {} };
     const undo: TopUpdate = { ...prev, nodes: {} };
+    let only = false as false | string | null;
 
     let changed = next.root !== prev.root || next.children !== prev.children;
     Object.entries(next.nodes).forEach(([key, value]) => {
@@ -53,6 +54,8 @@ const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean
             redo.nodes[key] = value;
             undo.nodes[key] = prev.nodes[key] ?? null;
             changed = true;
+            if (only === false) only = key;
+            else if (only != key) only = null;
         }
     });
     Object.entries(prev.nodes).forEach(([key, value]) => {
@@ -62,13 +65,17 @@ const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean
             changed = true;
         }
     });
-    return [redo, undo, changed]; //, only === false ? undefined : only.sort().join(':')];
+    return [redo, undo, changed, only ? only : undefined]; //, only === false ? undefined : only.sort().join(':')];
 };
 
-const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChange['tops']['next'], HistoryChange['tops']['prev'], boolean] => {
+const diffTops = (
+    prev: AppState['tops'],
+    next: AppState['tops'],
+): [HistoryChange['tops']['next'], HistoryChange['tops']['prev'], boolean, string | undefined] => {
     const redo: Record<string, TopUpdate | null> = {};
     const undo: Record<string, TopUpdate | null> = {};
     let changed = false;
+    let only = false as false | string | null;
 
     Object.entries(next).forEach(([key, value]) => {
         if (prev[key] !== value) {
@@ -77,11 +84,13 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
                 undo[key] = null;
                 changed = true;
             } else {
-                const [r, u, c] = diffTop(prev[key], value);
+                const [r, u, c, o] = diffTop(prev[key], value);
                 redo[key] = r;
                 undo[key] = u;
                 if (c) {
                     changed = true;
+                    if (only === false) only = o ? `${key}:${o}` : null;
+                    else only = null;
                 }
             }
             // console.log('diff', key, prev[key], value);
@@ -93,20 +102,20 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             redo[key] = null;
             undo[key] = value;
             changed = true;
-            // console.log('removed', key);
         }
     });
 
-    return [redo, undo, changed];
+    return [redo, undo, changed, only ? only : undefined];
 };
 
 const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | void => {
-    const [redo, undo, changed] = diffTops(prev.tops, next.tops);
+    const [redo, undo, changed, onlyy] = diffTops(prev.tops, next.tops);
     if (!changed) return;
     return {
         type: 'change',
         id: genId(),
         ts: Date.now(),
+        onlyy,
         tops: { next: redo, prev: undo },
         selections: { next: next.selections, prev: prev.selections },
     };

@@ -185,7 +185,7 @@ export class EditorStore {
                 });
             });
         });
-        console.log(`forward deps`, this.moduleDeps);
+        // console.log(`forward deps`, this.moduleDeps);
 
         sorted.forEach((id) => {
             this.recompile(id);

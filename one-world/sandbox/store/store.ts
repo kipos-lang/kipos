@@ -9,7 +9,7 @@ import { defaultLang, TInfo } from './default-lang/default-lang';
 import { EditorState, EditorStore } from './editorStore';
 import { Compiler, Language, Meta, ParseKind } from './language';
 import { Action, AppState, reduce } from './state';
-import { committer } from './storage';
+import { committer, Status, Storage, Timers } from './storage';
 import { useTick } from './editorHooks';
 import { Backend } from './versionings';
 
@@ -26,20 +26,32 @@ export class Store {
     committer: (module: Module, withMeta: boolean, tops: ChangedTops) => void;
     backend: Backend;
     project: string;
+    savingStatus: Status = 'clean';
 
-    constructor(project: string, modules: Record<string, Module>, backend: Backend) {
+    constructor(
+        project: string,
+        modules: Record<string, Module>,
+        selected: string,
+        backend: Backend,
+        languages: Record<string, Language<any, any, any>>,
+        timers?: Timers,
+        storage?: Storage,
+    ) {
         this.project = project;
+        this.listeners = {};
+
         const { commit, change } = committer({
+            timer: timers,
             async commit(change) {
-                // backend.saveChange(project, change, `auto commit`)
-                console.log('committting change');
+                backend.saveChange(project, change, `auto commit`);
             },
             minWait: 2000,
             maxWait: 30000,
-            onStatus(status) {
-                console.log(`status!`, status);
+            onStatus: (status) => {
+                this.savingStatus = status;
+                this.shout('saving:status');
             },
-            storage: {
+            storage: storage ?? {
                 setItem(key, value) {
                     localStorage[project + ':' + key] = value;
                 },
@@ -75,29 +87,22 @@ export class Store {
 
         this.treeCache = makeModuleTree(modules);
         this.modules = modules;
-        this.selected = location.hash.slice(1);
-        if (!this.selected) {
+        this.selected = selected;
+        if (!this.selected || !modules[this.selected]) {
             if (this.treeCache.root.length) {
                 this.selected = this.treeCache.root[0];
             }
         }
-        if (!this.selected) {
+        if (!this.selected || !modules[this.selected]) {
             const module = newModule();
             modules[module.id] = module;
             this.selected = module.id;
             this.treeCache.root.push(module.id);
+            // this.backend.saveModule(this.project, module);
+            this.committer(module, true, Object.fromEntries(Object.keys(module.toplevels).map((id) => [id, { meta: true, nodes: true }])));
         }
 
-        this.listeners = {};
-
-        const f = () => {
-            const id = location.hash.slice(1);
-            this.selected = id;
-            this.shout('selected');
-        };
-        window.addEventListener('hashchange', f);
-
-        this.estore = new EditorStore(modules, { default: defaultLang });
+        this.estore = new EditorStore(modules, languages);
     }
     compiler(): Compiler<any, any> {
         return this.estore.compilers.default;
@@ -119,7 +124,7 @@ export class Store {
     }
     updateModule(update: ModuleUpdate) {
         Object.assign(this.modules[update.id], update);
-        this.backend.saveModule(this.project, this.modules[update.id]);
+        // this.backend.saveModule(this.project, this.modules[update.id]);
         this.committer(this.modules[update.id], true, {});
         this.treeCache = makeModuleTree(this.modules);
         this.shout(`module:${update.id}`);
@@ -127,7 +132,7 @@ export class Store {
     }
     addModule(module: Module) {
         this.modules[module.id] = module;
-        this.backend.saveModule(this.project, module);
+        // this.backend.saveModule(this.project, module);
         this.committer(module, true, Object.fromEntries(Object.keys(module.toplevels).map((id) => [id, { meta: true, nodes: true }])));
         this.treeCache = makeModuleTree(this.modules);
         this.shout('modules');
@@ -169,7 +174,7 @@ export class Store {
             this.shout(`node:${k}`);
         });
 
-        this.backend.saveModule(this.project, mod);
+        // this.backend.saveModule(this.project, mod);
         if (Object.keys(changedTops).length) {
             this.committer(mod, true, changedTops);
         }
@@ -237,6 +242,7 @@ const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 export const defaultLanguageConfig = 'default';
 
 export type Evt =
+    | 'saving:status'
     | 'modules'
     | 'selected'
     | `annotation:${string}`
@@ -245,9 +251,9 @@ export type Evt =
     | `module:${string}`
     | `module:${string}:roots`;
 
-export const createStore = (project: string, modules: Record<string, Module>, backend: Backend): Store => {
-    return new Store(project, modules, backend);
-};
+// export const createStore = (project: string, modules: Record<string, Module>, backend: Backend): Store => {
+//     return new Store(project, modules, backend);
+// };
 
 export const StoreCtx = createContext({
     get store(): Store {

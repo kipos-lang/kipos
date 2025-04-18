@@ -1,4 +1,8 @@
 
+# Testing it
+
+- [x] a test
+
 # For persisting
 
 I think I'll do a thing where I synchronously persist

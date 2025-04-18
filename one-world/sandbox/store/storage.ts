@@ -73,17 +73,19 @@ const saveSaveChange = (change: Change | null, storage: Storage) => {
     storage.setItem(savingKey, JSON.stringify(change));
 };
 
-type Storage = { setItem(key: string, value: string): void; getItem(key: string): string | null };
+export type Storage = { setItem(key: string, value: string): void; getItem(key: string): string | null };
+
+export type Timers = {
+    set: (f: () => void, time: number) => Timer;
+    clear: (t: Timer) => void;
+};
 
 export type Args = {
     commit: (change: Change) => Promise<void>;
     onStatus: (status: Status) => void;
     minWait: number;
     maxWait: number;
-    timer?: {
-        set: (f: () => void, time: number) => Timer;
-        clear: (t: Timer) => void;
-    };
+    timer?: Timers;
     storage?: Storage;
 };
 
