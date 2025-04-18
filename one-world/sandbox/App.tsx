@@ -1,22 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import { Editor } from './Editor';
 import { ModuleSidebar } from './ModuleSidebar';
-import { loadModules, saveModule } from './store/storage';
 import { createStore, Store, StoreCtx } from './store/store';
 import { Backend } from './store/versionings';
 import { LS } from './store/backends/localStorage';
+import { IGit } from './store/backends/igit';
 
 export const Loader = ({ children, backend, project }: { children: React.ReactNode; backend: Backend; project: string }) => {
     const [modules, setModules] = useState(null as null | { store: Store });
     useEffect(() => {
-        backend
-            .loadProject(project)
-            // loadModules()
-            //
-            .then((modules) => setModules({ store: createStore(project, modules, backend) }));
+        backend.loadProject(project).then((modules) => setModules({ store: createStore(project, modules, backend) }));
     }, []);
     if (!modules) return null;
     return <StoreCtx.Provider value={modules}>{children}</StoreCtx.Provider>;
+};
+
+const backends: Record<string, { title: string; backend: Backend }> = {
+    ls: {
+        title: 'LocalStorage',
+        backend: LS,
+    },
+    igit: {
+        title: 'Isomorphic Git',
+        backend: IGit,
+    },
 };
 
 export const App = () => {
