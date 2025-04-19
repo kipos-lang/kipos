@@ -1,7 +1,9 @@
+import equal from 'fast-deep-equal';
 import { Node } from '../../shared/cnodes';
-import { Delta } from '../history';
+import { Delta, revDelta } from '../history';
 import { Module, Toplevel } from '../types';
 import { Project } from './storage';
+import { Evt } from './store';
 
 // export type Commit = {
 //     ts: number;
@@ -49,6 +51,98 @@ export type Diff = {
         };
     };
 };
+
+export const applyDiff = (modules: Record<string, Module>, base: Record<string, Module>, diff: Diff): Evt[] => {
+    const evts: Evt[] = [];
+    Object.entries(diff).forEach(([id, diff]) => {
+        if (diff.meta && !diff.meta.next) {
+            // removing the module
+            delete modules[id];
+            evts.push('modules');
+            return;
+        }
+        if (!modules[id]) {
+            if (!base[id]) {
+                throw new Error(`got a modification delta for mdule ${id}, but not present in base`);
+            }
+            modules[id] = { ...base[id], toplevels: {}, history: [] };
+        }
+        const mod = modules[id];
+        if (diff.meta) {
+            const proots = mod.roots;
+            Object.assign(mod, diff.meta.next);
+            evts.push(`module:${id}`);
+            if (!equal(proots, mod.roots)) {
+                evts.push(`module:${id}:roots`);
+            }
+        }
+
+        if (diff.toplevels) {
+            Object.entries(diff.toplevels).forEach(([tid, tdiff]) => {
+                if (tdiff.meta && !tdiff.meta.next) {
+                    // removing the toplevel
+                    delete mod.toplevels[tid];
+                    evts.push(`top:${tid}`);
+                    return;
+                }
+                if (!mod.toplevels[tid]) {
+                    if (!base[id].toplevels[tid]) {
+                        throw new Error(`got a modification delta for toplevel ${tid} of module ${id}, but not present in base`);
+                    }
+                    mod.toplevels[tid] = { ...base[id].toplevels[tid], nodes: {} };
+                }
+                const top = mod.toplevels[tid];
+                if (tdiff.meta) {
+                    const root = top.root;
+                    const children = top.children;
+                    const submodule = top.submodule;
+                    Object.assign(top, tdiff.meta);
+                    if (!equal(root, top.root)) evts.push(`top:${tid}:root`);
+                    if (!equal(children, top.children)) evts.push(`top:${tid}:children`);
+                    if (!equal(submodule, top.submodule)) evts.push(`top:${tid}:submodule`);
+                    evts.push(`top:${tid}`);
+                }
+                if (tdiff.nodes) {
+                    Object.entries(tdiff.nodes).forEach(([nid, node]) => {
+                        evts.push(`node:${nid}`);
+                        if (!node.next) {
+                            delete top.nodes[nid];
+                            return;
+                        }
+                        if (!top.nodes[nid]) {
+                            top.nodes[nid] = { ...base[id].toplevels[tid].nodes[nid] };
+                        }
+                        Object.assign(top.nodes[nid], node.next);
+                    });
+                }
+            });
+        }
+    });
+    return evts;
+};
+
+export const reverseDiff = (diff: Diff) =>
+    Object.fromEntries(
+        Object.entries(diff).map(([id, diff]) => [
+            id,
+            {
+                meta: diff.meta ? revDelta(diff.meta) : undefined,
+                toplevels: diff.toplevels
+                    ? Object.fromEntries(
+                          Object.entries(diff.toplevels).map(([id, top]) => [
+                              id,
+                              {
+                                  meta: top.meta ? revDelta(top.meta) : undefined,
+                                  nodes: top.nodes
+                                      ? Object.fromEntries(Object.entries(top.nodes).map(([id, node]) => [id, revDelta(node)]))
+                                      : undefined,
+                              },
+                          ]),
+                      )
+                    : undefined,
+            },
+        ]),
+    );
 
 // export interface VCS {
 //     loadWorkspace(): Promise<{ modules: { [module: string]: Module }; head: string }>;

@@ -1,8 +1,13 @@
 
 # History Scrubbing how is it done:
 
-- in `store`, we need to know if we're scrubbing
-  - if scrubbing, ignore all actions/updates.
+- [x] in `store`, we need to know if we're scrubbing
+  - [x] if scrubbing, ignore all actions/updates.
+- [ ] now ... apply the diffs on the sly
+
+- [x] make a frozen.previews where you can apply diffs
+- [ ] use that stuff when we're in frozen mode
+
 
 # Testing it
 

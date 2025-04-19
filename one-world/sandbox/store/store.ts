@@ -11,7 +11,7 @@ import { Compiler, Language, Meta, ParseKind } from './language';
 import { Action, AppState, keyUpdates, reduce } from './state';
 import { committer, Status, Storage, Timers } from './storage';
 import { useTick } from './editorHooks';
-import { Backend } from './versionings';
+import { applyDiff, Backend, Diff } from './versionings';
 
 export type ModuleChildren = Record<string, string[]>;
 
@@ -30,6 +30,7 @@ export class Store {
     frozen: null | {
         selected: string;
         selections: Record<string, NodeSelection[]>;
+        previews: Record<string, Module>;
     } = null;
 
     constructor(
@@ -114,9 +115,15 @@ export class Store {
     compiler(): Compiler<any, any> {
         return this.estore.compilers.default;
     }
+
+    // frozen aware accessors
     module(id: string) {
+        if (this.frozen?.previews[id]) {
+            return frozenModule(this.frozen.previews[id], this.modules[id], this.frozen.selections[id]);
+        }
         return this.modules[id];
     }
+
     listen(evt: Evt, fn: () => void): () => void {
         if (!this.listeners[evt]) this.listeners[evt] = [fn];
         else this.listeners[evt].push(fn);
@@ -173,23 +180,30 @@ export class Store {
         this.frozen = {
             selected: this.selected,
             selections,
+            previews: {},
         };
+    }
+
+    frozenDiff(diff: Diff) {
+        if (!this.frozen) throw new Error(`cant frozen diff, not frozen`);
+        const evts = applyDiff(this.frozen.previews, this.modules, diff);
+        evts.forEach((evt) => this.shout(evt));
     }
 
     unfreeze() {
         if (!this.frozen) return;
         this.select(this.frozen.selected);
-        Object.entries(this.frozen.selections).forEach(([id, selections]) => {
-            if (this.modules[id].selections !== selections) {
-                this.modules[id].selections = selections;
-                // TODO: shout about this change
-            }
-        });
+        // Object.entries(this.frozen.selections).forEach(([id, selections]) => {
+        //     if (this.modules[id].selections !== selections) {
+        //         this.modules[id].selections = selections;
+        //         // TODO: shout about this change
+        //     }
+        // });
         this.frozen = null;
     }
 
     update(module: string, action: Action) {
-        const mod = this.modules[this.selected];
+        const mod = this.module(module);
         const language = this.estore.languages[mod.languageConfiguration];
         if (this.frozen) {
             let selections = mod.selections;
@@ -208,7 +222,7 @@ export class Store {
             if (selections === mod.selections) return;
             const changed = allIds(selections);
             Object.assign(changed, allIds(mod.selections));
-            mod.selections = selections;
+            this.frozen.selections[module] = selections;
             console.log('sel', selections);
             this.shout(`module:${mod.id}:selection`);
             Object.keys(changed).forEach((c) => this.shout(`node:${c}`));
@@ -451,4 +465,58 @@ const applyChanges = (result: AppState, mod: Module) => {
     });
 
     return { changed, changedTops, evts };
+};
+
+// Note this might report some things being present when it has been deleted
+export const frozenModule = (frozen: Module | undefined, base: Module, selections?: NodeSelection[]): Module => {
+    if (!frozen) {
+        if (!selections) return base;
+        return new Proxy(base, {
+            get(_, prop) {
+                if (prop === 'selections') {
+                    return selections;
+                }
+                return base[prop as 'id'];
+            },
+        });
+    }
+
+    return new Proxy(base, {
+        get(target, prop) {
+            if (prop === 'toplevels') {
+                return new Proxy(frozen.toplevels, {
+                    get(target, tid) {
+                        return new Proxy(
+                            {},
+                            {
+                                get(_, attr) {
+                                    if (attr === 'nodes') {
+                                        return new Proxy(
+                                            {},
+                                            {
+                                                get(_, id) {
+                                                    return (
+                                                        frozen?.toplevels[tid as '']?.nodes[id as ''] ?? base.toplevels[tid as '']?.nodes[id as '']
+                                                    );
+                                                },
+                                            },
+                                        );
+                                    } else {
+                                        return frozen?.toplevels[tid as '']?.[attr as 'id'] ?? base.toplevels[tid as '']?.[attr as 'id'];
+                                    }
+                                },
+                            },
+                        );
+                    },
+                });
+            } else if (prop === 'selections') {
+                return selections ?? frozen.selections;
+            } else {
+                return frozen[prop as 'id'] ?? base[prop as 'id'];
+            }
+        },
+        set(target, prop, value) {
+            throw new Error(`not allowed set on a frozen Module`);
+        },
+    });
 };
