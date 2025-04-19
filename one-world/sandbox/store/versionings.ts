@@ -38,6 +38,24 @@ export type Change = {
     };
 };
 
+export const describeDiff = (diff: Diff) => {
+    return Object.entries(diff).flatMap(([mid, mod]) => [
+        `For mdule ${mid}:`,
+        ...(mod.meta ? [!mod.meta.next ? '  - delete module' : !mod.meta.prev ? '  - create module' : ` - meta change`] : []),
+        ...(mod.toplevels
+            ? Object.entries(mod.toplevels).flatMap(([tid, top]) => [
+                  `  For top ${tid}:`,
+                  ...(top.meta ? [!top.meta.next ? '    - delete top' : !top.meta.prev ? '    - create top' : `    - meta change`] : []),
+                  ...(top.nodes
+                      ? Object.entries(top.nodes).flatMap(([nid, node]) => [
+                            !node.next ? `    - node ${nid} delete` : !node.prev ? `    - node ${nid} create` : `    - node ${nid} change`,
+                        ])
+                      : []),
+              ])
+            : []),
+    ]);
+};
+
 export type Diff = {
     [module: string]: {
         // module.json
@@ -52,8 +70,9 @@ export type Diff = {
     };
 };
 
-export const applyDiff = (modules: Record<string, Module>, base: Record<string, Module>, diff: Diff): Evt[] => {
+export const applyDiff = (modules: Record<string, Module>, base: Record<string, Module>, diff: Diff) => {
     const evts: Evt[] = [];
+    const changedModules: Record<string, string[]> = {};
     Object.entries(diff).forEach(([id, diff]) => {
         if (diff.meta && !diff.meta.next) {
             // removing the module
@@ -61,19 +80,27 @@ export const applyDiff = (modules: Record<string, Module>, base: Record<string, 
             evts.push('modules');
             return;
         }
+        changedModules[id] = [];
+        if (diff.meta && !diff.meta.prev) {
+            modules[id] = { ...diff.meta.next!, history: [], toplevels: {} };
+        }
         if (!modules[id]) {
-            if (!base[id]) {
-                throw new Error(`got a modification delta for mdule ${id}, but not present in base`);
-            }
-            modules[id] = { ...base[id], toplevels: {}, history: [] };
+            throw new Error(`got a modification delta for mdule ${id}, but not present in base`);
+        }
+        if (modules[id] === base[id]) {
+            modules[id] = { ...base[id], toplevels: { ...base[id].toplevels }, history: [] };
         }
         const mod = modules[id];
         if (diff.meta) {
             const proots = mod.roots;
+            const psel = mod.selections;
             Object.assign(mod, diff.meta.next);
             evts.push(`module:${id}`);
             if (!equal(proots, mod.roots)) {
                 evts.push(`module:${id}:roots`);
+            }
+            if (!equal(psel, mod.selections)) {
+                evts.push(`module:${id}:selection`);
             }
         }
 
@@ -85,18 +112,23 @@ export const applyDiff = (modules: Record<string, Module>, base: Record<string, 
                     evts.push(`top:${tid}`);
                     return;
                 }
+                changedModules[id].push(tid);
+                if (tdiff.meta && !tdiff.meta.prev) {
+                    mod.toplevels[tid] = { ...tdiff.meta.next!, nodes: {} };
+                }
                 if (!mod.toplevels[tid]) {
-                    if (!base[id].toplevels[tid]) {
-                        throw new Error(`got a modification delta for toplevel ${tid} of module ${id}, but not present in base`);
-                    }
-                    mod.toplevels[tid] = { ...base[id].toplevels[tid], nodes: {} };
+                    throw new Error(`got a modification delta for toplevel ${tid} of module ${id}, but not present in base`);
+                }
+                // got to clone before modifying
+                if (mod.toplevels[tid] === base[id].toplevels[tid]) {
+                    mod.toplevels[tid] = { ...mod.toplevels[tid], nodes: { ...mod.toplevels[tid].nodes } };
                 }
                 const top = mod.toplevels[tid];
                 if (tdiff.meta) {
                     const root = top.root;
                     const children = top.children;
                     const submodule = top.submodule;
-                    Object.assign(top, tdiff.meta);
+                    Object.assign(top, tdiff.meta.next);
                     if (!equal(root, top.root)) evts.push(`top:${tid}:root`);
                     if (!equal(children, top.children)) evts.push(`top:${tid}:children`);
                     if (!equal(submodule, top.submodule)) evts.push(`top:${tid}:submodule`);
@@ -109,16 +141,18 @@ export const applyDiff = (modules: Record<string, Module>, base: Record<string, 
                             delete top.nodes[nid];
                             return;
                         }
-                        if (!top.nodes[nid]) {
-                            top.nodes[nid] = { ...base[id].toplevels[tid].nodes[nid] };
-                        }
-                        Object.assign(top.nodes[nid], node.next);
+                        top.nodes[nid] = node.next;
+                        // if (!base[id].toplevels[tid].nodes[nid])
+                        // if (top.nodes[nid] === base[id].toplevels[tid].nodes[nid]) {
+                        //     top.nodes[nid] = { ...top.nodes[nid] };
+                        // }
+                        // Object.assign(top.nodes[nid], node.next);
                     });
                 }
             });
         }
     });
-    return evts;
+    return { evts, changedModules };
 };
 
 export const reverseDiff = (diff: Diff) =>

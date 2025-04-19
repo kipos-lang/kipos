@@ -25,7 +25,7 @@ const validatePath = (top: Top, path: Path) => {
     return true;
 };
 
-const validateNextLoc = (top: Top) => {
+export const validateLocs = (top: Top) => {
     Object.keys(top.nodes).forEach((loc) => {
         if (!top.nodes[loc]) {
             return;
@@ -36,8 +36,12 @@ const validateNextLoc = (top: Top) => {
     });
 };
 
-const validateNodes = (top: Top, id: NodeID) => {
+export const validateNodes = (top: Top, id: NodeID) => {
     const node = top.nodes[id];
+
+    if (!node) {
+        throw new Error(`missing node ${id} in top`);
+    }
 
     // if (node.type === 'text') {
     //     const seen: Record<string, true> = {};
@@ -150,6 +154,6 @@ export const validate = (state: Pick<TestState, 'top' | 'sel'>) => {
         throw err;
     }
     validateCursor(state);
-    validateNextLoc(state.top);
+    validateLocs(state.top);
     validateNodes(state.top, state.top.root);
 };

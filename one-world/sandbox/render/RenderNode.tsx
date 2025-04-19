@@ -206,6 +206,10 @@ const ShowTestResult = ({ result, id, parent }: { parent: Path; id: string; resu
 export const RenderNode = React.memo(function RenderNode({ id, parent }: { id: string; parent: Path }) {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
     const { node, sel, meta, spans } = useContext(UseNodeCtx)(self);
+    if (!node) {
+        // console.warn(`no node when trying to get info for`, self, id, parent);
+        return null;
+    }
 
     return (
         <Wrap id={id} parent={parent}>

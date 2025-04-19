@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { genId } from '../../keyboard/ui/genId';
 import { Cursor, Highlight, NodeSelection, Path, selStart } from '../../keyboard/utils';
-import { validate } from '../../keyboard/validate';
+import { validate, validateLocs, validateNodes } from '../../keyboard/validate';
 import { Node } from '../../shared/cnodes';
 import { TopItem } from '../../syntaxes/algw-s2-types';
 import { Module } from '../types';
@@ -29,8 +29,8 @@ export class Store {
     savingStatus: Status = 'clean';
     frozen: null | {
         selected: string;
-        selections: Record<string, NodeSelection[]>;
-        previews: Record<string, Module>;
+        // selections: Record<string, NodeSelection[]>;
+        modules: Record<string, Module>;
     } = null;
 
     constructor(
@@ -118,9 +118,9 @@ export class Store {
 
     // frozen aware accessors
     module(id: string) {
-        if (this.frozen) {
-            return frozenModule(this.frozen.previews[id], this.modules[id], this.frozen.selections[id]);
-        }
+        // if (this.frozen) {
+        //     return frozenModule(this.frozen.previews[id], this.modules[id], this.frozen.selections[id]);
+        // }
         return this.modules[id];
     }
 
@@ -175,31 +175,52 @@ export class Store {
     }
 
     freeze() {
-        const selections: Record<string, NodeSelection[]> = Object.fromEntries(Object.values(this.modules).map((mod) => [mod.id, mod.selections]));
-
+        // const selections: Record<string, NodeSelection[]> = Object.fromEntries(Object.values(this.modules).map((mod) => [mod.id, mod.selections]));
         this.frozen = {
             selected: this.selected,
-            selections,
-            previews: {},
+            // selections: {},
+            modules: { ...this.modules },
         };
     }
 
     frozenDiff(diff: Diff) {
         if (!this.frozen) throw new Error(`cant frozen diff, not frozen`);
-        const evts = applyDiff(this.frozen.previews, this.modules, diff);
+        const { evts, changedModules } = applyDiff(this.modules, this.frozen.modules, diff);
         evts.forEach((evt) => this.shout(evt));
+
+        console.log(this.modules);
+
+        const changed: Record<string, true> = {};
+        this.estore.moduleDeps.sorted.forEach((id) => {
+            const changedTops = changedModules[id];
+            if (changedTops?.length) {
+                changedTops.forEach((tid) => {
+                    const top = this.modules[id].toplevels[tid];
+                    validateLocs(top);
+                    validateNodes(top, top.root);
+                });
+
+                const keys: Record<string, true> = {};
+                const estore = this.estore;
+                estore.updateModules(id, changedTops, changed, keys);
+                Object.keys(keys).forEach((k) => evts.push(`annotation:${k}`));
+
+                evts.push(`module:${id}:dependency-graph`);
+                evts.push(`module:${id}:parse-results`);
+                changedTops.forEach((key) => {
+                    evts.push(`top:${key}:parse-results`);
+                });
+            }
+        });
     }
 
     unfreeze() {
         if (!this.frozen) return;
-        this.select(this.frozen.selected);
-        // Object.entries(this.frozen.selections).forEach(([id, selections]) => {
-        //     if (this.modules[id].selections !== selections) {
-        //         this.modules[id].selections = selections;
-        //         // TODO: shout about this change
-        //     }
-        // });
+        const selected = this.frozen.selected;
+        this.modules = this.frozen.modules;
+        this.estore.modules = this.modules;
         this.frozen = null;
+        this.select(selected);
     }
 
     update(module: string, action: Action) {
@@ -222,12 +243,16 @@ export class Store {
             if (selections === mod.selections) return;
             const changed = allIds(selections);
             Object.assign(changed, allIds(mod.selections));
-            this.frozen.selections[module] = selections;
+            if (mod === this.frozen.modules[module]) {
+                this.modules[module] = { ...mod };
+            }
+            this.modules[module].selections = selections;
             console.log('sel', selections);
             this.shout(`module:${mod.id}:selection`);
             Object.keys(changed).forEach((c) => this.shout(`node:${c}`));
             return;
         }
+
         const { changed, changedTops, evts } = update(mod, this.estore.languages[mod.languageConfiguration], action);
         if (Object.keys(changedTops).length) {
             const keys: Record<string, true> = {};

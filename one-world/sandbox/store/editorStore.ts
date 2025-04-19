@@ -502,14 +502,16 @@ export class EditorStore {
 
             for (let cid of this.state[mod].dependencies.components.entries[id]) {
                 const prev = this.state[mod].spans[cid];
-                this.state[mod].spans[cid] = this.calculateSpans(cid, module.toplevels[cid], this.state[mod].validationResults[id]);
-                if (changedKeys) {
-                    Object.entries(this.state[mod].spans[cid]).forEach(([loc, spans]) => {
-                        if (!prev) changedKeys[loc] = true;
-                        else if (!equal(spans, prev[loc])) {
-                            changedKeys[loc] = true;
-                        }
-                    });
+                if (module.toplevels[cid]) {
+                    this.state[mod].spans[cid] = this.calculateSpans(cid, module.toplevels[cid], this.state[mod].validationResults[id]);
+                    if (changedKeys) {
+                        Object.entries(this.state[mod].spans[cid]).forEach(([loc, spans]) => {
+                            if (!prev) changedKeys[loc] = true;
+                            else if (!equal(spans, prev[loc])) {
+                                changedKeys[loc] = true;
+                            }
+                        });
+                    }
                 }
             }
 

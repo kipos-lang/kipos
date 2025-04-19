@@ -5,6 +5,8 @@
   - [x] if scrubbing, ignore all actions/updates.
 - [ ] now ... apply the diffs on the sly
 
+hrmmm proxies are too fancy.
+
 - [x] make a frozen.previews where you can apply diffs
 - [ ] use that stuff when we're in frozen mode
 

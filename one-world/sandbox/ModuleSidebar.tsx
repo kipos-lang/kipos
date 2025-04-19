@@ -221,9 +221,11 @@ const useDragCtx = (store: Store): DragTreeCtxT<{ name: string }> => {
         () => ({
             useNode(id) {
                 const [data, setData] = useState(() => {
+                    const module = store.module(id);
+                    if (!module) return { children: [] };
                     const children = store.moduleChildren()[id];
                     if (id === 'root') return { children };
-                    const name = store.module(id).name;
+                    const name = module.name;
                     return { children, node: { name } };
                 });
                 const latest = useRef(data);
