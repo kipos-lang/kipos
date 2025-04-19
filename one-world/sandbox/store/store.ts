@@ -118,7 +118,7 @@ export class Store {
 
     // frozen aware accessors
     module(id: string) {
-        if (this.frozen?.previews[id]) {
+        if (this.frozen) {
             return frozenModule(this.frozen.previews[id], this.modules[id], this.frozen.selections[id]);
         }
         return this.modules[id];
