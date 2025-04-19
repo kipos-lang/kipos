@@ -415,3 +415,39 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
     }
     throw new Error(`not handled action ${(action as any).type}`);
 };
+
+export const keyUpdates = (selections: NodeSelection[], tops: Record<string, Toplevel>, action: Action & { type: 'key' }, config: Config) => {
+    selections = selections.slice();
+    tops = { ...tops };
+    let changed = false;
+    // let top = state.top;
+    for (let i = 0; i < selections.length; i++) {
+        const sel = selections[i];
+        if (sel.end && sel.start.path.root.top !== sel.end.path.root.top) {
+            throw new Error(`multi-toplevel, not doing`);
+        }
+        const top = tops[sel.start.path.root.top];
+        const update = keyUpdate({ top, sel, nextLoc: genId }, action.key, action.mods, action.visual, config);
+        if (!update) continue;
+        for (let keyAction of update) {
+            const sub = keyActionToUpdate({ top, sel, nextLoc: genId }, keyAction);
+            const result = applyNormalUpdate({ top, sel, nextLoc: genId }, sub);
+            if (tops[sel.start.path.root.top] !== result.top) {
+                changed = true;
+            }
+            tops[sel.start.path.root.top] = result.top;
+            selections[i] = result.sel;
+            if (sub && Array.isArray(sub.selection)) {
+                for (let j = 0; j < selections.length; j++) {
+                    if (j !== i) {
+                        sub.selection.forEach((up) => {
+                            selections[j] = applySelUp(selections[i], up);
+                        });
+                    }
+                }
+            }
+        }
+        continue;
+    }
+    return { selections, tops, changed };
+};

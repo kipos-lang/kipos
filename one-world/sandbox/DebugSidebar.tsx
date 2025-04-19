@@ -1,5 +1,5 @@
 import { css } from 'goober';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { stackForEvt, processStack } from '../../type-inference-debugger/demo/App';
 import { ShowScope } from '../../type-inference-debugger/demo/ShowScope';
 import { ShowStacks } from '../../type-inference-debugger/demo/ShowText';
@@ -336,8 +336,44 @@ export const DebugSidebar = () => {
                 <Collapsible title="Theme Colors">
                     <ShowColors />
                 </Collapsible>
+                <Collapsible title="Rewind">
+                    <Rewind />
+                </Collapsible>
             </div>
         </Resizebar>
+    );
+};
+
+const usePromise = <T,>(f: () => Promise<T>) => {
+    const [v, set] = useState(null as null | T);
+    useEffect(() => {
+        f().then(set);
+    }, []);
+    return v;
+};
+
+const Rewind = () => {
+    const store = useStore();
+    const history = usePromise(() => store.backend.history(store.project, null, 100));
+    const [at, setAt] = useState(0);
+    useEffect(() => {
+        if (at === 0) {
+            store.unfreeze();
+            return;
+        }
+
+        store.freeze();
+        return () => {
+            store.unfreeze();
+        };
+    }, [at != 0]);
+    if (!history) return 'Loading...';
+    return (
+        <div>
+            <h4>History {history.length}</h4>
+            <input type="range" min="0" max={history.length - 1} value={at} onChange={(evt) => setAt(+evt.target.value)} />
+            {at}
+        </div>
     );
 };
 

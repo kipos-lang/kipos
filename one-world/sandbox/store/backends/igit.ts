@@ -214,9 +214,10 @@ export const IGit: Backend = {
                             const next: Toplevel | null = newer ? JSON.parse(dec.decode((await newer.content())!)) : null;
                             const prev: Toplevel | null = older ? JSON.parse(dec.decode((await older.content())!)) : null;
                             change[mid].toplevels[tid] = topDelta(next, prev);
+                            return;
                         }
 
-                        console.warn(`unknown path`, filepath);
+                        console.warn(`unknown path`, filepath, parts);
                     },
                 });
 

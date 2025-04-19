@@ -8,7 +8,7 @@ import { Module } from '../types';
 import { defaultLang, TInfo } from './default-lang/default-lang';
 import { EditorState, EditorStore } from './editorStore';
 import { Compiler, Language, Meta, ParseKind } from './language';
-import { Action, AppState, reduce } from './state';
+import { Action, AppState, keyUpdates, reduce } from './state';
 import { committer, Status, Storage, Timers } from './storage';
 import { useTick } from './editorHooks';
 import { Backend } from './versionings';
@@ -27,6 +27,10 @@ export class Store {
     backend: Backend;
     project: string;
     savingStatus: Status = 'clean';
+    frozen: null | {
+        selected: string;
+        selections: Record<string, NodeSelection[]>;
+    } = null;
 
     constructor(
         project: string,
@@ -126,6 +130,7 @@ export class Store {
         this.listeners[evt]?.forEach((f) => f());
     }
     updateModule(update: ModuleUpdate) {
+        if (this.frozen) return;
         Object.assign(this.modules[update.id], update);
         // this.backend.saveModule(this.project, this.modules[update.id]);
         this.committer(this.modules[update.id], true, {});
@@ -134,6 +139,7 @@ export class Store {
         this.shout(`modules`);
     }
     addModule(module: Module) {
+        if (this.frozen) return;
         this.modules[module.id] = module;
         // this.backend.saveModule(this.project, module);
         this.committer(module, true, Object.fromEntries(Object.keys(module.toplevels).map((id) => [id, { meta: true, nodes: true }])));
@@ -160,8 +166,54 @@ export class Store {
         useTick('selected');
         return this.selected;
     }
+
+    freeze() {
+        const selections: Record<string, NodeSelection[]> = Object.fromEntries(Object.values(this.modules).map((mod) => [mod.id, mod.selections]));
+
+        this.frozen = {
+            selected: this.selected,
+            selections,
+        };
+    }
+
+    unfreeze() {
+        if (!this.frozen) return;
+        this.select(this.frozen.selected);
+        Object.entries(this.frozen.selections).forEach(([id, selections]) => {
+            if (this.modules[id].selections !== selections) {
+                this.modules[id].selections = selections;
+                // TODO: shout about this change
+            }
+        });
+        this.frozen = null;
+    }
+
     update(module: string, action: Action) {
         const mod = this.modules[this.selected];
+        const language = this.estore.languages[mod.languageConfiguration];
+        if (this.frozen) {
+            let selections = mod.selections;
+            if (action.type === 'selections') {
+                selections = action.selections;
+            } else if (action.type === 'key') {
+                const result = keyUpdates(selections, mod.toplevels, action, language.parser.config);
+                if (result.changed) {
+                    console.log('key resulted in change no');
+                    return;
+                }
+                selections = result.selections;
+            } else {
+                return;
+            }
+            if (selections === mod.selections) return;
+            const changed = allIds(selections);
+            Object.assign(changed, allIds(mod.selections));
+            mod.selections = selections;
+            console.log('sel', selections);
+            this.shout(`module:${mod.id}:selection`);
+            Object.keys(changed).forEach((c) => this.shout(`node:${c}`));
+            return;
+        }
         const { changed, changedTops, evts } = update(mod, this.estore.languages[mod.languageConfiguration], action);
         if (Object.keys(changedTops).length) {
             const keys: Record<string, true> = {};

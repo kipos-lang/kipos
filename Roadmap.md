@@ -1,4 +1,9 @@
 
+# History Scrubbing how is it done:
+
+- in `store`, we need to know if we're scrubbing
+  - if scrubbing, ignore all actions/updates.
+
 # Testing it
 
 - [x] a test

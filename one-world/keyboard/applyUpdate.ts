@@ -48,11 +48,14 @@ export const applyNormalUpdate = <T extends TestState>(state: T, update: null | 
     if (!update) return state;
     state = {
         ...state,
-        top: {
-            // nextLoc: state.top.nextLoc,
-            nodes: { ...state.top.nodes, ...update.nodes },
-            root: update.root ?? state.top.root,
-        },
+        top:
+            update.root || Object.keys(update.nodes).length
+                ? {
+                      // nextLoc: state.top.nextLoc,
+                      nodes: { ...state.top.nodes, ...update.nodes },
+                      root: update.root ?? state.top.root,
+                  }
+                : state.top,
     };
 
     if (Array.isArray(update.selection)) {
@@ -78,7 +81,9 @@ export const applyNormalUpdate = <T extends TestState>(state: T, update: null | 
     try {
         validate(state);
     } catch (err) {
-        // console.log(JSON.stringify(state, null, 2));
+        console.log(err);
+        console.log('invaldi');
+        console.log(JSON.stringify(state, null, 2));
         console.log(shape(root(state)));
         throw err;
     }
