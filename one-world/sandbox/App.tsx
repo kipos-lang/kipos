@@ -6,21 +6,98 @@ import { Backend } from './store/versionings';
 import { LS } from './store/backends/localStorage';
 import { IGit } from './store/backends/igit';
 import { defaultLang } from './store/default-lang/default-lang';
+import { useHash } from '../useHash';
+import { Project } from './store/storage';
+import { genId } from '../keyboard/ui/genId';
 
-export const Loader = ({ children, backend, project }: { children: React.ReactNode; backend: Backend; project: string }) => {
-    const [store, setStore] = useState(null as null | { store: Store });
+const parseHash = (hash: string) => {
+    const parts = hash.split('::');
+    let [backend, project, module] = parts;
+    if (!backends[backend]) backend = '';
+    return { backend, project, module };
+};
+
+export const Selector = ({ id, bend }: { id: string; bend: Backend }) => {
+    const [projects, setProjects] = useState(null as null | Project[]);
     useEffect(() => {
-        backend.loadProject(project).then((modules) => {
-            setStore({ store: new Store(project, modules, location.hash.slice(1), backend, { default: defaultLang }) });
-        });
-    }, []);
+        bend.listProjects().then(setProjects);
+    }, [bend]);
+    if (!projects) return 'loading project list';
+    return (
+        <div>
+            <h3>Projects</h3>
+            {projects.map((proj) => (
+                <div>
+                    <a href={`#${id}::${proj.id}`}>{proj.name}</a>
+                </div>
+            ))}
+            <button
+                onClick={() => {
+                    const pid = genId();
+                    bend.createProject({ id: pid, created: Date.now(), name: `New Project`, opened: Date.now() }).then(() => {
+                        location.hash = `#${id}::${pid}`;
+                    });
+                }}
+            >
+                New Project
+            </button>
+        </div>
+    );
+};
+
+export const Loader = ({ children }: { children: React.ReactNode }) => {
+    const [store, setStore] = useState(null as null | { store: Store });
+    const hash = useHash();
+    const loaded = parseHash(hash);
+
+    const bend = useMemo(() => {
+        if (!loaded.backend || !backends[loaded.backend]) return;
+        return backends[loaded.backend].backend();
+    }, [loaded.backend]);
+
+    useEffect(() => {
+        if (!bend || !loaded.project) return;
+        bend?.loadProject(loaded.project).then(
+            (modules) => {
+                setStore({ store: new Store(loaded.project, modules, loaded.module, bend, { default: defaultLang }) });
+            },
+            (err) => {
+                location.hash = '#' + loaded.backend;
+            },
+        );
+    }, [bend, loaded.project]);
+
+    useEffect(() => {
+        if (!store || !loaded) return;
+        store.store.select(loaded.module);
+    }, [store, loaded.module]);
+
     useEffect(() => {
         if (!store) return;
-        const f = () => store.store.select(location.hash.slice(1));
-        window.addEventListener('hashchange', f);
-
-        return () => window.removeEventListener('hashchange', f);
+        return store.store.listen('selected', () => {
+            const loaded = parseHash(location.hash?.slice(1));
+            if (store.store.selected !== loaded.module) {
+                location.hash = `#${loaded.backend}::${loaded.project}::${store.store.selected}`;
+            }
+        });
     }, [store]);
+
+    if (!bend) {
+        return (
+            <div>
+                {Object.entries(backends).map(([id, { title }]) => (
+                    <div key={id}>
+                        <a href={`#${id}`}>{title}</a>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    if (!loaded.project) {
+        return <Selector id={loaded.backend} bend={bend} />;
+    }
+
     if (!store) return null;
     return <StoreCtx.Provider value={store}>{children}</StoreCtx.Provider>;
 };
@@ -47,7 +124,7 @@ export const App = () => {
                 alignItems: 'stretch',
             }}
         >
-            <Loader project="default" backend={backend}>
+            <Loader>
                 <ModuleSidebar />
                 <Editor />
             </Loader>

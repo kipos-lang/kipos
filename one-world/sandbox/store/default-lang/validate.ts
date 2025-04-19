@@ -606,7 +606,6 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
                     value: gtypeApply(valueType),
                 };
             }
-            console.error('not handling yet');
             let [type, scope] = inferPattern(tenv, pat);
             // globalState.events.push({ type: 'stack-push', value: { type: 'let', pat: type } });
             const valueType = inferExpr(tenvWithScope(tenv, scope), init);

@@ -16,6 +16,9 @@ window.Buffer = Buffer;
 const fs = new LightningFS('kipos');
 // I prefer using the Promisified version honestly
 const pfs = fs.promises;
+window.pfs = pfs;
+window.fs = fs;
+window.git = git;
 
 let cache: any = {};
 
@@ -63,6 +66,22 @@ const exists = async (path: string) => {
     }
 };
 
+const rimraf = async (dirpath: string): Promise<void> => {
+    const contents = await pfs.readdir(dirpath);
+    await Promise.all(
+        contents.map(async (item) => {
+            const full = dirpath + '/' + item;
+            const st = await pfs.stat(full);
+            if (st.isDirectory()) {
+                return rimraf(full);
+            }
+            await pfs.unlink(full);
+        }),
+    );
+    pfs.rmdir(dirpath);
+};
+window.rimraf = rimraf;
+
 const rmdir = async (dirpath: string, gitbase: string): Promise<void> => {
     const dirfull = path.join(gitbase, dirpath);
     const contents = await pfs.readdir(dirfull);
@@ -77,6 +96,7 @@ const rmdir = async (dirpath: string, gitbase: string): Promise<void> => {
             await Promise.all([pfs.unlink(full), git.remove({ fs, dir: gitbase, filepath: rel, cache })]);
         }),
     );
+    pfs.rmdir(dirfull);
 };
 
 const author = { name: 'kipos', email: 'kipos@kipos.kipos' };
@@ -92,10 +112,9 @@ export const IGit: Backend = {
     async createProject(project: Project) {
         await pfs.mkdir(`/${project.id}`);
         await pfs.mkdir(`/${project.id}/modules`);
-
         await git.init({ fs, dir: `/${project.id}`, defaultBranch: 'main' });
-        await writeFile(project.id, 'project.json', JSON.stringify(project));
-        await git.commit({ fs, dir: project.id, author, message: 'create project' });
+        await writeFile('/' + project.id, 'project.json', JSON.stringify(project));
+        await git.commit({ fs, dir: '/' + project.id, author, message: 'create project' });
     },
 
     // async saveModule(project, module) {
@@ -125,27 +144,27 @@ export const IGit: Backend = {
                     await pfs.mkdir(`${base}/toplevels`);
                 }
                 if (change.meta) {
-                    await writeFile(project, `modules/${module}/module.json`, JSON.stringify(change.meta));
+                    await writeFile('/' + project, `modules/${module}/module.json`, JSON.stringify(change.meta));
                 }
                 if (change.toplevels) {
                     await Promise.all(
                         Object.entries(change.toplevels).map(async ([id, top]) => {
                             if (!top) {
                                 await pfs.unlink(`project/modules/${module}/toplevels/${id}.json`);
-                                await git.remove({ fs, dir: project, filepath: `modules/${module}/toplevels/${id}.json` });
+                                await git.remove({ fs, dir: '/' + project, filepath: `modules/${module}/toplevels/${id}.json` });
                                 return;
                             }
-                            await writeFile(project, `modules/${module}/toplevels/${id}.json`, JSON.stringify(top));
+                            await writeFile('/' + project, `modules/${module}/toplevels/${id}.json`, JSON.stringify(top.top));
                         }),
                     );
                 }
             }),
         );
-        await git.commit({ fs, dir: project, author, message: `changes to modules ${Object.keys(change).join(', ')}` });
+        await git.commit({ fs, dir: '/' + project, author, message: `changes to modules ${Object.keys(change).join(', ')}` });
     },
 
     async history(project: string, start: string | null, count: number) {
-        const log = await git.log({ fs, dir: project, cache, depth: count, ref: start ?? 'HEAD' });
+        const log = await git.log({ fs, dir: '/' + project, cache, depth: count, ref: start ?? 'HEAD' });
         const dec = new TextDecoder();
         return Promise.all(
             log.map(async (item, i) => {
@@ -153,7 +172,7 @@ export const IGit: Backend = {
 
                 await git.walk({
                     fs,
-                    dir: project,
+                    dir: '/' + project,
                     cache,
                     trees: [git.TREE({ ref: i === 0 ? (start ?? 'HEAD') : log[i - 1].oid }), git.TREE({ ref: item.oid })],
                     map: async (filepath, [newer, older]) => {

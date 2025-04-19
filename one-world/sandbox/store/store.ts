@@ -39,10 +39,12 @@ export class Store {
     ) {
         this.project = project;
         this.listeners = {};
+        console.log(modules);
 
         const { commit, change } = committer({
             timer: timers,
             async commit(change) {
+                console.log('saving a change', change);
                 backend.saveChange(project, change, `auto commit`);
             },
             minWait: 2000,
@@ -91,6 +93,7 @@ export class Store {
         if (!this.selected || !modules[this.selected]) {
             if (this.treeCache.root.length) {
                 this.selected = this.treeCache.root[0];
+                console.log('selecting', this.selected);
             }
         }
         if (!this.selected || !modules[this.selected]) {
@@ -145,6 +148,11 @@ export class Store {
         return this.treeCache;
     }
     select(id: string) {
+        if (id === this.selected) return;
+        if (!this.modules[id]) {
+            console.warn(`trying to select nonexistant module ${id}`);
+            return;
+        }
         this.selected = id;
         this.shout('selected');
     }

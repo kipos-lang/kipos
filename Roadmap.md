@@ -2,6 +2,8 @@
 # Testing it
 
 - [x] a test
+- [x] try out isomorphic git backend, its working! nice.
+- [ ] nowwww can we have some history scrubbing?
 
 # For persisting
 
