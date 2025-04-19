@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useMemo } from 'react';
+import React, { createContext, useCallback, useMemo, useRef } from 'react';
 import { js } from '../keyboard/test-utils';
 import { Top } from './Top';
 import { useStore } from './store/store';
@@ -124,8 +124,14 @@ const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
         spans: [], //cspans.current,
     };
 
+    const nextInput = useRef(null as null | number);
+
     const onKeyDown = useCallback(
         (evt: React.KeyboardEvent<Element>) => {
+            if (isVariationSelector(evt.key)) {
+                nextInput.current = Date.now();
+                return;
+            }
             if (evt.key === 'z' && evt.metaKey) {
                 evt.preventDefault();
                 update({ type: evt.shiftKey ? 'redo' : 'undo' });
@@ -154,6 +160,15 @@ const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
                 console.error('on delete');
             }}
             onInput={(text) => {
+                if (nextInput.current != null && Date.now() - nextInput.current < 20) {
+                    update({
+                        type: 'key',
+                        key: text,
+                        mods: {},
+                        visual,
+                    });
+                    nextInput.current = null;
+                }
                 // Not sure why I would need this
                 // over the onKeyDown
             }}
@@ -164,3 +179,8 @@ const KeyHandler = ({ refs }: { refs: Record<string, HTMLElement> }) => {
         />
     );
 };
+
+function isVariationSelector(str: string) {
+    const code = str.codePointAt(0)!;
+    return (code >= 0xfe00 && code <= 0xfe0f) || (code >= 0xe0100 && code <= 0xe01ef);
+}

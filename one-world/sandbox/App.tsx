@@ -9,6 +9,8 @@ import { defaultLang } from './store/default-lang/default-lang';
 import { useHash } from '../useHash';
 import { Project } from './store/storage';
 import { genId } from '../keyboard/ui/genId';
+import { css } from 'goober';
+import { zedlight } from './zedcolors';
 
 const parseHash = (hash: string) => {
     const parts = hash.split('::');
@@ -28,7 +30,18 @@ export const Selector = ({ id, bend }: { id: string; bend: Backend }) => {
             <h3>Projects</h3>
             {projects.map((proj) => (
                 <div>
-                    <a href={`#${id}::${proj.id}`}>{proj.name}</a>
+                    <a
+                        href={`#${id}::${proj.id}`}
+                        className={css({
+                            padding: '8px 16px',
+                            display: 'block',
+                            '&:hover': {
+                                background: zedlight['border.disabled'],
+                            },
+                        })}
+                    >
+                        {proj.name}
+                    </a>
                 </div>
             ))}
             <button
@@ -87,7 +100,18 @@ export const Loader = ({ children }: { children: React.ReactNode }) => {
             <div>
                 {Object.entries(backends).map(([id, { title }]) => (
                     <div key={id}>
-                        <a href={`#${id}`}>{title}</a>
+                        <a
+                            href={`#${id}`}
+                            className={css({
+                                padding: '8px 16px',
+                                display: 'block',
+                                '&:hover': {
+                                    background: zedlight['border.disabled'],
+                                },
+                            })}
+                        >
+                            {title}
+                        </a>
                     </div>
                 ))}
             </div>
