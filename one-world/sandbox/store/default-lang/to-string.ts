@@ -297,10 +297,11 @@ export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string)
         //     throw new Error('wat');
         case 'for':
             return group(stmt.src.id, [
-                `for (`,
+                `let $loop_${stmt.src.id} = 0; for (`,
                 stmtToString(stmt.init, res),
                 ' ',
                 exprToString(stmt.cond, res),
+                ` && $$check_loop($loop_${stmt.src.id}++)`,
                 '; ',
                 exprToString(stmt.update, res),
                 ') ',

@@ -120,6 +120,11 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
     return results;
 };
 
+const checkLoop = (n: number) => {
+    if (n > 10000) throw new Error(`loop more than 10k`);
+    return true;
+};
+
 const evaluate = (
     source: string,
     deps: Record<string, any>,
@@ -130,12 +135,13 @@ const evaluate = (
     const f = new Function(
         'deps',
         'kipos',
+        '$$check_loop',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}`,
     );
     try {
-        const value = f(deps, kipos);
+        const value = f(deps, kipos, checkLoop);
         try {
             if (typeof value === 'string') {
                 return [{ type: 'plain', data: value }];
@@ -152,11 +158,12 @@ const evaluate = (
 const define = (source: string, provides: string[], deps: Record<string, any>, names: Record<string, string>) => {
     const f = new Function(
         'deps',
+        '$$check_loop',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}\n\nreturn {${provides.join(', ')}}`,
     );
-    return f(deps);
+    return f(deps, checkLoop);
 };
 
 // this... seems like something that could be abstracted.

@@ -1,6 +1,13 @@
 
 # History Scrubbing how is it done:
 
+- [x] we're getting an infinite execution;
+  honestly I should probably spawn a separate worker for the evaluation...
+  -> so the main worker keeps track of all the
+     source code of all the things
+  -> and the secondary one evals it?
+  - ok I hacked it shut by disallowing more than 10k loops
+
 - [x] in `store`, we need to know if we're scrubbing
   - [x] if scrubbing, ignore all actions/updates.
 - [ ] now ... apply the diffs on the sly
