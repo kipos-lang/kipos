@@ -186,9 +186,6 @@ export class Store {
     frozenDiff(diff: Diff) {
         if (!this.frozen) throw new Error(`cant frozen diff, not frozen`);
         const { evts, changedModules } = applyDiff(this.modules, this.frozen.modules, diff);
-        evts.forEach((evt) => this.shout(evt));
-
-        console.log(this.modules);
 
         const changed: Record<string, true> = {};
         this.estore.moduleDeps.sorted.forEach((id) => {
@@ -212,6 +209,7 @@ export class Store {
                 });
             }
         });
+        evts.forEach((evt) => this.shout(evt));
     }
 
     unfreeze() {

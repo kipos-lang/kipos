@@ -45,15 +45,15 @@ export const RewindInner = () => {
             console.log('from', lat.current, 'up to', at);
             for (let i = lat.current + 1; i <= at; i++) {
                 const back = reverseDiff(history[i].diff);
-                console.log('back applying diff:\n' + describeDiff(back).join('\n'));
+                // console.log('back applying diff:\n' + describeDiff(back).join('\n'));
                 store.frozenDiff(back);
             }
         } else {
             console.log('from', lat.current, 'down to', at);
             for (let i = lat.current; i > at; i--) {
-                console.log('now at', i, history[i]);
+                // console.log('now at', i, history[i]);
                 store.frozenDiff(history[i].diff);
-                console.log('applying diff:\n' + describeDiff(history[i].diff).join('\n'));
+                // console.log('applying diff:\n' + describeDiff(history[i].diff).join('\n'));
             }
         }
         lat.current = at;

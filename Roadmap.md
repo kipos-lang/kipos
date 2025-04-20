@@ -1,6 +1,8 @@
 
 # History Scrubbing how is it done:
 
+- [ ] we're not clearing validation annotations correctly
+
 - [x] we're getting an infinite execution;
   honestly I should probably spawn a separate worker for the evaluation...
   -> so the main worker keeps track of all the
