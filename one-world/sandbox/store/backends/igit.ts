@@ -16,9 +16,9 @@ window.Buffer = Buffer;
 const fs = new LightningFS('kipos');
 // I prefer using the Promisified version honestly
 const pfs = fs.promises;
-window.pfs = pfs;
-window.fs = fs;
-window.git = git;
+// window.pfs = pfs;
+// window.fs = fs;
+// window.git = git;
 
 let cache: any = {};
 
@@ -80,7 +80,7 @@ const rimraf = async (dirpath: string): Promise<void> => {
     );
     pfs.rmdir(dirpath);
 };
-window.rimraf = rimraf;
+// window.rimraf = rimraf;
 
 const rmdir = async (dirpath: string, gitbase: string): Promise<void> => {
     const dirfull = path.join(gitbase, dirpath);

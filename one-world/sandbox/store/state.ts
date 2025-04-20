@@ -382,34 +382,7 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
 
         case 'key': {
-            const selections = state.selections.slice();
-            const tops = { ...state.tops };
-            // let top = state.top;
-            for (let i = 0; i < selections.length; i++) {
-                const sel = selections[i];
-                if (sel.end && sel.start.path.root.top !== sel.end.path.root.top) {
-                    throw new Error(`multi-toplevel, not doing`);
-                }
-                const top = tops[sel.start.path.root.top];
-                const update = keyUpdate({ top, sel, nextLoc }, action.key, action.mods, action.visual, state.config);
-                if (!update) continue;
-                for (let keyAction of update) {
-                    const sub = keyActionToUpdate({ top, sel, nextLoc }, keyAction);
-                    const result = applyNormalUpdate({ top, sel, nextLoc }, sub);
-                    tops[sel.start.path.root.top] = result.top;
-                    selections[i] = result.sel;
-                    if (sub && Array.isArray(sub.selection)) {
-                        for (let j = 0; j < selections.length; j++) {
-                            if (j !== i) {
-                                sub.selection.forEach((up) => {
-                                    selections[j] = applySelUp(selections[i], up);
-                                });
-                            }
-                        }
-                    }
-                }
-                continue;
-            }
+            const { selections, tops } = keyUpdates(state.selections, state.tops, action, state.config);
             return recordHistory(state, { ...state, tops, selections }, noJoin);
         }
     }
