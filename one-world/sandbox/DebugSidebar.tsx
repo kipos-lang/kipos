@@ -7,11 +7,24 @@ import { ShowXML } from '../keyboard/ui/XML';
 import { shape } from '../shared/shape';
 import { Event, TraceText, Rule } from '../syntaxes/dsl3';
 import { toXML } from '../syntaxes/xml';
-import { useEditor } from './Editor';
+import { useUpdate } from './useProvideDrag';
 import { currentTheme } from './themes';
 import { zedlight } from './zedcolors';
 import { Resizebar } from './Resizebar';
 import { ShowColors } from '../../type-inference-debugger/demo/ShowColors';
+import {
+    getAllSelectionStatuses,
+    useModule,
+    useParseResults,
+    useSelectedTop,
+    useSelection,
+    useTopParseResults,
+    useTopResults,
+    useTopSource,
+} from './store/editorHooks';
+import { useStore } from './store/store';
+import { useModuleStatus } from './ModuleSidebar';
+import { Rewind } from './Rewind';
 
 const ParseTrace = ({ trace }: { trace: Event[] }) => {
     const [at, setAt] = useState(0);
@@ -113,7 +126,7 @@ const ruleSummary = (rule: Rule<any>): string => {
             return `${rule.type}(...,${rule.meta})`;
         case 'table':
         case 'list':
-            return `${rule.type}(...,${JSON.stringify(rule.kind)})`;
+            return `${rule.type}(...,kind=${JSON.stringify(rule.kind)})`;
         case 'any':
         case 'none':
         case 'number':
@@ -124,16 +137,15 @@ const ruleSummary = (rule: Rule<any>): string => {
 };
 
 const ShowTypeInference = () => {
-    const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
 
     const events = results?.validation?.events ?? [];
 
     const [at, setAt] = useState(0);
     const breaks = useMemo(() => stackForEvt(events.length - 1, events), [events]);
 
-    const { byLoc, scope, smap, stack, highlightVars } = useMemo(() => {
+    const { scope, smap, stack, highlightVars } = useMemo(() => {
         return processStack(
             events.map((evt) =>
                 evt.type === 'scope' ? { ...evt, scope: Object.fromEntries(Object.entries(evt.scope).map(([k, v]) => [k, (v as any).scheme])) } : evt,
@@ -163,7 +175,7 @@ const ShowTypeInference = () => {
                 subst={smap}
                 stack={stack}
                 hv={highlightVars}
-                onClick={(name) => {
+                onClick={() => {
                     // onClick({ type: 'var', name })
                 }}
             />
@@ -174,9 +186,8 @@ const ShowTypeInference = () => {
 };
 
 const ShowErrorAnnotations = () => {
-    const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
 
     if (!results.validation) return <span>No validation info</span>;
 
@@ -201,9 +212,8 @@ const ShowErrorAnnotations = () => {
 };
 
 const ShowCST = () => {
-    const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
     if (!results) return null;
     return (
         <div>
@@ -214,9 +224,8 @@ const ShowCST = () => {
 };
 
 const ShowAST = () => {
-    const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopParseResults(top);
+    const top = useSelectedTop();
+    const results = useTopParseResults(top);
     if (!results) return null;
     return (
         <div style={{ overflow: 'auto' }}>
@@ -225,10 +234,30 @@ const ShowAST = () => {
     );
 };
 
+const ShowModuleLog = () => {
+    const mod = useStore().selected;
+    const estore = useStore().estore;
+    return (
+        <div style={{ width: 500, overflow: 'auto' }}>
+            <pre style={{ whiteSpace: 'pre-wrap' }}>{estore.modulesLog[mod]?.join('\n\n')}</pre>
+        </div>
+    );
+};
+
+const ShowLog = () => {
+    const mod = useStore().selected;
+    const top = useSelectedTop();
+    const estore = useStore().estore;
+    return (
+        <div style={{ width: 500, overflow: 'auto' }}>
+            <pre>{estore.state[mod].processLog[top]?.join('\n\n')}</pre>
+        </div>
+    );
+};
+
 const ShowSource = () => {
-    const editor = useEditor();
-    const top = editor.useSelectedTop();
-    const results = editor.useTopSource(top);
+    const top = useSelectedTop();
+    const results = useTopSource(top);
     return (
         <div style={{ width: 500, overflow: 'auto' }}>
             <pre>{results ?? 'No source...'}</pre>
@@ -267,9 +296,8 @@ const Collapsible = ({ title, children }: { title: string; children: React.React
 };
 
 export const DebugSidebar = () => {
-    const editor = useEditor();
-    const results = editor.useParseResults();
-    const top = editor.useSelectedTop();
+    const results = useParseResults();
+    const top = useSelectedTop();
 
     return (
         <Resizebar id="debug" side="left">
@@ -291,10 +319,87 @@ export const DebugSidebar = () => {
                 <Collapsible title="Compiled Source">
                     <ShowSource />
                 </Collapsible>
+                <Collapsible title="Selection">
+                    <ShowSelection />
+                </Collapsible>
+                <Collapsible title="Module Log">
+                    <ShowModuleLog />
+                </Collapsible>
+                <Collapsible title="Process Log">
+                    <ShowLog />
+                </Collapsible>
+                <Collapsible title="Module Status">
+                    <ShowModuleStatus />
+                </Collapsible>
+                <Collapsible title="Evaluation Results">
+                    <ShowEvaluationResults />
+                </Collapsible>
                 <Collapsible title="Theme Colors">
                     <ShowColors />
                 </Collapsible>
+                <Collapsible title="Rewind">
+                    <Rewind />
+                </Collapsible>
             </div>
         </Resizebar>
+    );
+};
+
+const ShowEvaluationResults = () => {
+    const top = useSelectedTop();
+    const results = useTopResults(top);
+
+    return <div>{JSON.stringify(results)}</div>;
+};
+
+const ShowModuleStatus = () => {
+    const store = useStore();
+    const sel = store.useSelected();
+    const status = useModuleStatus(sel);
+    return (
+        <div>
+            {sel}
+            {JSON.stringify(status)}
+        </div>
+    );
+};
+
+const ShowSelection = () => {
+    const sel = useSelection();
+    const tid = useSelectedTop();
+    const top = useModule().toplevels[tid];
+
+    const statuses = getAllSelectionStatuses(top, sel);
+
+    return (
+        <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'min-content min-content', columnGap: 8, rowGap: 8 }}>
+                {Object.entries(statuses).map(([key, value]) => (
+                    <React.Fragment key={key}>
+                        <div style={{ gridColumn: 1, wordBreak: 'break-all', minWidth: 100 }}>{key}</div>
+                        <div style={{ gridColumn: 2 }}>{JSON.stringify(value)}</div>
+                    </React.Fragment>
+                ))}
+            </div>
+            <strong>Selection</strong>
+            <Showsel />
+        </div>
+    );
+};
+
+export const Showsel = () => {
+    const sel = useSelection();
+
+    return (
+        <>
+            {sel.map((sel, i) => (
+                <div key={i}>
+                    <div>{sel.start.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.start.cursor)}
+                    <div>{sel.end?.path.children.map((p) => p.slice(-5)).join('; ')}</div>
+                    {JSON.stringify(sel.end?.cursor)}
+                </div>
+            ))}
+        </>
     );
 };

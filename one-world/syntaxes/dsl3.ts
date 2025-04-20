@@ -23,7 +23,18 @@ export type Event =
     | { type: 'extra'; loc: Loc }
     | { type: 'mismatch'; loc?: Loc; message: TraceText };
 
+export class MismatchError extends Error {
+    text: TraceText;
+    loc?: Loc;
+    constructor(text: TraceText, loc?: Loc) {
+        super('');
+        this.text = text;
+        this.loc = loc;
+    }
+}
+
 export type Ctx = {
+    allowIdKwds?: boolean;
     ref<T>(name: string): T;
     scopes: { name: string; kind: string; loc: string }[][];
     usages: {
@@ -120,6 +131,7 @@ type Result<T> = { value?: T; consumed: number };
 export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<T> => {
     if (ctx.rules.comment) {
         const { comment, ...without } = ctx.rules;
+        ctx.trace?.({ type: 'stack-push', loc: parent.nodes[at]?.loc, text: ['> comment'] });
         const cm = match_(ctx.rules.comment, { ...ctx, rules: without }, parent, at);
         if (cm) {
             for (let i = 0; i < cm.consumed; i++) {
@@ -128,6 +140,7 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
             }
             at += cm.consumed;
         }
+        ctx.trace?.({ type: 'stack-pop' });
     }
     ctx.trace?.({
         type: 'stack-push',
@@ -145,15 +158,20 @@ export const match = <T>(rule: Rule<T>, ctx: Ctx, parent: MatchParent, at: numbe
 
 // TODO: track a pathhhh
 export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: number): undefined | null | Result<any> => {
-    const node = parent.nodes[at];
+    const node = parent.nodes[at] as RecNode | null;
     switch (rule.type) {
         case 'kwd':
-            if (node?.type !== 'id' || node.text !== rule.kwd) return ctx.trace?.({ type: 'mismatch', message: 'not the kwd "' + rule.kwd + '"' });
+            if (node?.type !== 'id' || node.text !== rule.kwd)
+                return ctx.trace?.({
+                    type: 'mismatch',
+                    message: 'not the kwd "' + rule.kwd + '" - ' + (node?.type === 'id' ? node.text : `type: ${node?.type}`),
+                });
             ctx.meta[node.loc] = { kind: rule.meta ?? 'kwd' };
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is a kwd: ' + node.text });
             return { value: node, consumed: 1 };
         case 'reference': {
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             let src = undefined;
             for (let i = ctx.scopes.length - 1; i >= 0; i--) {
@@ -172,7 +190,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: node, consumed: 1 };
         }
         case 'declaration': {
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             if (!ctx.scopes.length) throw new Error(`declaration but no scopes`);
             ctx.scopes[ctx.scopes.length - 1].push({ kind: rule.kind, loc: node.loc, name: node.text });
@@ -180,7 +199,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return { value: node, consumed: 1 };
         }
         case 'id':
-            if (node?.type !== 'id' || ctx.kwds.includes(node.text)) return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
+            if (node?.type !== 'id' || (!ctx.allowIdKwds && ctx.kwds.includes(node.text)))
+                return ctx.trace?.({ type: 'mismatch', message: 'not id or is kwd' });
             ctx.trace?.({ type: 'match', loc: node.loc, message: 'is an id: ' + node.text });
             return { value: node, consumed: 1 };
         case 'number': {
@@ -315,6 +335,7 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             return inner;
         }
         case 'meta': {
+            if (!node) return;
             const inner = match(rule.inner, ctx, parent, at);
             if (inner) ctx.meta[node.loc] = { kind: rule.meta };
             return inner;
@@ -348,6 +369,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             const start = at;
             const values: any[] = [];
             while (at < parent.nodes.length) {
+                ctx.trace?.({ type: 'stack-pop' });
+                ctx.trace?.({ type: 'stack-push', text: ['star(', values.length + '', ')'] });
                 if (isBlank(parent.nodes[at])) {
                     at++;
                     continue;
@@ -357,6 +380,8 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
                 values.push(m.value);
                 at += m.consumed;
             }
+            ctx.trace?.({ type: 'stack-pop' });
+            ctx.trace?.({ type: 'stack-push', text: ['star(', values.length + '', ') - finished'] });
             return { consumed: at - start, value: values };
         }
         case 'or': {
@@ -379,7 +404,19 @@ export const match_ = (rule: Rule<any>, ctx: Ctx, parent: MatchParent, at: numbe
             if (rat >= parent.nodes.length) throw new Error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             // if (rat >= parent.nodes.length) console.error(`consume doo much ${at} ${rat} ${parent.nodes.length} ${m.consumed}`);
             const right = m.consumed > 1 && rat < parent.nodes.length ? parent.nodes[at + m.consumed - 1].loc : undefined;
-            return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
+            try {
+                return { value: rule.f(ictx, { type: 'src', left, right, id: genId() }), consumed: m.consumed };
+            } catch (err) {
+                if (err instanceof MismatchError) {
+                    ctx.trace?.({ type: 'mismatch', message: err.message, loc: err.loc });
+                    if (err.loc != null) {
+                        ctx.meta[err.loc] = { kind: 'error' };
+                    }
+                    return null;
+                }
+                console.error(`failed to run tx`);
+                return;
+            }
         }
         case 'group': {
             if (!ctx.scope) throw new Error(`group ${rule.name} out of scope, must be within a tx()`);

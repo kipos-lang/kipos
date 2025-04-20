@@ -27,7 +27,7 @@ export function HiddenInput({
 }) {
     useEffect(() => {
         if (document.activeElement !== hiddenInput.current && !shouldIgnore(document.activeElement)) {
-            console.log('stealing focus', document.activeElement);
+            // console.log('stealing focus', document.activeElement);
             hiddenInput.current?.focus();
         }
     }, [sel]);
@@ -43,7 +43,7 @@ export function HiddenInput({
         const fn = () => {
             setTimeout(() => {
                 if (document.activeElement === document.body) {
-                    console.log('stealing focus lol');
+                    // console.log('stealing focus lol');
                     hiddenInput.current?.focus();
                 }
             }, 50);

@@ -56,7 +56,7 @@ export const keyActionToUpdate = (state: TestState, action: KeyAction): Update |
                     nodes: {
                         [node.loc]: {
                             ...node,
-                            forceMultiline: node.forceMultiline === false ? true : node.forceMultiline === true ? 'indent-last' : false,
+                            forceMultiline: !node.forceMultiline ? true : node.forceMultiline === true ? 'indent-last' : false,
                         },
                     },
                 };

@@ -52,6 +52,7 @@ export type Expr =
     | { type: 'throw'; value: Expr; src: Src }
     | { type: 'new'; value: Expr; src: Src }
     | { type: 'attribute'; target: Expr; attribute: { text: string; loc: string }; src: Src }
+    | { type: 'uop'; op: { text: string; loc: string }; src: Src; target: Expr }
     | { type: 'index'; target: Expr; index: Expr[]; src: Src }
     | { type: 'constructor'; name: { text: string; loc: string }; args?: CallArgs; src: Src };
 export type Pat =

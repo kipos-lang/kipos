@@ -3,6 +3,7 @@ import { zedlight } from '../zedcolors';
 export const metaStyles = {
     attribute: { fontStyle: 'italic', fontFamily: 'Lora', color: zedlight.syntax.property.color, fontWeight: 'bold' },
     decl: { color: zedlight.syntax.constructor.color },
+    error: { color: 'gray', textDecoration: 'wavy red underline' },
     constructor: { color: zedlight.syntax.constructor.color },
     bop: { color: zedlight.syntax.constructor.color },
     ref: { color: zedlight.syntax.link_uri.color }, //'rgb(255 90 68)' },

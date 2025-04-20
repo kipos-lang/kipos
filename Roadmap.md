@@ -1,4 +1,670 @@
 
+# History Scrubbing how is it done:
+
+- [ ] we're not clearing validation annotations correctly
+
+- [x] we're getting an infinite execution;
+  honestly I should probably spawn a separate worker for the evaluation...
+  -> so the main worker keeps track of all the
+     source code of all the things
+  -> and the secondary one evals it?
+  - ok I hacked it shut by disallowing more than 10k loops
+
+- [x] in `store`, we need to know if we're scrubbing
+  - [x] if scrubbing, ignore all actions/updates.
+- [ ] now ... apply the diffs on the sly
+
+hrmmm proxies are too fancy.
+
+- [x] make a frozen.previews where you can apply diffs
+- [ ] use that stuff when we're in frozen mode
+
+
+# Testing it
+
+- [x] a test
+- [x] try out isomorphic git backend, its working! nice.
+- [ ] nowwww can we have some history scrubbing?
+
+# For persisting
+
+I think I'll do a thing where I synchronously persist
+diffs to localstorage, and then debouncedly autocommit to git,
+and once the commit has happened, we can clear from localstorage.
+
+- [x] make store a real class
+- [x] have there be an object whose job is to manage debounces and stuff
+- [ ] let's go right to file systems, ok? idk maybe
+- [ ] make a button that is `export the whole dealio` and it gives you a JSON file of all modules
+- [ ] then make the switch, start fresh; and then do `upload that json blob`
+- [ ] and now we're running hot.
+  - oh wait when loading up the ... modules, we need to know what
+    the most recent ... things are.
+
+and nowww we'll abstract loading and storing?
+
+OK FUTURE QUESTION currently I'm saying "toplevel" is the smallest single
+unit of measure ... but would it not make sense to go with "node"?
+
+IN ORDER TO make that possible
+I would need to
+haveeee the `Change` type ...
+yeah I mean I would have to make writes slower for one side or the other...
+right?
+wait
+I could
+still send the full toplevel, but also send the "changed nodes" list.
+yeah.
+then I could support either one.
+
+OK, with a little more record keeping, I should be able to equally support
+[whole toplevel] and [broken out by nodes] backends.
+
+honestly I don't know whether the "so many files" thing would be much worse, or just fine.
+
+andddd I keep feeling like I'll want to write my own databasy backend. ...
+
+# Ok so the way commits work
+
+// initial ... repo
+// a change ... is a delta
+
+- {root}/modules/{moduleid}/module.json
+- {root}/modules/{moduleid}/history.json
+- {root}/modules/{moduleid}/toplevels/{toplevelid}.json
+
+also ... the hash of the change includes the hashes of the modules
+and the hashes of the modules includes the hashes of the toplevels
+
+and like, for each toplevel, we need to be ... storing the hashed things?
+hm. wait we don't, because we're storing the history deltas.
+so how does that work?
+-> like, you can rewind things to reproduce the hash of a thing?
+
+ahhh. OKso.
+critially, the "commit hash" is *not* a hash of the delta,
+but rather a hash of the whole system, with the delta applied.
+
+and so, we need:
+- list of commits
+- current state of the world, with hashes precomputed
+
+And then adding a commit is just "apply the delta, recompute hashes,
+and then use the final hash as the hash of the commit".
+
+and, rewinding involves reverse-applying a bunch of commits.
+switching to a new branch ... involves rewinding to the shared
+ancestor and then applying and such.
+
+## VCS
+
+So, history, undo & redo will be in-memory things managed by the editor.
+
+hmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+ok what if I literally do want to use git
+because it already has so many things solved.
+and what if I just format things so that line-level diffs are fine.
+
+so the module file is a newline-separated list of [attribute]\t[jsonified value]
+and the toplevel file is the same
+followed by a line for each node, with alphabetically sorted IDs
+always with a trailing newline probably
+
+issss this really unreasonable to do?
+hm.
+I mean what I'm currently doing is serializing a whole module to disk on every thing.
+So doing that for a toplevel is probably fine.
+
+
+## OOOH OK so here's how to solve the "browse files in git" problem
+-> make a github pages thing? hm. but then you can't do historical.
+  -> but also, having an automatic github pages story (github action?) sounds dope.
+-> make a ... yeah honestly I guess reifying the text in a parallel file makes sense.
+
+
+
+
+# OK FAM
+
+I just want to say
+that I want a way
+to snapshot stuff.
+and maybe it's just git
+(?)
+
+but also.
+maybe I want to autosnapshot things?
+like on a timer
+and then
+we can ditch snapshots that we don't need
+
+ok and when we snapshot, we're going all in on hashing and structural sharing.
+
+hm like I could still use git though, right?
+
+AND you can select a toplevel and "scrub through" the history to compare things,
+and `revert to this one` if you want.
+
+AND you can have a global "history scrub".
+
+SO: how about them commits?
+
+Commit messages:
+- should include tests passing/failing, as long as (all evaluations have coalesced)
+- might include screenshots of pinned dealios? (maybe only do this for manual snapshots)
+
+hmmmmm I think I might not *actually* want git.
+At least, I probably want my own thing, which can be *lowered* to git, and *raised* from git as well.
+but I can definitely do better on diffing.
+
+yeahhh so the theoretical "file structure" would be
+- {root}/modules/{moduleid}/module.json
+- {root}/modules/{moduleid}/history.json
+- {root}/modules/{moduleid}/toplevels/{toplevelid}.json
+
+and that's it! right.
+
+once we have vendored things, that might play into it. but not yet.
+
+Currently our history tracking (undo/redo) is isolated to the module level,
+and trimmed to like the last 100 changes,
+and such.
+
+could my notion of commits supercede history tracking?
+OK ANOTHER THOUGHT, smarter undo/redo:
+- if you do ctrl-z and your selection is in the same toplevel (or module?) that
+  the most recent change happened, and the change was less than (5 minutes) ago,
+  we just undo the change, easy peasy.
+- BUT if it's been a while, or you're in a different module, then we enter "rewind mode"
+  -> where there's a slider at the bottom of the screen, and you can switch between
+    - whole project
+    - this module
+    - this toplevel
+      -> might even want to be able to select multiple toplevels to rewind?
+-> while rewinding, we: re-evaluate all the tests n stuff for you, so you can see
+  what is happening.
+b/c like if you're just rewinding one module, it might not get to the point where all tests are passing.
+
+ALSO you should be able to navigate to other modules while in rewind mode, to see what execution
+results look like over there.
+
+## Editor experience thoughts:
+
+- [ ] IF we have an error in a thing, I don't actually want to propagate execution down the line.
+  AND I want to indicate somehow, for the downstream ones, that their execution is "paused" due to
+  a parent being in a bad state.
+- [x] when swithing from evaluation -> defintion, we need to clear the results
+- [x] "blanks" shouldn't resolve to `undefined`
+- [ ] suppress space from a blank
+- [x] figure out why recompilation wasnt happening
+- [ ] if the failure is with source code gen, not sure if I can/need to do the "stop the presses"
+
+
+## Thoughts on blanks:
+
+- should not block type checking. Should be an "anything"
+  - ah but it can still be reported as an error. that's fine.
+- should block code generation.
+  - orr maybe should be a runtime error?
+  - yeah let's block code generation. we don't have the infrastructure to do "hole propagation" well
+
+- [x] type errors should always block re-evaluation
+
+
+##
+
+hmm.
+so
+arright folks, let's get this showing some sort of color or something.
+eventually.
+
+CONWAY MUST LIVE
+
+So how do I do a little step action?
+
+Options include:
+- have a custom syntax thing that's like "run:" which does some magic
+- have a button on the toplevel that's like "> run <" which does some magic
+  - that would be an editor plugin, I do believe.
+  -> probably both on the frontend and backend?
+  - like it would (a) wrap the evaluation in some javascript code to do periodic updates, and (b) take over the display of the results, potentially.
+- magically decide that if the shape of the data is /a certain way/, e.g. `{type: 'kipos:display', mime: 'something', value: 'idk'}` then we display it a certain way.
+  -> that doesn't handle the issue of "how to do animation and such", but it's part of something. like we could do svgs and pngs and stuff.
+- I could just make a builtin that's like `$$env.periodic(fn)`
+  - idk it kinda appeals. could get something quick & dirty together.
+
+
+# Social Media feedback on dependencies and such
+
+https://x.com/ForrestTheWoods/status/1912337191327658250
+
+
+# BACK ON TRACK
+
+- [x] a little bit of imports working
+- [x] let's re-evaluate modules when module dependencies change.
+- [x] show test results in the top roundy thing
+- [x] let's show test results in the module sidebar
+- [x] module dependencies not quite cutting it
+- [ ] let's have a debug sidebar showing module dependencies thanks
+- [x] I want the module sidebar to indicate type errors and stuff
+  - I also want ... to have the backend deal with files. right?
+- [ ] make it so I can disable a module
+
+- [x] MOCK setInterval and setTimeout so they get cleared on re-evaluation.
+...
+HOW do I make it so that `kipos.update` actually updates the thing we were coming from?
+idk. for now, we have to pass it around.
+
+- [ ] -
+
+
+# DECISION
+we don't override the #lang of things we're importing. we respect it.
+
+ALSO it should be an error to import a language:plugin for a language other than what's being used.
+
+# Modules and submodules
+
+I'm thinking maybe let's not do the anonymous submodule thing.
+instead, nesting w/o a module declaration is just cosmetic.
+
+Then, submodules:
+- inherit all of the imports of *all parent submodules*
+- don't otherwise have an official relationship with other submodules; they can import and be imported, but again no circular module references
+
+(hm I'm remembering that maybe one justification for anonymous submodules was the ability to have a different configuration...
+ and honestly, yeah, why not allow you to have a submodule that doesn't have a name. no need to force people to come up
+ with names if they're not planning on importing anything.)
+
+# 🤔 language configs
+
+was there somethign about how I ... wanted to discourage daisy-chaining a ton of language configurations?
+well certainly I wanted to remove the possibility of "not being able to recreate the chain of bootstrapping".
+There's the idea of: "it's this module/name under this languageconfiguration at this [git commit]".
+but that feels ... too removed? idk.
+the other thing to avoid: having to rebuild the ocean any time you start up the editor.
+how to fix?
+mayyyybe vendored libraries?
+like a vendored library is immutable, and so you can hardcore cache stuff. You can also distributed precomputed
+cached stuff with the vendored library, to save on postage.
+yeah ok, so if it's like "this library exports a /languageconfig/..." it might also have precomputed it for you.
+oooo hm. what iff.
+
+what if a language is like a supermacro.
+you can export a macro, you can export a language.
+honestly it kinda makes sense.
+you wouldn't really /import/ a language, probably. ... right? I mean you certainly wouldn't import multiple languages.
+unless I come up with some kinda ... language composition model.
+but yeah it's kinda like racket's "lang" pragma. (ok so racket's `#lang something` does `(require something/lang/reader [read-syntax])`)
+
+yeah, having languages exports makes sense.
+let's talk about noun verb agreement.
+/does the language of the consuming module need to match the language of the importing dealio/
+
+- for normal values, of course it does
+- for ... languageConfigurations, of course it doesn't
+- for macros ... like it does, right? or ... like it needs to match the parent language configuration?
+  -> wait no. macros are written in the target language. that's the whole thing.
+  -> but my macros are kindof like parser plugins, at least as I have them currently formulated.
+  -> hm. should I have two different kinds of macros? like "this is a parser plugin" and "this is a cst-macro",
+    where parser plugins actually need to be in the parent language, and cst-macros can be .. in any language.
+  -> how about editor plugins? they can be in any language as well. they just need to speak a defined ABI
+
+ehh. it feels quite weird to ... have a constraint of "macros" (parser plugins) be that they need to be
+compiled with the same language that the current language was compiled with.
+but then, how would you have any assurance of compatability?
+
+ok but why not, actually.
+
+yeah, I can totally imagine wanting to write plugins for the compiler, and the type checker, as well as the parser.
+So why not make that an explicit thing that we provide affordances for?
+
+honestly haskell has type checker plugins, that are enabled on a module-by-module basis.
+
+so why not.
+
+Q: where does that leave us with macros though?
+
+yeah ok so that's the answer. we have plugins (parser, validator, compiler), and if you want to write them in the taregt language, you just need an FFI for (target -> parent), whihc should be doable.
+
+ok, so thinking about just how that would work.
+It seems like, if you're going to be declaring a `macro`, you also need to declare what language you want it to be a macro *for*, so that we can know what types to check against it.
+
+so it would be like
+```ts
+macro name for (target language) = (something)
+```
+and so we would like typecheck (something) in the current language, and then (ffi:something->target) the result,
+and then hand that off to (target language) to determine if it's a valid macro. If it is, we compile (something)
+in the current language, and thne (ffi:something->target) the result, and now we have a macro!
+
+So you could have
+```
+#lang mylang
+
+```
+
+waitwaitwait. let's say `mylang` is a language, and it is defined in `default`.
+`mylang` would define the "type" of its macros, and that definition would be in `default`.
+SO:
+`macro mymacro for mylang = thedef`
+and just to make it fun, let's say we're currently in `twolang`
+So:
+```ts
+const parsed = twolang.parse(thedef)
+const tinfo = twolang.validate(thedef)
+const fftinf = twoLangToDefaultFFI.type(tinfo)
+const minfo = default.validateEqual(fftinf, mylang.macrotype)
+const mfun = twolang.compile(thedef, tinfo)
+const macro = twoLangToDefaultFFI.value(mfun, fftinf)
+```
+and then `macro` can be passed to `mylang` as a valid macro.
+
+
+UGH ok so that seems really annoying, right?
+Could I flip that script?
+instead, /ffi-import/ the types for stuff?
+oh yeah, like
+
+```ts
+from "mylang" import {makeMacro} # ffi/lang=twoLang
+
+macro name = makeMacro(something)
+````
+
+hmmm back up a bit. so the reallt straightforward way would be
+
+```py
+# module1, lang=mylang
+specialIf = ...
+
+# module2, lang=twoLang
+from "module1" import {specialIf} # ffi/lang=mylang
+from "mylang-impl" import {language mylang}
+plugin:parser:mylang mif = specialIf
+
+# module3, lang=mylang
+from "module2" import {macro mif}
+```
+
+so we need a way to import a language, so we can ~use it for the purposes of type checking.
+
+So, to simplify we might have
+```py
+# module1, lang=mylang
+from "mylang-impl" import {language mylang} # ffi/lang=twoLang
+plugin:parser:mylang mif = ...
+
+# module2, lang=mylang
+from "module1" import {macro mif}
+...
+```
+
+yeah that seems sufficiently unambiguous.
+
+
+
+then over in `mylang-impl` we would have
+```py
+# mylang-impl, lang=twoLang
+
+language mylang = {
+    version: 1,
+    parser: myparser,
+    validate: myvalidate,
+    compiler: mycompiler,
+    # These are types
+    parserPlugin: Macro,
+    validatePlugin: VMacro,
+    compilePlugin: CMacro,
+    ffi: [
+        ...
+    ]
+}
+```
+
+
+OK LETS TALK FFI
+
+- when declaring a language, you can also declare some FFIs, if you want.
+  - when doing an FFI import (that is, importing a module whose #lang (B) is different than yours (A)),
+    the editor will look for an FFI, which is responsible for (1) translating the types of (B) to (A)
+    so your validator can work with them; (2) translating the /values/ of (B) to (A). If the imported
+    values are functions, that will implicitly involve some converting of (A) stuff to (B) stuff, but
+    that's just under the hood. Officially, the ffi will be "from B to A".
+  - the editor will first look for FFI's that have already been imported (order matters here, sry)
+    so you can do `from "something" import {ffi onelang-twolang}` or something
+  - then it will check (A) to see if it has an ffi defined for B to A
+  - then it will check (B) to see if it has an ffi defined for B to A
+  (it's actually impossible for both A and B to have the ffi defined, so order doesn't matter in which we check first)
+
+NOW HERE"S THE THING
+
+if we need an FFI from langA to langB
+and langA is implemented in langX
+and langB is implemented in langY
+then langA['tinfo'] is a type in langX, and langB['tinfo'] is a type in langY
+
+So at the very least we need an ffi from langX to langY
+
+```ts
+// #langY
+import {ATinfo, AValue} from 'ffi(langX:langY):langA'
+import {BTinfo, BValue} from 'langB'
+
+const ffiAB = {
+    type(src: ATinfo): BTinfo,
+    value(src: AValue, type: ATinfo): BValue,
+}
+```
+
+🤔 ok so.
+here's the thing. when I imagine making an FFI, ...
+idk I imagine it being more ... like, operating at the level
+of the runtime, not the level of the compiler. Does that make sense?
+like this would apply to generated code, and not before.
+well ok so the TInfo translation happens in the world of the validator.
+that's for sure.
+like ok, how's this:
+we have a type, say `type Pet = Cat(string, int) | Dog(string, string)`
+in langA, and a value `Cat("fluff", 7)` of type `Pet`.
+BUT like the runtime representation is `["Cat", "fluff", 7]`.
+AND THEN in langB, we don't have positional arguments, we have named arguments.
+So it would translate to `type Pet = Cat{v0: string, v1: int} | Dog{v0: string, v1: string}`
+and the runtime representation would be like `{type: "Cat", v0: "fluff", v1: 7}`
+
+OK SO CRITICAL POINT: the runtime representation from `langA` *might not be a valid value in langB*.
+but like, at the end of the day we need to deal with it.
+does that mean you can only *write* ffi functions in languages that are capable of representing, at the
+data layer, everything from both languages? It does seem that way.
+
+and we'd need to ... generate the conversion function that looks like
+```ts
+function petAtoPetB(pet) {
+    switch (pet.length) {
+        case 3:
+            switch (pet[0]) {
+                case 'Cat':
+                    return {type: 'Cat', v0: pet[1], v1: pet[2]} // might need conversions on pet[1] and pet[2]
+                    // ...
+            }
+    }
+}
+```
+
+🤔 I can imagine ... wanting to be able to customize the generation ...
+ould there be a way, in like the import declaration, to indicate custom translation functions?
+
+ok so one thing you might decide to do, is say 'only functions withi primitive arguments and return values are allowed'.
+and you could limit things like that.
+
+or "no generics allowed"
+
+OK BUT
+
+if we're implementing `langA` in `default`.
+then langA's AST is defined in `default`.
+and like, default will have to have imported its own AST ffi'd somewhere. right?
+
+OK BTW so like.
+if your language includes quoting. then the `type` of the quoted expression is gonna have to be like,
+`from {thismodule} import (AST)`.
+Right? which is a little funky.
+
+yeah, what's the ... type ... of ... that.
+I mean. I guess the TInfo is ...
+
+ok anyway, do I need to solve this now?
+
+
+
+
+
+The same would be true for compiler plugins and validator plugins.
+
+BUT on the other hand, /languages/ and /editor-plugins/ only need to interact with ...the IDE's JS api.
+
+# Alright, that was quite a diversion.
+now we're back, types are checking, and we're just about ready to ... have modules depend on each other.
+
+ok, so
+- we parse everyone's `imports`, no macros needed
+- this gives us a definitive module graph
+- we then go through one by one, ... hm parsing where we can, and evaluating macros where we must.
+  but the problem is that macro evaluation is ... async.
+  Ok we pretend it's sync for the moment.
+
+hrm ok. so we have sorted stuff.
+BUT these import stanzas, we've gotta track things down a bit better than that, right?
+what I'm thinking is this:
+- headDeps shows the local head deps, but I also need like a `importDeps` or something.
+
+when editing, parseInput can have knowledge of the exports of other modules, and lock things down.
+but during first parse, we can't. so we have to account for that.
+(although we can have knowledge of the names of other modules, so lets lock that down fo sho)
+
+- [ ] pass in module names to resolve at import time
+
+AGH ok so parsing shouldn't do validation at the same time. parsers should parse, validators should validate.
+
+
+- [x] parse imports
+- [x] validate imports, resolving names and such
+- [ ] When validating normal toplevels, I'll need to check imports for additionally matched things.
+  and then pass in the ... foreign type info.
+- [ ] thennn when compiling, do it all again!
+
+
+# Let's think about monorepos
+
+The question being: do I limit the editor to editing a single "package"?
+This seems like a thing that would be fine to do. Right?
+I can revisit later.
+
+# Access control
+
+Yeah so here's what I want for access control:
+
+Package = a versioned thing that gets published
+Module = a namespace, corresponds to a 'file'
+Submodule = a subnamespace, a section within a file
+
+Each module has a default toplevel submodule.
+
+- public (available outside of the package)
+- internal (only within this package)
+- local (within this module or any submodules)
+- private (only within this submodule)
+
+*thinking* should I be able to mark modules as private?
+I don't think we need to...
+
+Although, it might be useful to be able to mark a submodule as private?
+or rather, as "local". hm, but then that would make marking something as "public" meaningless, right?
+
+Maybe you could ... set a flag at the module level (or package level?) that would determine the "default" access level of any definitions?
+
+hrmhrmhrm.
+So, langauges would have opinions about what the default is, presumably.
+But also, users would have opinions.
+And modules could be cross-language.
+
+So it should really not be specified by the language.
+
+ok I'm actually not going to bother with "customizable defaults" for the moment.
+maybe I'll come back to it.
+
+# Module Dependencies
+
+so my editorstore is nice, but insufficient.
+also it's not really doing too much work by itself.
+
+Soo I think I need it to be in charge of all the modules
+at once, as well as the compiler.
+
+# Macros and Imports
+
+So the thing is, we want to be running macros at parse time,
+but the compiler and stuff all live in the web worker.
+THIS MEANS that if we're gonna have a macro or an editor plugin,
+the compiler needs to yeet back an evallable javascript bundle.
+and then we `eval` it on this side of the pond.
+
+# IMportss UI
+
+gonna be parsed, why nott
+
+## As a Codes
+
+from (autocompleted-ref) import {a; b; c; d}
+from .
+
+vendored URLs ... should be to a manifest file,
+which includes a name & version.
+
+soo if you have a ... 'ref' node, it's not an ID node.
+and it shouldnt be editable.
+
+ok so what iff .
+the imports section is ... using the structured editor, but
+the CST is not the source of truth; the AST is.
+that would be a cool way to do it.
+
+AHH OK so.
+Here's the thing.
+We'll have /imports/ toplevels.
+anddd they'll be ... parsed differently?
+
+OK ALSO if a submodule is /unnamed/, it just /inherits imports from up the chain/. Once it has a name, it has to be disciplined about imports.
+
+thisss also means I can let the masses decide what their import syntax is yay.
+
+ALSO:
+- in the parseResult, have the ability to report ... "lockdowns", that is, "convert this /id/ into /ref/" ... or honestly maybe any kind of change you want.
+Lockdowns then get applied, maybe when you unfocus the toplevel? Or something like that. Or we could have them be opt-in, depending.
+
+BUT this does mean I want a node type that is /ref/, which would be an uneditable unselectable block.
+ok but I don't ... quite ... need to do that just yet.
+yeah that can wait.
+
+So, I need the /module/ to have ... an /imports/ section.
+which we parse before we parse anything else.
+
+ok y'all. imports is now a list of toplevel ids.
+
+## As a Form
+
+`from x import {a, b, c}`
+anddd I do believe I want a way to import *
+
+OK ORDER OF OPS
+
+- [x] a basic way to ... modify imports
+- [ ] now incorporate them ... into evaluation?
+  - ideally, should only re-evaluate items that depend on added/removed imports
+
+
 # Grand Master Plan
 What am I working towards? Probably ... macros?
 yeah. that'll test a bunch of stuff.
@@ -11,6 +677,32 @@ INCLUDING:
 Ok we'll do normal imports firsttttt
 
 arright.
+
+## Lift the compiler
+
+thisss is where I want to have had tests for stuff.
+ok but its fine
+
+so,
+i've got all these interfaces.
+the EditorStoreI - the only thing it's doing is caching selectionStatuses.
+
+Ok, so game plan:
+- transition all of the `makeEditor` stuff over to ... hooks that
+  maybe just access the store?
+
+
+- [x] lots of things out of makeEditor
+- [x] useSelectionStatuses
+- [x] fix highlighting of spaced stuff
+- [x] useTop is gonee
+- [x] now to make a useUpdate fnn
+
+hm what's next.
+
+- [x] preload all the modules
+- [ ] importtttts
+
 
 ## ORder of operations:
 

@@ -24,15 +24,17 @@ import {
     reference,
     scope,
     loc,
+    MismatchError,
 } from './dsl3';
 // import { binops, Block, Expr, kwds, Stmt } from './js--types';
 import { mergeSrc, nodesSrc } from './ts-types';
 import { Config } from './lexer';
 import { Block, CallArgs, CallRow, Expr, ObjectRow, Pat, PatArgs, PatCallRow, Spread, Stmt, TopItem, Type } from './algw-s2-types';
 import { genId } from '../keyboard/ui/genId';
+import { Import, ParsedImport } from '../sandbox/types';
 
 export const kwds = ['test', 'for', 'return', 'new', 'await', 'throw', 'if', 'switch', 'case', 'else', 'let', 'const', '=', '..', '.'];
-export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*='];
+export const binops = ['<', '>', '<=', '>=', '!=', '==', '+', '-', '*', '/', '^', '%', '=', '+=', '-=', '|=', '/=', '*=', '&&', '||'];
 
 const tableConfig = tx(
     group(
@@ -185,8 +187,8 @@ export type Suffix =
     | CallArgs
     | { type: 'attribute'; attribute: Id<Loc>; src: Src };
 
-const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }): Expr => {
-    if (!suffixes.length) return base;
+const parseSmoosh = (base: Expr, suffixes: Suffix[], prefixes: Id<Loc>[], src: Src & { id: string }): Expr => {
+    if (!suffixes.length && !prefixes.length) return base;
     suffixes.forEach((suffix, i) => {
         switch (suffix.type) {
             case 'attribute':
@@ -213,6 +215,9 @@ const parseSmoosh = (base: Expr, suffixes: Suffix[], src: Src & { id: string }):
             //     throw new Error(`not doing ${(suffix as any).type} right now`);
         }
     });
+    for (let i = prefixes.length - 1; i >= 0; i--) {
+        base = { type: 'uop', op: prefixes[i], target: base, src: mergeSrc(nodesSrc(prefixes[i]), base.src) };
+    }
     return { ...base, src };
 };
 
@@ -258,6 +263,8 @@ const exprs: Record<string, Rule<Expr>> = {
     'expr!': list('smooshed', ref('expr..')),
     'expr wrap': tx(list('round', ref('expr', 'inner')), (ctx, _) => ctx.ref<Expr>('inner')),
 };
+
+export const unops = ['+', '-', '!', '~'];
 
 const rules = {
     toplevel_spaced: or(...Object.keys(toplevels_spaced).map((name) => ref<TopItem>(name))),
@@ -412,6 +419,106 @@ const rules = {
         seq(kwd('@@'), group('contents', { type: 'any' })),
         (ctx, src): Expr => ({ type: 'quote', src, quote: { type: 'raw', contents: ctx.ref<RecNode>('contents') } }),
     ),
+    source: tx<ParsedImport['source'] | void>(
+        group(
+            'value',
+            meta(
+                or(
+                    text({ type: 'none' }),
+                    id(null),
+                    // 'ref'
+                ),
+                'constructor',
+            ),
+        ),
+        (ctx, src) => {
+            const value = ctx.ref<TextSpan<never>[] | Id<string>>('value');
+            if (Array.isArray(value)) {
+                const text = value
+                    .filter((v) => v.type === 'text')
+                    .map((v) => v.text)
+                    .join('');
+                return { type: 'raw', text, src };
+            }
+            return { type: 'raw', text: value.text, src };
+        },
+    ),
+    ['import']: tx<ParsedImport>(
+        list(
+            'spaced',
+            seq(
+                kwd('from'),
+                ref('source', 'source'),
+                kwd('import'),
+                or(
+                    list(
+                        'curly',
+                        group(
+                            'items',
+                            star(
+                                or(
+                                    tx(
+                                        list(
+                                            'spaced',
+                                            seq(group('kind', or(kwd('macro'), kwd('plugin'))), meta(group('name', id(null)), 'constructor')),
+                                        ),
+                                        (ctx, src) => ({
+                                            type: 'special',
+                                            kind: ctx.ref<Id<string>>('kind').text,
+                                            name: ctx.ref<Id<string>>('name'),
+                                        }),
+                                    ),
+                                    tx(list('spaced', seq(id(null), kwd('as'), meta(id(null), 'constructor'))), (ctx, src) => ({
+                                        type: 'item',
+                                        name: ctx.ref<Id<string>>('name'),
+                                        rename: ctx.ref<Id<string>>('rename'),
+                                    })),
+                                    tx(group('name', meta(id(null), 'constructor')), (ctx, src) => ({
+                                        type: 'item',
+                                        name: ctx.ref<Id<string>>('name'),
+                                    })),
+                                ),
+                            ),
+                        ),
+                    ),
+                    kwd('*'),
+                ),
+                opt(seq(kwd('using'), group('foreign', id(null)))),
+            ),
+        ),
+        (ctx, src) => {
+            const source = ctx.ref<ParsedImport['source']>('source');
+            const raw =
+                ctx.ref<
+                    ({ type: 'special'; kind: 'macro' | 'plugin'; name: Id<string> } | { type: 'item'; name: Id<string>; rename?: Id<string> })[]
+                >('items');
+            const macros: { name: string; loc: string }[] = [];
+            const plugins: { name: string; loc: string }[] = [];
+            const items: ParsedImport['items'] = [];
+            raw.forEach((item) => {
+                if (item.type === 'special') {
+                    if (item.kind === 'macro') macros.push({ name: item.name.text, loc: item.name.loc });
+                    else plugins.push({ name: item.name.text, loc: item.name.loc });
+                } else {
+                    items.push({
+                        name: item.name.text,
+                        loc: item.name.loc,
+                        rename: item.rename?.text,
+                        accessControl: 'module',
+                    });
+                }
+            });
+
+            // throw new Error('not yet');
+            return {
+                type: 'import',
+                source,
+                items,
+                macros,
+                plugins,
+            };
+        },
+    ),
     unquote: tx<Expr>(seq(kwd('`'), ref('expr', 'contents')), (ctx, src): Expr => ({ type: 'unquote', src, contents: ctx.ref<Expr>('contents') })),
     'expr..': or(
         ref('unquote'),
@@ -420,6 +527,7 @@ const rules = {
         ref('quote'),
         tx<Expr>(
             seq(
+                group('prefixes', star(or(...unops.map((k) => kwd(k, 'uop'))))),
                 ref('expr', 'base'),
                 group(
                     'suffixes',
@@ -440,7 +548,7 @@ const rules = {
                     ),
                 ),
             ),
-            (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), src),
+            (ctx, src) => parseSmoosh(ctx.ref<Expr>('base'), ctx.ref<Suffix[]>('suffixes'), ctx.ref<Id<Loc>[]>('prefixes'), src),
         ),
     ),
     expr: or(...Object.keys(exprs).map((name) => ref(name)), list('spaced', ref('expr ')), ref('block')),
@@ -577,6 +685,19 @@ export const parser = {
         xml: true,
     },
     spans: () => [],
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined) {
+        const myctx: Ctx = {
+            ...ctx,
+            meta: {},
+            rules: { ...ctx.rules },
+            trace,
+            scopes: [[]],
+            usages: {},
+            externalUsages: [],
+        };
+        const res = match<ParsedImport>({ type: 'ref', name: 'import' }, myctx, { type: 'match_parent', nodes: [node], loc: '' }, 0);
+        return { result: res?.value, ctx: myctx };
+    },
     parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined) {
         const myctx: Ctx = { ...ctx, meta: {}, rules: { ...ctx.rules }, trace, scopes: [[]], usages: {}, externalUsages: [] };
         macros.forEach((macro) => {

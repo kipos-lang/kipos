@@ -3,7 +3,7 @@ import React, { useMemo, useCallback, createContext, useEffect, useRef, useState
 import { genId } from '../keyboard/ui/genId';
 import { Path, lastChild, pathWithChildren } from '../keyboard/utils';
 import { RecNode, Node, fromRec } from '../shared/cnodes';
-import { DragCtx, noopDrag, useEditor } from './Editor';
+import { DragCtx, noopDrag, useUpdate } from './useProvideDrag';
 import { RenderNode } from './render/RenderNode';
 import { AnnotationText, EvaluationResult, FailureKind, LocatedTestResult, Meta } from './store/language';
 import { useStore, UseNode } from './store/store';
@@ -13,6 +13,16 @@ import { zedlight } from './zedcolors';
 import { Toplevel } from './types';
 import equal from 'fast-deep-equal';
 import { selectEnd, selectStart } from '../keyboard/handleNav';
+import {
+    SelectionStatusCtx,
+    useIsSelectedTop,
+    useMakeSelectionStatuses,
+    useNode,
+    useRoot,
+    useTopFailure,
+    useTopParseResults,
+    useTopResults,
+} from './store/editorHooks';
 
 export const GetTopCtx = createContext<() => Toplevel>(() => {
     throw new Error('no');
@@ -24,14 +34,13 @@ export const TestResultsCtx = createContext<(id: string) => LocatedTestResult | 
 
 export const Top = React.memo(function Top({ id, name }: { id: string; name: string }) {
     const store = useStore();
-    const editor = store.useEditor();
-    const top = editor.useTop(id);
+    const update = useUpdate();
 
-    const getTop = useCallback(() => editor.getTop(id), [id]);
+    const getTop = useCallback(() => store.module(store.selected).toplevels[id], [id]);
 
-    const isSelected = editor.useIsSelectedTop(id);
+    const isSelected = useIsSelectedTop(id);
 
-    const root = top.useRoot();
+    const root = useRoot(id);
     const rootPath = useMemo(
         () => ({
             root: { ids: [], top: id },
@@ -40,18 +49,21 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
         [id],
     );
 
-    const parseResult = editor.useTopParseResults(id);
+    const parseResult = useTopParseResults(id);
 
-    const results = editor.useTopResults(id);
+    const results = useTopResults(id);
     const onTestLoc = useTestTracker(results);
     const nonLocTestResults = results?.filter((r) => r.type !== 'test-result' || !r.loc);
 
-    const useNode = useCallback<UseNode>((path) => top.useNode(path), [top]);
+    const onSS = useMakeSelectionStatuses(id);
+
+    const useNode_ = useCallback<UseNode>((path) => useNode(id, path), [id]);
     return (
         <div>
             <div
                 className={css({
                     display: 'flex',
+                    background: 'white',
                     flexDirection: 'row',
                     alignItems: 'flex-start',
                     padding: '12px',
@@ -69,20 +81,22 @@ export const Top = React.memo(function Top({ id, name }: { id: string; name: str
                     const top = evt.clientY < box.top + box.height / 2;
                     const sel = top ? selectStart(pathWithChildren(rootPath, root), getTop()) : selectEnd(pathWithChildren(rootPath, root), getTop());
                     if (sel) {
-                        editor.update({ type: 'selections', selections: [{ start: sel }] });
+                        update({ type: 'selections', selections: [{ start: sel }] });
                     }
                 }}
             >
                 <TopFailure id={id} />
                 <TopGrab name={name} id={id} />
                 <div style={{ flexBasis: 12 }} />
-                <GetTopCtx.Provider value={getTop}>
-                    <UseNodeCtx.Provider value={useNode}>
-                        <TestResultsCtx.Provider value={onTestLoc}>
-                            <RenderNode parent={rootPath} id={root} />
-                        </TestResultsCtx.Provider>
-                    </UseNodeCtx.Provider>
-                </GetTopCtx.Provider>
+                <SelectionStatusCtx.Provider value={onSS}>
+                    <GetTopCtx.Provider value={getTop}>
+                        <UseNodeCtx.Provider value={useNode_}>
+                            <TestResultsCtx.Provider value={onTestLoc}>
+                                <RenderNode parent={rootPath} id={root} />
+                            </TestResultsCtx.Provider>
+                        </UseNodeCtx.Provider>
+                    </GetTopCtx.Provider>
+                </SelectionStatusCtx.Provider>
                 <div
                     className={css({
                         marginLeft: '24px',
@@ -117,9 +131,8 @@ const renderMessage = (message: string | AnnotationText[]) =>
         : message.map((item, i) => (typeof item === 'string' ? item : <RenderStaticNode key={i} root={item.renderable} />));
 
 export const TopFailure = ({ id }: { id: string }) => {
-    const editor = useEditor();
-    const compileFailure = editor.useTopFailure(id);
-    const parseResults = editor.useTopParseResults(id);
+    const compileFailure = useTopFailure(id);
+    const parseResults = useTopParseResults(id);
     const failure: (FailureKind | { type: 'parse' | 'validation'; message: string | AnnotationText[] })[] = [...(compileFailure ?? [])];
     if (!parseResults.result) {
         failure.push({ type: 'parse', message: 'failed to parse' });
@@ -135,14 +148,15 @@ export const TopFailure = ({ id }: { id: string }) => {
         });
     });
 
-    // const validation = editor.use
+    // const validation = update.use
     if (!failure.length) return null;
 
     return (
         <div
             className={css({
                 width: '300px',
-                background: '#fee',
+                background: 'red',
+                color: 'white',
                 boxShadow: '0px 0px 2px red',
                 position: 'absolute',
                 top: '5px',
@@ -150,8 +164,17 @@ export const TopFailure = ({ id }: { id: string }) => {
                 borderRadius: '4px',
                 zIndex: 400,
                 fontSize: '60%',
-                overflow: 'auto',
                 padding: '4px',
+                overflow: 'hidden',
+                maxHeight: '1em',
+                maxWidth: '1em',
+                '&:hover': {
+                    color: 'black',
+                    background: '#fee',
+                    maxHeight: 'none',
+                    overflow: 'auto',
+                    maxWidth: 'none',
+                },
             })}
         >
             {failure.map((fail, i) => {
@@ -159,9 +182,14 @@ export const TopFailure = ({ id }: { id: string }) => {
                     case 'compilation':
                         return <div key={i}>C: {fail.message}</div>;
                     case 'dependencies':
-                        return <div key={i}>Missing {fail.deps.length} deps</div>;
+                        return (
+                            <div key={i}>
+                                Missing deps:{'\n  '}
+                                {fail.deps.map((d) => d.module + ' ' + d.name + '(' + d.toplevel + '): ' + (d.message ?? '')).join('\n  ')}
+                            </div>
+                        );
                     case 'evaluation':
-                        return <div key={i}>E: {fail.message}</div>;
+                        return <div key={i}>Eval error: {fail.message}</div>;
                     case 'parse':
                         return <div key={i}>P: {renderMessage(fail.message)}</div>;
                     case 'validation':

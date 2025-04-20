@@ -10,7 +10,7 @@ export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string,
 
 export class WorkerCompiler implements Compiler<TopItem, TInfo> {
     worker: Worker;
-    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {} };
+    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {}, testResults: {} };
 
     constructor() {
         this.worker = new Worker('./worker.ts');

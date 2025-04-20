@@ -5,7 +5,7 @@ import { Cursor } from '../../keyboard/ui/cursor';
 import { opener, closer } from '../../keyboard/ui/RenderNode';
 import { Path, ListWhere } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
-import { useDrag } from '../Editor';
+import { useDrag } from '../useProvideDrag';
 import { RenderNode, Wrap } from './RenderNode';
 import { SelStatus } from '../store/store';
 import { Meta } from '../store/language';
@@ -45,7 +45,11 @@ export const RenderList = ({
     if (node.kind === 'spaced' || node.kind === 'smooshed') {
         const parted = spans && spans.length === node.children.length ? partition(spans, node.children) : undefined;
         if (parted) {
-            return <RenderGrouped grouped={parted} parent={self} spaced={node.kind === 'spaced'} />;
+            return (
+                <span style={style}>
+                    <RenderGrouped grouped={parted} parent={self} spaced={node.kind === 'spaced'} />
+                </span>
+            );
         }
     }
 
@@ -58,7 +62,7 @@ export const RenderList = ({
                 }}
                 key={id}
             >
-                <RenderNode parent={self} id={id} key={id} />
+                <RenderNode parent={self} id={id} />
                 {node.kind === 'smooshed' || node.kind === 'spaced' ? null : node.kind === 'curly' ? '; ' : ', '}
             </span>
         ) : (
@@ -88,7 +92,7 @@ export const RenderList = ({
                 }}
             >
                 {interleaveF(children, (k) => (
-                    <span key={k}>&nbsp;</span>
+                    <span key={'sep-' + k}>&nbsp;</span>
                 ))}
             </span>
         );
@@ -109,7 +113,7 @@ export const RenderList = ({
             {has('before') ? <Cursor /> : null}
             {opener[node.kind]}
             {has('inside') ? <Cursor /> : null}
-            {node.forceMultiline ? children : interleaveF(children, (k) => <span key={k}>{node.kind === 'curly' ? '; ' : ', '}</span>)}
+            {node.forceMultiline ? children : interleaveF(children, (k) => <span key={'sep-' + k}>{node.kind === 'curly' ? '; ' : ', '}</span>)}
             {closer[node.kind]}
             {has('after') ? <Cursor /> : null}
         </span>

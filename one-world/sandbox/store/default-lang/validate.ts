@@ -42,6 +42,7 @@ export const builtinEnv = () => {
     const b: Type = { type: 'var', name: 'b', src: builtinSrc() };
     const tapp = (target: Type, ...args: Type[]): Type => ({ type: 'app', args, target, src: builtinSrc() });
     const tcon = (name: string): Type => ({ type: 'con', name, src: builtinSrc() });
+    builtinEnv.scope['Math'] = concrete({ type: 'con', name: 'Math', src: builtinSrc() });
     builtinEnv.scope['Error'] = concrete(tfn(tstring, { type: 'con', name: 'Error', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['null'] = concrete({ type: 'con', name: 'null', src: builtinSrc() });
     builtinEnv.scope['true'] = concrete({ type: 'con', name: 'bool', src: builtinSrc() });
@@ -53,15 +54,20 @@ export const builtinEnv = () => {
     builtinEnv.scope['concat'] = generic(['t'], tfns([tapp(tcon('Array'), t), tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
     // builtinEnv.scope['[]'] = generic(['t'], tapp(tcon('Array'), t));
     // builtinEnv.scope['::'] = generic(['t'], tfns([t, tapp(tcon('Array'), t)], tapp(tcon('Array'), t), builtinSrc()));
-    builtinEnv.scope['void'] = concrete({ type: 'con', name: 'void', src: builtinSrc() });
+    builtinEnv.scope['kipos'] = generic(['t'], t);
+    builtinEnv.scope['void'] = generic(['t'], tfn(t, { type: 'con', name: 'void', src: builtinSrc() }, builtinSrc()));
     builtinEnv.scope['+'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['*'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['+='] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['=='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['!='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['-'] = concrete(tfns([tint, tint], tint, builtinSrc()));
     builtinEnv.scope['>'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['>='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['<'] = concrete(tfns([tint, tint], tbool, builtinSrc()));
     builtinEnv.scope['<='] = concrete(tfns([tint, tint], tbool, builtinSrc()));
+    builtinEnv.scope['&&'] = concrete(tfns([tbool, tbool], tbool, builtinSrc()));
+    builtinEnv.scope['||'] = concrete(tfns([tbool, tbool], tbool, builtinSrc()));
     builtinEnv.scope['='] = generic(['t'], tfns([t, t], tint, builtinSrc()));
     builtinEnv.scope[','] = generic(['a', 'b'], tfns([a, b], tapp(tcon(','), a, b), builtinSrc()));
     builtinEnv.constructors[','] = { free: ['a', 'b'], args: [a, b], result: tapp(tcon(','), a, b) };
@@ -521,7 +527,7 @@ export const inferLets = (
     values.forEach((value, i) => {
         scopes.push({ [lets[i].pat.name]: generalize(appliedEnv, gtypeApply(value), lets[i].pat.src) });
     });
-    console.log('here we are', scopes);
+    // console.log('here we are', scopes);
 
     return { scopes, values: values.map(gtypeApply), events };
 };
@@ -530,11 +536,16 @@ export const inferToplevel = (tenv: Tenv, stmt: TopItem): { value: Type; scope?:
         case 'type':
             return { value: { type: 'con', name: 'void', src: stmt.src } };
         case 'test': {
-            const { name, src, cases } = stmt;
+            const { name, target, src, cases } = stmt;
+            const ttype = target ? inferExpr(tenv, target) : null;
             cases.forEach(({ input, output, outloc }) => {
                 const itype = inferExpr(tenv, input);
                 const otype = inferExpr(tenv, output);
-                unify(itype, otype, input.src, 'input', 'output');
+                if (ttype) {
+                    unify(ttype, tfn(itype, otype, input.src), input.src, 'target', 'input -> output');
+                } else {
+                    unify(itype, otype, input.src, 'input', 'output');
+                }
             });
             return { value: { type: 'con', name: 'void', src } }; // basic case, types equal
         }
@@ -595,7 +606,6 @@ export const inferStmt = (tenv: Tenv, stmt: Stmt): { value: Type; scope?: Record
                     value: gtypeApply(valueType),
                 };
             }
-            console.error('not handling yet');
             let [type, scope] = inferPattern(tenv, pat);
             // globalState.events.push({ type: 'stack-push', value: { type: 'let', pat: type } });
             const valueType = inferExpr(tenvWithScope(tenv, scope), init);
@@ -659,6 +669,10 @@ const commas = (v: StackText[], sep = ', ') => interleaveF(v, () => sep);
 
 export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
     switch (expr.type) {
+        case 'object': {
+            const t = newTypeVar({ type: 'free', prev: 'object' }, expr.src);
+            return t;
+        }
         case 'prim':
             const t: Type = { type: 'con', name: expr.prim.type, src: expr.src };
             stackPush(expr.src, kwd(expr.prim.value + ''), ' -> ', typ(t));
@@ -774,6 +788,17 @@ export const inferExprInner = (tenv: Tenv, expr: Expr): Type => {
                 expr.src,
                 // bodyType.value ?? bodyType.return ?? { type: 'con', name: 'void' },
             );
+        }
+        case 'uop': {
+            const inner = inferExpr(tenv, expr.target);
+            unify(
+                inner,
+                { type: 'con', name: expr.op.text === '!' ? 'bool' : 'int', src: { type: 'src', id: genId(), left: expr.op.loc } },
+                expr.src,
+                'unary argument',
+                'unary operator',
+            );
+            return gtypeApply(inner);
         }
         case 'bop': {
             // const src = expr.src;

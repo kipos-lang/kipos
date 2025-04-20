@@ -10,9 +10,10 @@ import { RenderTable } from './RenderTable';
 import { LocatedTestResult, Meta } from '../store/language';
 import { css } from 'goober';
 import { BadgeCheck, CancelIcon, CheckIcon, MinusIcon, NeqIcon } from '../icons';
-import { useEditor, useHover } from '../Editor';
+import { useUpdate, useHover } from '../useProvideDrag';
 import { pathWith } from '../../keyboard/ctdt-test-utils';
 import { zedlight } from '../zedcolors';
+import { useAnnotations } from '../store/editorHooks';
 
 const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: string[][]; meta?: Meta; node: Node; self: Path; sel?: SelStatus }) {
     switch (node.type) {
@@ -28,8 +29,7 @@ const R = React.memo(function R({ node, self, sel, meta, spans }: { spans?: stri
 });
 
 export function Wrap({ parent, id, children }: { children: React.ReactNode; parent: Path; id: string }) {
-    const top = useStore().useEditor().useTop(parent.root.top);
-    const annotations = top.useAnnotations(id);
+    const annotations = useAnnotations(parent.root.top, id);
     const testResult = useContext(TestResultsCtx)(id);
 
     const errors = annotations?.filter((e) => e.type === 'error');
@@ -123,7 +123,7 @@ const icons: { [K in LocatedTestResult['result']['type']]: React.ReactNode } = {
 };
 
 const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedTestResult }) => {
-    const editor = useEditor();
+    const update = useUpdate();
 
     switch (result.result.type) {
         case 'mismatch': {
@@ -150,7 +150,7 @@ const ShowFullTestResult = ({ result, parent }: { parent: Path; result: LocatedT
                         <button
                             style={{ display: 'block', whiteSpace: 'nowrap', marginTop: 8 }}
                             onClick={() => {
-                                editor.update({
+                                update({
                                     type: 'paste',
                                     replace: pathWithChildren(parent, result.loc!),
                                     data: { type: 'json', data: [{ tree: actual.node, single: true }] },
@@ -206,102 +206,14 @@ const ShowTestResult = ({ result, id, parent }: { parent: Path; id: string; resu
 export const RenderNode = React.memo(function RenderNode({ id, parent }: { id: string; parent: Path }) {
     const self = useMemo(() => pathWithChildren(parent, id), [parent, id]);
     const { node, sel, meta, spans } = useContext(UseNodeCtx)(self);
-    // const top = useStore().useEditor().useTop(parent.root.top);
-    // const annotations = top.useAnnotations(id);
-    // const errors = annotations?.filter((e) => e.type === 'error');
-    // const warnings = annotations?.filter((e) => e.type === 'warning');
-    // const hover = useHover(self, !!annotations?.length);
+    if (!node) {
+        // console.warn(`no node when trying to get info for`, self, id, parent);
+        return null;
+    }
 
     return (
         <Wrap id={id} parent={parent}>
             <R node={node} self={self} meta={meta} sel={sel} spans={spans} />
         </Wrap>
     );
-
-    // const r = <R node={node} self={self} meta={meta} sel={sel} spans={spans} />;
-    // const overlay = hover.isHovered ? (
-    //     <span style={{ position: 'relative' }}>
-    //         <div
-    //             style={{
-    //                 width: 400,
-    //                 position: 'absolute',
-    //                 pointerEvents: 'none',
-    //                 zIndex: 100,
-    //                 backgroundColor: 'white',
-    //                 boxShadow: '1px 1px 4px #aaa',
-    //                 padding: '8px 16px',
-    //             }}
-    //         >
-    //             {annotations?.map((ann, i) => (
-    //                 <div key={i}>
-    //                     {ann.type === 'type' ? (
-    //                         <RenderStaticNode root={ann.annotation} />
-    //                     ) : (
-    //                         ann.message.map((item) => (typeof item === 'string' ? item : <RenderStaticNode root={item.renderable} />))
-    //                     )}
-    //                 </div>
-    //             ))}
-    //         </div>
-    //     </span>
-    // ) : null;
-
-    // if (errors?.length) {
-    //     return (
-    //         <span
-    //             onMouseOver={(evt) => {
-    //                 evt.stopPropagation();
-    //                 hover.setHover(self);
-    //             }}
-    //             className={css({
-    //                 textDecoration: 'wavy red underline',
-    //             })}
-    //             style={{ background: hover.isHovered ? 'red' : undefined }}
-    //             title={JSON.stringify(errors.map((e) => e.message))}
-    //         >
-    //             {r}
-    //             {overlay}
-    //         </span>
-    //     );
-    // }
-
-    // if (warnings?.length) {
-    //     return (
-    //         <span
-    //             onMouseOver={(evt) => {
-    //                 evt.stopPropagation();
-    //                 hover.setHover(self);
-    //             }}
-    //             style={{ background: hover.isHovered ? 'red' : undefined }}
-    //             className={css({
-    //                 textDecoration: 'wavy orange underline',
-    //             })}
-    //             title={JSON.stringify(warnings.map((e) => e.message))}
-    //         >
-    //             {r}
-    //             {overlay}
-    //         </span>
-    //     );
-    // }
-
-    // return (
-    //     <span
-    //         onMouseOver={(evt) => {
-    //             evt.stopPropagation();
-    //             hover.setHover(self);
-    //         }}
-    //         style={{ background: hover.isHovered ? 'red' : undefined }}
-    //     >
-    //         {/* <span style={{ fontSize: '50%', border: '1px solid red' }}>
-    //             {id.slice(-5)}:{node.type}
-    //         </span> */}
-    //         {/* {meta ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(meta)}</span> : null} */}
-    //         {/* {annotations ? <span style={{ fontSize: '50%', border: '1px solid red' }}>{JSON.stringify(annotations)}</span> : null} */}
-    //         {r}
-    //         {overlay}
-    //     </span>
-    //     // <span data-self={JSON.stringify(self)} data-id={id}>
-    //     //     {/* <span style={{ fontSize: '50%' }}>{pathKey(self)}</span>
-    //     //     {JSON.stringify(sel)} */}
-    //     // {/* </span> */}
-    // );
 });

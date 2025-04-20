@@ -2,7 +2,18 @@ import equal from 'fast-deep-equal';
 import { RecNode } from '../../../shared/cnodes';
 import { Stmt, TopItem } from '../../../syntaxes/algw-s2-types';
 import { Dependencies } from '../editorStore';
-import { CompilerEvents, EvaluationResult, Compiler, CompilerListenersMap, ParseKind, eventKey, FailureKind, Meta, Renderable } from '../language';
+import {
+    CompilerEvents,
+    EvaluationResult,
+    Compiler,
+    CompilerListenersMap,
+    ParseKind,
+    eventKey,
+    FailureKind,
+    Meta,
+    Renderable,
+    ModuleTestResults,
+} from '../language';
 import { TInfo } from './default-lang';
 import { Resolutions, stmtToString, testToString, toString } from './to-string';
 import { id, list, text } from '../../../keyboard/test-utils';
@@ -109,16 +120,32 @@ const test = (source: string, deps: Record<string, any>, names: Record<string, s
     return results;
 };
 
-const evaluate = (source: string, deps: Record<string, any>, names: Record<string, string>): EvaluationResult[] => {
+const checkLoop = (n: number) => {
+    if (n > 10000) throw new Error(`loop more than 10k`);
+    return true;
+};
+
+const evaluate = (
+    source: string,
+    deps: Record<string, any>,
+    names: Record<string, string>,
+    // update: (result: EvaluationResult[]) => void,
+    kipos: any,
+): EvaluationResult[] => {
     const f = new Function(
         'deps',
+        'kipos',
+        '$$check_loop',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}`,
     );
     try {
-        const value = f(deps);
+        const value = f(deps, kipos, checkLoop);
         try {
+            if (typeof value === 'string') {
+                return [{ type: 'plain', data: value }];
+            }
             return [{ type: 'plain', data: JSON.stringify(value) ?? 'undefined' }];
         } catch (err) {
             return [{ type: 'plain', data: `Result cant be stringified: ${value}` }];
@@ -131,17 +158,18 @@ const evaluate = (source: string, deps: Record<string, any>, names: Record<strin
 const define = (source: string, provides: string[], deps: Record<string, any>, names: Record<string, string>) => {
     const f = new Function(
         'deps',
+        '$$check_loop',
         Object.entries(names)
             .map(([name, key]) => `const $${name} = deps['${key}'];\n`)
             .join('') + `\n\n${source}\n\nreturn {${provides.join(', ')}}`,
     );
-    return f(deps);
+    return f(deps, checkLoop);
 };
 
 // this... seems like something that could be abstracted.
 // like, "a normal compiler"
 export class DefaultCompiler implements Compiler<TopItem, TInfo> {
-    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {} };
+    listeners: CompilerListenersMap = { results: {}, viewSource: {}, failure: {}, testResults: {} };
     code: { [module: string]: { [top: string]: string } } = {};
     _failures: { [module: string]: { [top: string]: FailureKind } } = {};
     _results: {
@@ -155,7 +183,20 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                 | { type: 'evaluate'; result: EvaluationResult[] };
         };
     } = {};
+    _intervals: { [module: string]: { [top: string]: Timer[] } } = {};
     constructor() {}
+    testResults(moduleId: string): ModuleTestResults {
+        const results: ModuleTestResults = [];
+        Object.entries(this._results[moduleId] ?? {}).forEach(([top, tres]) => {
+            if (tres.type === 'evaluate') {
+                const matchined = tres.result.filter((res) => res.type === 'test-result');
+                if (matchined.length) {
+                    results.push({ top, results: matchined });
+                }
+            }
+        });
+        return results;
+    }
     results(moduleId: string, top: string): EvaluationResult[] | null {
         const res = this._results[moduleId]?.[top];
         if (res?.type === 'evaluate') {
@@ -174,17 +215,21 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
         }
     }
     loadModule(module: string, deps: Dependencies, asts: Record<string, { kind: ParseKind; ast: TopItem }>, infos: Record<string, TInfo>): void {
+        // console.warn(`loading module ${module}`, Object.keys(asts));
         if (!this.code[module]) this.code[module] = {};
         if (!this._results[module]) this._results[module] = {};
         deps.traversalOrder.forEach((hid) => {
-            if (!asts[hid] || !infos[hid]) return; // skipping Iguess
+            if (!asts[hid] || !infos[hid]) {
+                // console.log(`skipping ${hid} because we dont have ast or infos`);
+                return; // skipping Iguess
+            }
+            // console.log(`COMPILING`, hid);
 
             const depValues: Record<string, any> = {};
             const names: Record<string, string> = {};
-            if (!infos[hid]) throw new Error(`type infos not provided for ${hid}`);
             const fixedSources: Resolutions = { ...infos[hid].resolutions };
 
-            let missingDeps: { module: string; toplevel: string; message?: string }[] = [];
+            let missingDeps: { module: string; toplevel: string; name: string; message?: string }[] = [];
 
             Object.entries(infos[hid].resolutions).forEach(([rkey, source]) => {
                 if (source.type === 'toplevel') {
@@ -228,11 +273,15 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
 
             if (components.length > 1 || asts[components[0]].kind.type === 'definition') {
                 const codes = components.map((top) => {
-                    const code = stmtToString((asts[top].ast as TopItem & { type: 'stmt' }).stmt, fixedSources, true);
-                    const source = toString(code);
-                    this.code[module][top] = source;
-                    this.emit('viewSource', { module, top }, { source });
-                    return source;
+                    try {
+                        const code = stmtToString((asts[top].ast as TopItem & { type: 'stmt' }).stmt, fixedSources, true);
+                        const source = toString(code);
+                        this.code[module][top] = source;
+                        this.emit('viewSource', { module, top }, { source });
+                        return source;
+                    } catch (err) {
+                        return `(() => {throw new Error("Unable to generate source")})()`;
+                    }
                 });
                 const provides = components.flatMap((top) =>
                     (asts[top].kind as ParseKind & { type: 'definition' }).provides.filter((p) => p.kind === 'value'),
@@ -254,12 +303,14 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                             });
 
                         this._results[module][top] = { type: 'definition', scope };
+                        this.emit('results', { module, top }, { results: [] });
                         this.logFailure(module, top, null);
                     });
                 } catch (err) {
                     // console.error('bad news bears', err);
                     components.forEach((top) => {
                         this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                        this.emit('results', { module, top }, { results: [] });
                     });
                 }
             } else {
@@ -276,11 +327,44 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         return; // skip it
                     }
 
+                    this._intervals[module]?.[top]?.forEach((t) => clearInterval(t));
+                    if (!this._intervals[module]) this._intervals[module] = {};
+                    this._intervals[module][top] = [];
+
                     if (asts[top].kind.type === 'evaluation') {
-                        const result = evaluate(source, depValues, names);
-                        this._results[module][top] = { type: 'evaluate', result };
-                        this.emit('results', { module, top }, { results: result });
-                        this.logFailure(module, top, null);
+                        try {
+                            const result = evaluate(source, depValues, names, {
+                                update: (result: EvaluationResult[]) => {
+                                    // console.log('got deplay', result, module, top);
+                                    this._results[module][top] = { type: 'evaluate', result };
+                                    this.emit('results', { module, top }, { results: result });
+                                    if (result.some((r) => r.type === 'test-result')) {
+                                        this.emit('testResults', { module }, { results: this.testResults(module) });
+                                    }
+                                    this.logFailure(module, top, null);
+                                },
+                                setInterval: (f: () => void, t: number) => {
+                                    this._intervals[module][top].push(
+                                        setInterval(() => {
+                                            try {
+                                                f();
+                                            } catch (err) {
+                                                // noop
+                                                this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                                            }
+                                        }, t),
+                                    );
+                                },
+                            });
+                            this._results[module][top] = { type: 'evaluate', result };
+                            this.emit('results', { module, top }, { results: result });
+                            if (result.some((r) => r.type === 'test-result')) {
+                                this.emit('testResults', { module }, { results: this.testResults(module) });
+                            }
+                            this.logFailure(module, top, null);
+                        } catch (err) {
+                            this.logFailure(module, top, { type: 'evaluation', message: (err as Error).message });
+                        }
                     } else if (asts[top].kind.type === 'definition') {
                         throw new Error(`unreachable`);
                     }
@@ -304,6 +388,9 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
                         // infos[top].resolutions
                         this._results[module][top] = { type: 'evaluate', result };
                         this.emit('results', { module, top }, { results: result });
+                        if (result.some((r) => r.type === 'test-result')) {
+                            this.emit('testResults', { module }, { results: this.testResults(module) });
+                        }
                         this.logFailure(module, top, null);
                     }
                 } else {
@@ -315,7 +402,13 @@ export class DefaultCompiler implements Compiler<TopItem, TInfo> {
 
     listen<K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args'], fn: (data: CompilerEvents[K]['data']) => void): () => void {
         const key = eventKey(evt, args);
-        // console.log(`listen ${evt} : ${key}`);
+        if (!('top' in args)) {
+            const got = this.testResults(args.module);
+            if (got.length) {
+                fn({ results: got as any });
+            }
+            return addFn(args.module, this.listeners[evt], fn);
+        }
         switch (evt) {
             case 'failure': {
                 const failure = this._failures[args.module]?.[args.top];

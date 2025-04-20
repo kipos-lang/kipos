@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { zedcolors } from './colors';
+import { zedlight } from '../../one-world/sandbox/zedcolors';
 
 const square = (name: string, color: string, hover: (color: string | null) => void) => (
     <React.Fragment key={name}>
@@ -23,7 +24,12 @@ export const ShowColors = () => {
     return (
         <div style={{ background: hover ?? bg, padding: 32, display: 'grid', gridTemplateColumns: 'max-content max-content' }}>
             {square('bg', bg, setHover)}
-            {Object.keys(zedcolors).map((name) => square(name, zedcolors[name as 'attribute'].color, setHover))}
+            <strong style={{ gridColumn: '1/3' }}>Syntax</strong>
+            {Object.keys(zedlight.syntax).map((name) => square(name, zedlight.syntax[name as 'attribute'].color, setHover))}
+            <strong style={{ gridColumn: '1/3' }}>General</strong>
+            {Object.keys(zedlight).map((name) =>
+                typeof zedlight[name as keyof typeof zedlight] === 'string' ? square(name, zedlight[name as 'border'], setHover) : null,
+            )}
         </div>
     );
 };

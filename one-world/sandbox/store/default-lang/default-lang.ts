@@ -35,6 +35,29 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
     // intern: (ast, info) => ({ ast, info }),
     parser: {
         config: parser.config,
+        parseImport(node) {
+            const trace: Event[] = [];
+            const TRACE = false;
+            const result = parser.parseImport(
+                node,
+                TRACE
+                    ? (evt) => {
+                          trace.push(evt);
+                      }
+                    : undefined,
+            );
+            return {
+                input: node,
+                trace,
+                ctx: { meta: result.ctx.meta },
+                // Must have no references
+                externalReferences: [],
+                internalReferences: {},
+                ffiReferences: [],
+                result: result.result,
+                kind: null,
+            };
+        },
         parse(macros, node) {
             const trace: Event[] = [];
             const TRACE = false;
@@ -60,7 +83,14 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                         ? { type: 'evaluation' }
                         : result.result?.type === 'test'
                           ? { type: 'test' }
-                          : { type: 'definition', provides: result.ctx.scopes[0] },
+                          : {
+                                type: 'definition',
+                                provides: result.ctx.scopes[0].map((item) => ({
+                                    ...item,
+                                    // TODO: allow specifying access control
+                                    accessControl: 'package',
+                                })),
+                            },
             };
         },
         spans(ast) {
@@ -140,12 +170,13 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 eventsByTop.push(glob.events.slice());
             }
         } catch (err) {
-            console.log('bad inference', err);
+            // console.log('bad inference', err);
             error = (err as Error).message;
             res = null;
         }
 
         const allAnnotations: Record<string, Record<string, Annotation[]>> = {};
+        let failed = false;
 
         asts.forEach(({ ast, tid }, i) => {
             const annotations: Record<string, Annotation[]> = {};
@@ -160,12 +191,16 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
                 add({ type: 'type', annotation: typeToNode(res[i]), src: ast.src, primary: true });
             } else {
                 add({ type: 'error', message: ['unable to infer: ', error!], src: ast.src });
+                failed = true;
             }
 
             // console.log('events', tid, eventsByTop[i]);
 
             eventsByTop[i]?.forEach((evt) => {
                 if (evt.type === 'error' || evt.type === 'warning') {
+                    if (evt.type === 'error') {
+                        failed = true;
+                    }
                     const message: AnnotationText[] = evt.message.map((item) => {
                         if (typeof item === 'string') {
                             return item;
@@ -188,6 +223,7 @@ export const defaultLang: Language<Macro, TopItem, TInfo> = {
         return {
             result: { scope, resolutions: glob.resolutions },
             meta: {},
+            failed,
             events: glob.events,
             annotations: allAnnotations,
         };

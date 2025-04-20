@@ -5,7 +5,7 @@ import { Path, selStart, IdCursor } from '../../keyboard/utils';
 import { Node } from '../../shared/cnodes';
 import { splitGraphemes } from '../../splitGraphemes';
 import { cursorPositionInSpanForEvt } from '../App';
-import { useDrag } from '../Editor';
+import { useDrag } from '../useProvideDrag';
 import { SelStatus } from '../store/store';
 import { Meta } from '../store/language';
 import { metaStyles } from './metaStyles';

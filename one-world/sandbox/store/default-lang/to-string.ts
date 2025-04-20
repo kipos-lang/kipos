@@ -56,7 +56,6 @@ const needsWrap = (expr: Expr) => {
         case 'app':
         case 'attribute':
         case 'index':
-        case 'constructor':
             return false;
     }
 };
@@ -68,6 +67,8 @@ const maybeWrap = (expr: Expr, res: Resolutions) => {
 
 const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
     switch (expr.type) {
+        case 'uop':
+            return group(expr.src.id, [expr.op.text, maybeWrap(expr.target, res)]);
         case 'throw':
             return group(expr.src.id, ['(() => {throw ', exprToString(expr.value, res), ';})()']);
         case 'new':
@@ -90,7 +91,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 '}',
             ]);
         case 'if':
-            return group(expr.src.id, ['() => {', ifToString(expr, res, true), '}']);
+            return group(expr.src.id, ['(() => {', ifToString(expr, res, true), '})()']);
         case 'match':
             return group(expr.src.id, [
                 '() => {',
@@ -117,9 +118,10 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
             const resolution = res[expr.src.id];
             if (!resolution) {
                 if (!expr.name) {
-                    return `undefined`;
+                    throw new Error(`blank identifier found during code generation`);
+                    // return `(() => {throw new Error('blank identifier')})()`;
                 }
-                console.warn(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
+                // console.warn(`no resolution for variable ${expr.src.id} at ${expr.src.left}`);
                 return expr.name;
             }
             switch (resolution.type) {
@@ -151,7 +153,7 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                     () => ', ',
                 ),
                 ') => ',
-                exprToString(expr.body, res),
+                ...(expr.body.type === 'constructor' ? ['(', exprToString(expr.body, res), ')'] : [exprToString(expr.body, res)]),
             ]);
         // case 'tuple':
         //     return group(expr.src.id, ['(', ...expr.items.map((item) => exprToString(item, res)), ')']);
@@ -189,8 +191,30 @@ const exprToString = (expr: Expr, res: Resolutions): TraceableString => {
                 ).flat(),
                 ']',
             ]);
-        // case 'constructor':
-        //     return group(expr.src.id, [expr.name, '(', ...expr.args.map((arg) => exprToString(arg, res)), ')']);
+        case 'tuple':
+            if (expr.items.length === 1 && expr.items[0].type !== 'spread') {
+                return exprToString(expr.items[0], res);
+            }
+            throw new Error(`cant to-string a tuple`);
+        case 'constructor':
+            if (!expr.args) {
+                return group(expr.src.id, ['{"type":', JSON.stringify(expr.name.text), '}']);
+            }
+            // expr.name
+            return group(expr.src.id, [
+                '{"type":',
+                JSON.stringify(expr.name.text),
+                ...expr.args.args.flatMap((arg) =>
+                    arg.type === 'row'
+                        ? arg.value
+                            ? [', ', JSON.stringify(arg.name.text), ': ', exprToString(arg.value, res)]
+                            : [', ', arg.name.text]
+                        : arg.type === 'spread'
+                          ? ['...', exprToString(arg.inner, res)]
+                          : [', ', exprToString(arg, res)],
+                ),
+                '}',
+            ]);
     }
     throw new Error('no to-string for ' + expr.type);
 };
@@ -273,10 +297,11 @@ export const stmtToString = (stmt: Stmt, res: Resolutions, last?: true | string)
         //     throw new Error('wat');
         case 'for':
             return group(stmt.src.id, [
-                `for (`,
+                `let $loop_${stmt.src.id} = 0; for (`,
                 stmtToString(stmt.init, res),
                 ' ',
                 exprToString(stmt.cond, res),
+                ` && $$check_loop($loop_${stmt.src.id}++)`,
                 '; ',
                 exprToString(stmt.update, res),
                 ') ',

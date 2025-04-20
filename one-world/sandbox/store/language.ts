@@ -1,6 +1,7 @@
 import { Config } from '../../keyboard/test-utils';
 import { RecNode } from '../../shared/cnodes';
 import { Event, Src } from '../../syntaxes/dsl3';
+import { Import, ParsedImport } from '../types';
 import { StackText } from './default-lang/validate';
 import { Dependencies } from './editorStore';
 
@@ -20,19 +21,32 @@ import { Dependencies } from './editorStore';
 
 export type Meta = { kind?: string; placeholder?: string };
 
+export type AccessControlLevel = 'public' | 'package' | 'module' | 'submodule';
+
 export type ParseKind =
     | {
           type: 'definition';
-          provides: { loc: string; name: string; kind: string }[];
-          macros?: { loc: string; name: string }[];
+          provides: {
+              loc: string;
+              name: string;
+              kind:
+                  | string
+                  // there are some 'special kinds'
+                  | 'kipos:plugin:parser'
+                  | 'kipos:plugin:validate'
+                  | 'kipos:plugin:compile'
+                  | 'kipos:plugin:editor'
+                  | 'kipos:language';
+              accessControl: AccessControlLevel;
+          }[];
       }
     | { type: 'evaluation' }
     | { type: 'test' };
 
-export type ParseResult<T> = {
+export type ParseResult<T, Kind> = {
     input: RecNode;
     result: T | undefined;
-    kind: ParseKind;
+    kind: Kind;
     // hmm. how do we communicate that a macro is happening.
     // because, we need like a way to ... evaluate it?
     // ok so maybe the evaluator will have a special mode that's like
@@ -58,7 +72,8 @@ export type ParseResult<T> = {
 
 export type Parser<Macro, AST> = {
     config: Config;
-    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST>;
+    parseImport(node: RecNode, trace?: (evt: Event) => undefined): ParseResult<ParsedImport, null>;
+    parse(macros: Macro[], node: RecNode, trace?: (evt: Event) => undefined): ParseResult<AST, ParseKind>;
     spans(ast: AST): Src[];
 };
 
@@ -73,6 +88,7 @@ export type Annotation =
 
 export type ValidateResult<ValidationInfo> = {
     result: ValidationInfo;
+    failed: boolean;
     // hmm oh errors
     meta: Record<string, Meta>;
     // big question here: should annotations ... need to be anchored anywhere...
@@ -120,11 +136,14 @@ type InputValue =
 
 export type FailureKind =
     | { type: 'compilation'; message: string }
-    | { type: 'dependencies'; deps: { module: string; toplevel: string; message?: string }[] }
+    | { type: 'dependencies'; deps: { module: string; toplevel: string; name: string; message?: string }[] }
     | { type: 'evaluation'; message: string };
+
+export type ModuleTestResults = { top: string; results: LocatedTestResult[] }[];
 
 export type CompilerEvents = {
     viewSource: { args: { module: string; top: string }; data: { source: string } };
+    testResults: { args: { module: string }; data: { results: ModuleTestResults } };
     results: { args: { module: string; top: string }; data: { results: EvaluationResult[] } };
     failure: { args: { module: string; top: string }; data: FailureKind[] };
 };
@@ -132,12 +151,10 @@ export type CompilerEvents = {
 export type CompilerListenersMap = { [K in keyof CompilerEvents]: Record<string, ((data: CompilerEvents[K]['data']) => void)[]> };
 
 export const eventKey = <K extends keyof CompilerEvents>(evt: K, args: CompilerEvents[K]['args']): string => {
-    switch (evt) {
-        case 'failure':
-        case 'results':
-        case 'viewSource':
-            return `${args.module} : ${args.top}`;
+    if ('top' in args) {
+        return `${args.module} : ${args.top}`;
     }
+    return args.module;
 };
 
 export interface Compiler<AST, ValidationInfo> {

@@ -2,7 +2,7 @@ import { genId } from '../../keyboard/ui/genId';
 import { Node, Nodes } from '../../shared/cnodes';
 
 import { _applyUpdate, applyNormalUpdate, applySelUp } from '../../keyboard/applyUpdate';
-import { Mods } from '../../keyboard/handleShiftNav';
+import { Mods, SelStart } from '../../keyboard/handleShiftNav';
 import { KeyAction, keyActionToUpdate } from '../../keyboard/keyActionToUpdate';
 import { Config } from '../../keyboard/test-utils';
 import { keyUpdate, Visual } from '../../keyboard/ui/keyUpdate';
@@ -12,9 +12,11 @@ import { canJoinItems, Delta, HistoryItem, redo, revDelta, undo } from '../histo
 import { Toplevel } from '../types';
 import { selectStart } from '../../keyboard/handleNav';
 import { validate } from '../../keyboard/validate';
+import { argify, atomify } from '../../keyboard/selections';
 
 export type AppState = {
     config: Config;
+    imports: string[];
     roots: string[];
     tops: Record<string, Toplevel>;
     selections: NodeSelection[];
@@ -25,7 +27,7 @@ export type HistoryChange = {
     type: 'change';
     ts: number;
     id: string;
-    // onlyy?: string; // the id or text:index that is the "only" thing that was modified
+    onlyy?: string; // the id or text:index that is the "only" thing that was modified
     // session: string;
     tops: Delta<Record<string, TopUpdate | null>>;
     selections: Delta<NodeSelection[]>;
@@ -41,9 +43,10 @@ export const joinHistory = (prev: HistoryChange, next: HistoryChange): HistoryCh
     };
 };
 
-const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean] => {
+const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean, string | undefined] => {
     const redo: TopUpdate = { ...next, nodes: {} };
     const undo: TopUpdate = { ...prev, nodes: {} };
+    let only = false as false | string | null;
 
     let changed = next.root !== prev.root || next.children !== prev.children;
     Object.entries(next.nodes).forEach(([key, value]) => {
@@ -51,6 +54,8 @@ const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean
             redo.nodes[key] = value;
             undo.nodes[key] = prev.nodes[key] ?? null;
             changed = true;
+            if (only === false) only = key;
+            else if (only != key) only = null;
         }
     });
     Object.entries(prev.nodes).forEach(([key, value]) => {
@@ -60,13 +65,17 @@ const diffTop = (prev: Toplevel, next: Toplevel): [TopUpdate, TopUpdate, boolean
             changed = true;
         }
     });
-    return [redo, undo, changed]; //, only === false ? undefined : only.sort().join(':')];
+    return [redo, undo, changed, only ? only : undefined]; //, only === false ? undefined : only.sort().join(':')];
 };
 
-const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChange['tops']['next'], HistoryChange['tops']['prev'], boolean] => {
+const diffTops = (
+    prev: AppState['tops'],
+    next: AppState['tops'],
+): [HistoryChange['tops']['next'], HistoryChange['tops']['prev'], boolean, string | undefined] => {
     const redo: Record<string, TopUpdate | null> = {};
     const undo: Record<string, TopUpdate | null> = {};
     let changed = false;
+    let only = false as false | string | null;
 
     Object.entries(next).forEach(([key, value]) => {
         if (prev[key] !== value) {
@@ -75,11 +84,13 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
                 undo[key] = null;
                 changed = true;
             } else {
-                const [r, u, c] = diffTop(prev[key], value);
+                const [r, u, c, o] = diffTop(prev[key], value);
                 redo[key] = r;
                 undo[key] = u;
                 if (c) {
                     changed = true;
+                    if (only === false) only = o ? `${key}:${o}` : null;
+                    else only = null;
                 }
             }
             // console.log('diff', key, prev[key], value);
@@ -91,20 +102,20 @@ const diffTops = (prev: AppState['tops'], next: AppState['tops']): [HistoryChang
             redo[key] = null;
             undo[key] = value;
             changed = true;
-            // console.log('removed', key);
         }
     });
 
-    return [redo, undo, changed];
+    return [redo, undo, changed, only ? only : undefined];
 };
 
 const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | void => {
-    const [redo, undo, changed] = diffTops(prev.tops, next.tops);
+    const [redo, undo, changed, onlyy] = diffTops(prev.tops, next.tops);
     if (!changed) return;
     return {
         type: 'change',
         id: genId(),
         ts: Date.now(),
+        onlyy,
         tops: { next: redo, prev: undo },
         selections: { next: next.selections, prev: prev.selections },
     };
@@ -112,9 +123,11 @@ const calculateHistoryItem = (prev: AppState, next: AppState): HistoryChange | v
 
 export type Action =
     | { type: 'add-sel'; sel: NodeSelection }
+    | { type: 'drag-sel'; sel: SelStart; ctrl: boolean; alt: boolean }
     | { type: 'update'; update: KeyAction[] | null | undefined }
     | { type: 'key'; key: string; mods: Mods; visual?: Visual }
     | { type: 'selections'; selections: NodeSelection[] }
+    | { type: 'new-import' }
     | { type: 'new-tl'; after: string; parent?: string }
     | { type: 'rm-tl'; id: string }
     | { type: 'paste'; replace?: Path; data: { type: 'json'; data: CopiedValues[] } | { type: 'plain'; text: string } }
@@ -207,6 +220,19 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
         case 'add-sel':
             return recordHistory(state, { ...state, selections: state.selections.concat([action.sel]) }, noJoin);
+        case 'drag-sel': {
+            let { sel, ctrl, alt } = action;
+            // console.log('move sel', sel);
+            let start = state.selections[0].start;
+            if (ctrl) {
+                [start, sel] = argify(start, sel, state.tops[sel.path.root.top]);
+            } else if (alt) {
+                [start, sel] = atomify(start, sel, state.tops[sel.path.root.top]);
+            }
+            // editor.update({ type: 'update', update: [{ type: 'move', sel: start, end: sel }] });
+
+            return { ...state, selections: [{ start, end: sel }] };
+        }
 
         case 'selections':
             action.selections.forEach((sel) => {
@@ -237,8 +263,22 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
 
         case 'rm-tl': {
+            if (state.imports.includes(action.id)) {
+                const imports = state.imports.slice();
+                const at = imports.indexOf(action.id);
+                imports.splice(at, 1);
+                let next = at < imports.length ? imports[at] : state.roots[0];
+                if (next == null) return state;
+                const top = state.tops[next];
+                const sel = selectStart({ root: { top: top.id, ids: [] }, children: [top.root] }, top);
+                if (!sel) return state;
+                const tops = { ...state.tops };
+                delete tops[action.id];
+                return { ...state, imports, tops, selections: [{ start: sel }] };
+            }
             const roots = state.roots.slice();
             const at = roots.indexOf(action.id);
+            if (at === -1) return state;
             roots.splice(at, 1);
             let next = at < roots.length ? roots[at] : roots[at - 1];
             if (next == null) return state;
@@ -248,6 +288,25 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
             const tops = { ...state.tops };
             delete tops[action.id];
             return { ...state, roots, tops, selections: [{ start: sel }] };
+        }
+
+        case 'new-import': {
+            const tid = genId();
+            const rid = genId();
+            return {
+                ...state,
+                tops: {
+                    ...state.tops,
+                    [tid]: {
+                        id: tid,
+                        root: rid,
+                        children: [],
+                        nodes: { [rid]: { type: 'id', text: '', loc: rid } },
+                    },
+                },
+                imports: state.imports.concat([tid]),
+                selections: [{ start: selStart({ root: { top: tid, ids: [] }, children: [rid] }, { type: 'id', end: 0 }) }],
+            };
         }
 
         case 'new-tl': {
@@ -355,4 +414,40 @@ export const reduce = (state: AppState, action: Action, noJoin: boolean, nextLoc
         }
     }
     throw new Error(`not handled action ${(action as any).type}`);
+};
+
+export const keyUpdates = (selections: NodeSelection[], tops: Record<string, Toplevel>, action: Action & { type: 'key' }, config: Config) => {
+    selections = selections.slice();
+    tops = { ...tops };
+    let changed = false;
+    // let top = state.top;
+    for (let i = 0; i < selections.length; i++) {
+        const sel = selections[i];
+        if (sel.end && sel.start.path.root.top !== sel.end.path.root.top) {
+            throw new Error(`multi-toplevel, not doing`);
+        }
+        const top = tops[sel.start.path.root.top];
+        const update = keyUpdate({ top, sel, nextLoc: genId }, action.key, action.mods, action.visual, config);
+        if (!update) continue;
+        for (let keyAction of update) {
+            const sub = keyActionToUpdate({ top, sel, nextLoc: genId }, keyAction);
+            const result = applyNormalUpdate({ top, sel, nextLoc: genId }, sub);
+            if (tops[sel.start.path.root.top] !== result.top) {
+                changed = true;
+            }
+            tops[sel.start.path.root.top] = result.top;
+            selections[i] = result.sel;
+            if (sub && Array.isArray(sub.selection)) {
+                for (let j = 0; j < selections.length; j++) {
+                    if (j !== i) {
+                        sub.selection.forEach((up) => {
+                            selections[j] = applySelUp(selections[i], up);
+                        });
+                    }
+                }
+            }
+        }
+        continue;
+    }
+    return { selections, tops, changed };
 };
